@@ -72,6 +72,19 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.getByRole("button", { name: "保存候选" }).click();
   await expect(page.getByText("候选已保存并记入历史")).toBeVisible();
 
+  const importedSource = path.join(testRoot, "legacy prompt.md");
+  const importedRules = "# Imported legacy prompt\n\nDo not modify source.\n";
+  await writeFile(importedSource, importedRules, "utf8");
+  await page.getByRole("button", { name: "从 Markdown 导入候选" }).click();
+  await page.getByLabel("选择候选 Markdown 文件").setInputFiles(importedSource);
+  await expect(page.getByLabel("候选名称")).toHaveValue("legacy prompt");
+  await expect(page.getByLabel("候选内容")).toHaveValue(importedRules);
+  expect(await readFile(importedSource, "utf8")).toBe(importedRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    originalRules,
+  );
+  await page.getByRole("button", { name: "Candidate B 候选" }).click();
+
   await page.getByRole("button", { name: "预览" }).click();
   await expect(page.locator(".markdown-preview h1")).toHaveText("Shared");
   await expect(page.locator(".markdown-preview table")).toHaveCount(1);

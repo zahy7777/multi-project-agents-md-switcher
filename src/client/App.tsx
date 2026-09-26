@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import {
   AlertTriangle,
   ArrowDownUp,
@@ -19,6 +26,7 @@ import {
   Save,
   Search,
   ShieldCheck,
+  Upload,
   X,
 } from "lucide-react";
 import type {
@@ -98,6 +106,7 @@ function App() {
   const [showConflictDiff, setShowConflictDiff] = useState(true);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
   const saveInFlight = useRef(false);
+  const candidateFileInput = useRef<HTMLInputElement>(null);
 
   const target =
     state.targets.find((item) => item.path === selectedPath) ?? null;
@@ -330,6 +339,48 @@ function App() {
       setShowCandidateForm(false);
       setCandidateName("");
     }
+  }
+
+  async function importCandidateFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !target) return;
+    if (!/\.(md|markdown)$/i.test(file.name)) {
+      setError("只能导入 .md 或 .markdown 文件。");
+      return;
+    }
+    if (
+      dirty &&
+      !window.confirm(
+        "当前候选有未保存修改，导入后将切换到新候选。确定继续吗？",
+      )
+    )
+      return;
+
+    const targetPath = target.path;
+    const importedName =
+      file.name.replace(/\.(md|markdown)$/i, "").trim() || "导入候选";
+    const knownIds = new Set(target.candidates.map((item) => item.id));
+    let importedContent: string;
+    try {
+      importedContent = await file.text();
+    } catch (reason) {
+      setError(message(reason));
+      return;
+    }
+
+    const next = await act(
+      () => api.createCandidate(targetPath, importedName, importedContent),
+      "已从文件导入为新候选，正式文件未更改",
+    );
+    const created = next?.targets
+      .find((item) => samePath(item.path, targetPath))
+      ?.candidates.find((item) => !knownIds.has(item.id));
+    if (!created) return;
+    setSelectedPath(targetPath);
+    setSelectedCandidateId(created.id);
+    setContent(created.content);
+    setName(created.name);
   }
 
   async function resolveActiveConflict() {
@@ -897,6 +948,22 @@ function App() {
                     >
                       <Plus size={15} />
                     </button>
+                    <button
+                      aria-label="从 Markdown 导入候选"
+                      title="导入为未锁定候选，源文件不会被修改"
+                      disabled={busy || target.conflict}
+                      onClick={() => candidateFileInput.current?.click()}
+                    >
+                      <Upload size={14} />
+                    </button>
+                    <input
+                      ref={candidateFileInput}
+                      aria-label="选择候选 Markdown 文件"
+                      type="file"
+                      accept=".md,.markdown,text/markdown,text/plain"
+                      hidden
+                      onChange={(event) => void importCandidateFile(event)}
+                    />
                   </div>
                 </div>
                 <label className="candidate-filter">
