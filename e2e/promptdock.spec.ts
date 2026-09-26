@@ -229,6 +229,18 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   const formalFile = path.join(workspace, "AGENTS.md");
   expect(await readFile(formalFile, "utf8")).toBe("# AGENTS.md\n");
 
+  const nestedDirectory = path.join(workspace, "nested");
+  await mkdir(nestedDirectory);
+  await page.getByRole("button", { name: "初始化目录" }).click();
+  await expect(page.getByRole("heading", { name: "初始化目录" })).toBeVisible();
+  await page.getByLabel("目录路径").fill(nestedDirectory);
+  await page.getByRole("button", { name: "初始化并锁定" }).click();
+  await expect(page.getByRole("heading", { name: "初始化目录" })).toHaveCount(
+    0,
+  );
+  const nestedFormalFile = path.join(nestedDirectory, "AGENTS.md");
+  expect(await readFile(nestedFormalFile, "utf8")).toBe("# AGENTS.md\n");
+
   await expect(
     page.getByRole("button", { name: "从列表移除工作空间 codex" }),
   ).toHaveCount(0);
@@ -247,6 +259,7 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
     page.getByRole("button", { name: "empty-project", exact: true }),
   ).toHaveCount(0);
   expect(await readFile(formalFile, "utf8")).toBe("# AGENTS.md\n");
+  expect(await readFile(nestedFormalFile, "utf8")).toBe("# AGENTS.md\n");
 
   await addWorkspace(page, workspace);
   await expect(page.getByLabel("候选内容")).toHaveValue("# AGENTS.md\n");
@@ -258,6 +271,11 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   expect(
     afterTarget.candidates.map((item: { id: string }) => item.id),
   ).toContain(candidateId);
+  const nestedTarget = afterState.targets.find(
+    (item: { path: string }) => item.path === nestedDirectory,
+  );
+  expect(nestedTarget).toBeDefined();
+  expect(await readFile(nestedFormalFile, "utf8")).toBe("# AGENTS.md\n");
 });
 
 test("帮助诊断链接可打开本机日志，错误添加可重试", async ({ page }) => {
