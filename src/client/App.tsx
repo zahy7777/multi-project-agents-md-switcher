@@ -167,7 +167,7 @@ function App() {
   const [previewMode, setPreviewMode] = useState(false);
   const [showConflictDiff, setShowConflictDiff] = useState(true);
   const [copiedItem, setCopiedItem] = useState<
-    "content" | "formal-path" | null
+    "content" | "formal-path" | "resolution" | null
   >(null);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
   const copyFeedbackTimeout = useRef<number | null>(null);
@@ -678,7 +678,7 @@ function App() {
 
   async function copyToClipboard(
     value: string,
-    item: "content" | "formal-path",
+    item: "content" | "formal-path" | "resolution",
   ) {
     try {
       await navigator.clipboard.writeText(value);
@@ -704,6 +704,10 @@ function App() {
   async function copyFormalPath() {
     if (!target) return;
     await copyToClipboard(formalFilePath(target.path), "formal-path");
+  }
+
+  async function copyResolution() {
+    await copyToClipboard(resolution, "resolution");
   }
 
   useEffect(() => {
@@ -1117,6 +1121,18 @@ function App() {
                   字符 · {resolutionMetrics.utf8Bytes} UTF-8 字节
                 </small>
               </span>
+              <button
+                className="secondary-button"
+                title="复制当前冲突解决稿，包括未保存修改"
+                onClick={() => void copyResolution()}
+              >
+                {copiedItem === "resolution" ? (
+                  <Check size={14} />
+                ) : (
+                  <Copy size={14} />
+                )}
+                {copiedItem === "resolution" ? "已复制解决稿" : "复制解决稿"}
+              </button>
               <button
                 className="primary-button"
                 disabled={busy}

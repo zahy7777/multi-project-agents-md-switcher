@@ -1186,6 +1186,46 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   await page.setViewportSize({ width: 1280, height: 720 });
   const pathSwitchDraft = "unsaved path switch resolution\n";
   await page.getByLabel("冲突解决内容").fill(pathSwitchDraft);
+  const beforeCopyResponse = await page.request.get("/api/state");
+  const beforeCopyState = await beforeCopyResponse.json();
+  const beforeCopyTarget = beforeCopyState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  const lockedCandidateBeforeCopy = beforeCopyTarget.candidates.find(
+    (item: { locked: boolean }) => item.locked,
+  );
+  const lockedHistoryUrl = `/api/candidates/${encodeURIComponent(lockedCandidateBeforeCopy.id)}/history?${new URLSearchParams({ path: workspace })}`;
+  const lockedHistoryBeforeCopyResponse =
+    await page.request.get(lockedHistoryUrl);
+  const lockedHistoryBeforeCopy = await lockedHistoryBeforeCopyResponse.json();
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByRole("button", { name: "复制解决稿" }).click();
+  await expect(
+    page.getByRole("button", { name: "已复制解决稿" }),
+  ).toBeVisible();
+  expect(
+    (await page.evaluate(() => navigator.clipboard.readText())).replace(
+      /\r\n/g,
+      "\n",
+    ),
+  ).toBe(pathSwitchDraft);
+  expect(await readFile(formalFile, "utf8")).toBe(externalFormal);
+  const afterCopyResponse = await page.request.get("/api/state");
+  const afterCopyState = await afterCopyResponse.json();
+  const afterCopyTarget = afterCopyState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    afterCopyTarget.candidates.find(
+      (item: { id: string }) => item.id === lockedCandidateBeforeCopy.id,
+    ),
+  ).toEqual(lockedCandidateBeforeCopy);
+  const lockedHistoryAfterCopyResponse =
+    await page.request.get(lockedHistoryUrl);
+  expect(await lockedHistoryAfterCopyResponse.json()).toEqual(
+    lockedHistoryBeforeCopy,
+  );
+
   const beforeUnload = page.waitForEvent("dialog");
   await page.evaluate(() => {
     window.setTimeout(() => window.location.reload(), 0);
