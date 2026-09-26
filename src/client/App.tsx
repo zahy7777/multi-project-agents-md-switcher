@@ -241,6 +241,22 @@ function App() {
     }),
     { added: 0, removed: 0 },
   );
+  const formalSyncChanges = useMemo(
+    () =>
+      candidate?.locked
+        ? diffLines(target?.formalContent ?? "", content, {
+            stripTrailingCr: true,
+          })
+        : [],
+    [candidate?.locked, target?.formalContent, content],
+  );
+  const formalSyncImpact = formalSyncChanges.reduce(
+    (impact, change) => ({
+      added: impact.added + (change.added ? change.count : 0),
+      removed: impact.removed + (change.removed ? change.count : 0),
+    }),
+    { added: 0, removed: 0 },
+  );
   const workspaceTargets = useMemo(
     () =>
       state.targets
@@ -1369,14 +1385,28 @@ function App() {
                   )}
                 </div>
                 <div className="editor-footer">
-                  <span
-                    data-testid="candidate-content-stats"
-                    title="行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。"
-                  >
-                    {dirty ? "有未保存更改" : "所有更改已保存"} ·{" "}
-                    {contentMetrics.lines} 行 · {contentMetrics.characters} 字符
-                    · {contentMetrics.utf8Bytes} UTF-8 字节
-                  </span>
+                  <div className="editor-footer-message">
+                    <span
+                      data-testid="candidate-content-stats"
+                      title="行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。"
+                    >
+                      {dirty ? "有未保存更改" : "所有更改已保存"} ·{" "}
+                      {contentMetrics.lines} 行 · {contentMetrics.characters}{" "}
+                      字符 · {contentMetrics.utf8Bytes} UTF-8 字节
+                    </span>
+                    {candidate?.locked && dirty ? (
+                      <span
+                        className="formal-sync-impact"
+                        data-testid="formal-sync-impact"
+                        aria-live="polite"
+                      >
+                        {formalSyncImpact.added === 0 &&
+                        formalSyncImpact.removed === 0
+                          ? "正文与正式文件一致；本次只改候选名称"
+                          : `保存并同步将新增 ${formalSyncImpact.added} 行、删除 ${formalSyncImpact.removed} 行`}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="heading-actions">
                     <button
                       className="secondary-button"

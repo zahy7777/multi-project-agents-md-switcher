@@ -1663,6 +1663,14 @@ test("刷新页面时保护未保存候选草稿", async ({ page }) => {
   await page.goto("/");
   await addWorkspace(page, workspace);
   await page.getByLabel("候选内容").fill(unsavedRules);
+  await expect(page.getByTestId("formal-sync-impact")).toHaveText(
+    "保存并同步将新增 1 行、删除 1 行",
+  );
+  if (process.env.PROMPTDOCK_FORMAL_IMPACT_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_FORMAL_IMPACT_SCREENSHOT_PATH,
+    });
+  }
 
   const beforeUnload = page.waitForEvent("dialog");
   await page.evaluate(() => {

@@ -864,6 +864,16 @@ textarea {
   color: #98a2a3;
   font-size: 8px;
 }
+.editor-footer-message {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+.formal-sync-impact {
+  color: #987246;
+  font-weight: 600;
+}
 .formal-card {
   display: flex;
   align-items: center;
@@ -1428,7 +1438,8 @@ textarea {
     flex-wrap: wrap;
     gap: 8px;
   }
-  .editor-footer > span {
+  .editor-footer > span,
+  .editor-footer-message {
     flex-basis: 100%;
   }
   .editor-footer .heading-actions {
