@@ -61,6 +61,11 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.goto("/");
   await expect(page.getByRole("button", { name: /用户级规则/ })).toBeVisible();
   await page.getByRole("button", { name: "添加工作空间" }).first().click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
+    0,
+  );
+  await page.getByRole("button", { name: "添加工作空间" }).first().click();
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
     0,
@@ -73,6 +78,10 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await addWorkspace(page, workspace);
   await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
 
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
   await page.getByRole("button", { name: "新建候选" }).click();
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
@@ -282,6 +291,12 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     page.getByText("左侧显示当前编辑器内容（含未保存修改）", { exact: false }),
   ).toBeVisible();
   await page.getByRole("button", { name: "关闭版本对比" }).click();
+  await expect(page.getByRole("heading", { name: "候选版本对比" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByLabel("候选内容")).toHaveValue(comparisonDraft);
+  await page.getByRole("button", { name: "与其他版本对比" }).click();
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "候选版本对比" })).toHaveCount(
     0,
   );
@@ -754,6 +769,13 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByLabel("候选内容")).toHaveValue(historyComparisonDraft);
   await page.getByRole("button", { name: "查看候选历史" }).click();
   await expect(page.locator(".history-revision")).toHaveCount(3);
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("heading", { name: "Candidate B 的已保存版本" }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("候选内容")).toHaveValue(historyComparisonDraft);
+  await page.getByRole("button", { name: "查看候选历史" }).click();
+  await expect(page.locator(".history-revision")).toHaveCount(3);
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Candidate B 的已保存版本" }),
@@ -965,6 +987,13 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   await page.getByRole("button", { name: "初始化目录" }).click();
   await page.getByLabel("目录路径").fill(nestedDirectory);
   await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "初始化目录" })).toHaveCount(
+    0,
+  );
+  await expect(readFile(nestedFormalFile, "utf8")).rejects.toThrow();
+  await page.getByRole("button", { name: "初始化目录" }).click();
+  await page.getByLabel("目录路径").fill(nestedDirectory);
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "初始化目录" })).toHaveCount(
     0,
   );
@@ -1235,6 +1264,11 @@ test("帮助诊断链接可打开本机日志，错误添加可重试", async ({
   await page.getByRole("button", { name: "知道了" }).click();
   await page.getByRole("button", { name: "使用说明与诊断" }).click();
   await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "本地运行状态" })).toHaveCount(
+    0,
+  );
+  await page.getByRole("button", { name: "使用说明与诊断" }).click();
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "本地运行状态" })).toHaveCount(
     0,
   );

@@ -729,6 +729,30 @@ function App() {
     return () => window.removeEventListener("keydown", saveFromEditor);
   }, [busy, candidate, content, dirty, name, target?.conflict, target?.path]);
 
+  useEffect(() => {
+    function closeTopmostDialog(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      if (helpOpen) setHelpOpen(false);
+      else if (showInitializeForm) setShowInitializeForm(false);
+      else if (compareOpen) setCompareOpen(false);
+      else if (historyOpen) setHistoryOpen(false);
+      else if (showCandidateForm) setShowCandidateForm(false);
+      else if (showWorkspaceForm) setShowWorkspaceForm(false);
+      else return;
+      event.preventDefault();
+    }
+
+    window.addEventListener("keydown", closeTopmostDialog);
+    return () => window.removeEventListener("keydown", closeTopmostDialog);
+  }, [
+    compareOpen,
+    helpOpen,
+    historyOpen,
+    showCandidateForm,
+    showInitializeForm,
+    showWorkspaceForm,
+  ]);
+
   const relativePath =
     target && selectedWorkspace
       ? target.path.slice(selectedWorkspace.length).replace(/^[\\/]/, "") ||
