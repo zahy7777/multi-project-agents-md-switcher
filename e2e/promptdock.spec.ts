@@ -1937,3 +1937,51 @@ test("同名候选显示短 ID 并可在列表中准确切换", async ({ page })
     formalRules,
   );
 });
+
+test("打开切换预览前发现外部正式文件修改并阻止过期预览", async ({ page }) => {
+  const originalRules = "original formal rules\n";
+  const candidateRules = "saved candidate rules\n";
+  const externalRules = "external formal edit\n";
+  const workspace = await makeWorkspace("stale-switch-preview", originalRules);
+  const lockRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/candidates/lock")) {
+      lockRequests.push(request.url());
+    }
+  });
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await page
+    .getByPlaceholder("例如：更严格的代码审查")
+    .fill("Saved alternative");
+  await page.getByRole("button", { name: "创建候选" }).click();
+  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await page
+    .getByRole("textbox", { name: "候选内容", exact: true })
+    .fill(candidateRules);
+  await page.getByRole("button", { name: "保存候选" }).click();
+  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+
+  await writeFile(path.join(workspace, "AGENTS.md"), externalRules, "utf8");
+  const freshStateResponse = page.waitForResponse((response) =>
+    response.url().endsWith("/api/state"),
+  );
+  await page.getByRole("button", { name: "切换为正式规则" }).click();
+  const freshState = await freshStateResponse;
+  expect(freshState.ok()).toBe(true);
+  await expect(
+    page.getByRole("heading", { name: "规则文件冲突" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("正式文件已发生变化，已刷新冲突状态。请先处理冲突再切换。"),
+  ).toBeVisible();
+  await expect(page.getByLabel("正式文件与锁定候选的行差异")).toContainText(
+    externalRules,
+  );
+  expect(lockRequests).toHaveLength(0);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    externalRules,
+  );
+});

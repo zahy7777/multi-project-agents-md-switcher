@@ -589,6 +589,49 @@ function App() {
     if (next) setShowArchivedCandidates(false);
   }
 
+  async function openCandidateSwitchPreview() {
+    if (
+      !target ||
+      !candidate ||
+      candidate.locked ||
+      candidate.archived ||
+      dirty ||
+      target.conflict ||
+      busy
+    )
+      return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const latest = await api.state();
+      setState(latest);
+      const latestTarget = latest.targets.find(
+        (item) => item.path === target.path,
+      );
+      const latestCandidate = latestTarget?.candidates.find(
+        (item) => item.id === candidate.id,
+      );
+      if (!latestTarget || latestTarget.conflict) {
+        setError("正式文件已发生变化，已刷新冲突状态。请先处理冲突再切换。");
+        return;
+      }
+      if (
+        !latestCandidate ||
+        latestCandidate.locked ||
+        latestCandidate.archived
+      ) {
+        setError("候选状态已变化，页面已刷新；请重新选择候选。");
+        return;
+      }
+      setSwitchPreviewOpen(true);
+    } catch (reason) {
+      setError(message(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function confirmCandidateSwitch() {
     if (
       !target ||
@@ -1466,7 +1509,7 @@ function App() {
                     <button
                       className="switch-button"
                       disabled={busy || dirty || target.conflict}
-                      onClick={() => setSwitchPreviewOpen(true)}
+                      onClick={() => void openCandidateSwitchPreview()}
                     >
                       <ArrowDownUp size={14} />
                       切换为正式规则
