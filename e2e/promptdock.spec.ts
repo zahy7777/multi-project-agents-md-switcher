@@ -1217,7 +1217,10 @@ test("候选来源默认保留未保存草稿，干净时分支会打开且有 G
     `/api/candidates/${encodeURIComponent(cleanBranch.id)}/history/${encodeURIComponent(revisions[0].commit)}?${new URLSearchParams({ path: workspace })}`,
   );
   expect(revisionResponse.ok()).toBe(true);
-  expect(await revisionResponse.json()).toEqual({ content: formalRules });
+  expect(await revisionResponse.json()).toEqual({
+    content: formalRules,
+    name: "Clean branch from formal",
+  });
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     formalRules,
   );
@@ -1983,5 +1986,46 @@ test("打开切换预览前发现外部正式文件修改并阻止过期预览",
   expect(lockRequests).toHaveLength(0);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     externalRules,
+  );
+});
+
+test("只改候选名称也形成历史版本，并可按历史名称另建候选", async ({ page }) => {
+  const formalRules = "same candidate body\n";
+  const workspace = await makeWorkspace("candidate-name-history", formalRules);
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByPlaceholder("例如：更严格的代码审查").fill("Original name");
+  await page.getByRole("button", { name: "创建候选" }).click();
+  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+
+  await page
+    .getByRole("textbox", { name: "候选名称", exact: true })
+    .fill("Renamed only");
+  await page.getByRole("button", { name: "保存候选" }).click();
+  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+  await page.getByRole("button", { name: "查看候选历史" }).click();
+
+  const revisions = page.locator(".history-revision");
+  await expect(revisions).toHaveCount(2);
+  await expect(page.getByText("历史候选名称：Renamed only")).toBeVisible();
+  await revisions.last().click();
+  await expect(page.getByText("历史候选名称：Original name")).toBeVisible();
+  await page.getByRole("button", { name: "历史全文" }).click();
+  await expect(page.locator(".history-preview")).toHaveText(formalRules);
+  if (process.env.PROMPTDOCK_NAME_HISTORY_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_NAME_HISTORY_SCREENSHOT_PATH,
+    });
+  }
+
+  await page.getByRole("button", { name: "从此版本创建候选" }).click();
+  await expect(page.getByLabel("候选名称")).toHaveValue(
+    "Original name（历史恢复）",
+  );
+  await expect(page.getByLabel("候选内容")).toHaveValue(formalRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalRules,
   );
 });

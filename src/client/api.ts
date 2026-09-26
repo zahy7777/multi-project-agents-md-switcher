@@ -39,7 +39,7 @@ export const api = {
       `/api/candidates/${encodeURIComponent(candidateId)}/history?${new URLSearchParams({ path })}`,
     ),
   candidateRevision: (path: string, candidateId: string, commit: string) =>
-    request<{ content: string }>(
+    request<{ content: string; name?: string }>(
       `/api/candidates/${encodeURIComponent(candidateId)}/history/${encodeURIComponent(commit)}?${new URLSearchParams({ path })}`,
     ),
   saveCandidate: (

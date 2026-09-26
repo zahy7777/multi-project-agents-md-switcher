@@ -163,6 +163,9 @@ function App() {
   );
   const [selectedHistoryCommit, setSelectedHistoryCommit] = useState("");
   const [historyContent, setHistoryContent] = useState<string | null>(null);
+  const [historyRevisionName, setHistoryRevisionName] = useState<string | null>(
+    null,
+  );
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [showHistoryDiff, setShowHistoryDiff] = useState(true);
@@ -754,6 +757,7 @@ function App() {
     setHistoryRevisions([]);
     setSelectedHistoryCommit("");
     setHistoryContent(null);
+    setHistoryRevisionName(null);
     setHistoryError("");
     setHistoryOpen(true);
     setHistoryLoading(true);
@@ -768,6 +772,7 @@ function App() {
           revisions[0].commit,
         );
         setHistoryContent(version.content);
+        setHistoryRevisionName(version.name ?? null);
       }
     } catch (reason) {
       setHistoryError(message(reason));
@@ -780,6 +785,7 @@ function App() {
     if (!historyCandidate) return;
     setSelectedHistoryCommit(revision.commit);
     setHistoryContent(null);
+    setHistoryRevisionName(null);
     setHistoryError("");
     setHistoryLoading(true);
     try {
@@ -789,6 +795,7 @@ function App() {
         revision.commit,
       );
       setHistoryContent(version.content);
+      setHistoryRevisionName(version.name ?? null);
     } catch (reason) {
       setHistoryError(message(reason));
     } finally {
@@ -816,7 +823,7 @@ function App() {
       () =>
         api.createCandidate(
           targetPath,
-          `${historyCandidate.name}（历史恢复）`,
+          `${historyRevisionName ?? historyCandidate.name}（历史恢复）`,
           historyContent,
         ),
       "已从历史版本创建新候选；正式文件未更改",
@@ -1988,6 +1995,10 @@ function App() {
                     </button>
                   </div>
                 </div>
+                <p className="history-revision-name">
+                  历史候选名称：
+                  {historyRevisionName ?? "此历史版本未单独记录名称"}
+                </p>
                 {historyContent === null ? (
                   <pre className="history-preview">
                     {historyLoading ? "正在读取版本内容…" : "选择一个历史版本"}

@@ -29,6 +29,10 @@ type StoredState = {
   workspaces: string[];
   targets: Record<string, SavedTarget>;
 };
+type CandidateRevisionSnapshot = {
+  revisionId: string;
+  name: string;
+};
 
 export class PromptLibrary {
   readonly dataDirectory = applicationDataDirectory();
@@ -184,9 +188,7 @@ export class PromptLibrary {
           ),
         );
         for (const candidate of target.candidates) {
-          await fs.rm(path.join(this.candidateDirectory, candidate.file), {
-            force: true,
-          });
+          await this.removeCandidateFiles(candidate);
         }
         if (
           formalWritten &&
@@ -215,9 +217,7 @@ export class PromptLibrary {
         target.candidates = target.candidates.filter(
           (item) => item.id !== candidate.id,
         );
-        await fs.rm(path.join(this.candidateDirectory, candidate.file), {
-          force: true,
-        });
+        await this.removeCandidateFiles(candidate);
         await this.persist().catch(() => undefined);
         throw error;
       }
@@ -234,10 +234,11 @@ export class PromptLibrary {
     const targetPath = await this.authorizedDirectory(selectedPath);
     const target = this.requireInitializedTarget(targetPath);
     const candidate = this.requireCandidate(target, candidateId);
-    const historyFile = `candidates/${candidate.file}`;
+    const revisionFile = this.candidateRevisionSnapshotPath(candidate);
+    const contentFile = `candidates/${candidate.file}`;
     const { stdout } = await execute(
       "git",
-      ["log", "--format=%H%x1f%aI%x1f%s", "--", historyFile],
+      ["log", "--format=%H%x1f%aI%x1f%s", "--", contentFile, revisionFile],
       { cwd: this.historyDirectory, maxBuffer: 10 * 1024 * 1024 },
     );
     return stdout
@@ -261,13 +262,32 @@ export class PromptLibrary {
     if (!/^[a-f\d]{40,64}$/i.test(commit)) {
       throw new Error("历史版本标识无效。");
     }
-    const historyFile = `candidates/${candidate.file}`;
-    const { stdout } = await execute(
+    const contentFile = `candidates/${candidate.file}`;
+    const { stdout: content } = await execute(
       "git",
-      ["show", `${commit}:${historyFile}`],
+      ["show", `${commit}:${contentFile}`],
       { cwd: this.historyDirectory, maxBuffer: 16 * 1024 * 1024 },
     );
-    return { content: stdout };
+    let snapshot: string | undefined;
+    try {
+      const result = await execute(
+        "git",
+        ["show", `${commit}:${this.candidateRevisionSnapshotPath(candidate)}`],
+        { cwd: this.historyDirectory, maxBuffer: 1024 * 1024 },
+      );
+      snapshot = result.stdout;
+    } catch (error) {
+      const stderr = (error as { stderr?: unknown }).stderr;
+      if (typeof stderr !== "string" || !stderr.includes("does not exist in")) {
+        throw error;
+      }
+    }
+    const parsed = snapshot
+      ? (JSON.parse(snapshot) as CandidateRevisionSnapshot)
+      : null;
+    const name =
+      parsed && typeof parsed.name === "string" ? parsed.name : undefined;
+    return { content, name };
   }
 
   async saveCandidate(
@@ -285,6 +305,11 @@ export class PromptLibrary {
       if (candidate.archived) throw new Error("已归档候选必须先恢复才能编辑。");
       const previousContent = await this.readCandidate(candidate);
       const previousName = candidate.name;
+      const revisionSnapshotFile =
+        this.candidateRevisionSnapshotPath(candidate);
+      const previousRevisionSnapshot = await this.readFileOrNull(
+        path.join(this.historyDirectory, revisionSnapshotFile),
+      );
       const formalBefore = await this.formalContent(targetPath);
       if (wasLocked && formalBefore !== previousContent) {
         throw new Error(
@@ -295,6 +320,7 @@ export class PromptLibrary {
       try {
         await this.writeCandidate(candidate, content);
         candidate.name = name.trim() || candidate.name;
+        await this.writeCandidateRevisionSnapshot(candidate);
         if (wasLocked) {
           if ((await this.formalContent(targetPath)) !== formalBefore) {
             throw new Error(
@@ -310,6 +336,18 @@ export class PromptLibrary {
         await this.writeCandidate(candidate, previousContent).catch(
           () => undefined,
         );
+        if (previousRevisionSnapshot === null) {
+          await fs
+            .rm(path.join(this.historyDirectory, revisionSnapshotFile), {
+              force: true,
+            })
+            .catch(() => undefined);
+        } else {
+          await this.writeAtomic(
+            path.join(this.historyDirectory, revisionSnapshotFile),
+            previousRevisionSnapshot,
+          ).catch(() => undefined);
+        }
         if (
           wasLocked &&
           formalBefore !== null &&
@@ -431,9 +469,7 @@ export class PromptLibrary {
         target.candidates = target.candidates.filter(
           (item) => item.id !== targetCandidate.id,
         );
-        await fs.rm(path.join(this.candidateDirectory, targetCandidate.file), {
-          force: true,
-        });
+        await this.removeCandidateFiles(targetCandidate);
         throw new Error("正式文件在解决冲突期间发生变化。请重新载入冲突内容。");
       }
       try {
@@ -449,9 +485,7 @@ export class PromptLibrary {
           (item) => item.id !== targetCandidate.id,
         );
         target.lockedCandidateId = previousLockedId;
-        await fs.rm(path.join(this.candidateDirectory, targetCandidate.file), {
-          force: true,
-        });
+        await this.removeCandidateFiles(targetCandidate);
         if ((await this.formalContent(targetPath)) === content) {
           if (formalBefore === null) {
             await fs.rm(path.join(targetPath, "AGENTS.md"), { force: true });
@@ -583,9 +617,7 @@ export class PromptLibrary {
     } catch (error) {
       this.state.targets = previousTargets;
       for (const candidate of importedCandidates) {
-        await fs.rm(path.join(this.candidateDirectory, candidate.file), {
-          force: true,
-        });
+        await this.removeCandidateFiles(candidate);
       }
       await this.persist().catch(() => undefined);
       throw error;
@@ -669,6 +701,15 @@ export class PromptLibrary {
     }
   }
 
+  private async readFileOrNull(file: string) {
+    try {
+      return await fs.readFile(file, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  }
+
   private async createSavedCandidate(
     target: SavedTarget,
     name: string,
@@ -682,8 +723,46 @@ export class PromptLibrary {
       archived: false,
     };
     await this.writeCandidate(candidate, content);
-    target.candidates.push(candidate);
+    try {
+      await this.writeCandidateRevisionSnapshot(candidate);
+      target.candidates.push(candidate);
+    } catch (error) {
+      await this.removeCandidateFiles(candidate);
+      throw error;
+    }
     return candidate;
+  }
+
+  private candidateRevisionSnapshotPath(candidate: SavedCandidate) {
+    return `candidate-revisions/${candidate.file.replace(/\.md$/i, ".json")}`;
+  }
+
+  private async writeCandidateRevisionSnapshot(candidate: SavedCandidate) {
+    const destination = path.join(
+      this.historyDirectory,
+      this.candidateRevisionSnapshotPath(candidate),
+    );
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    const snapshot: CandidateRevisionSnapshot = {
+      revisionId: randomUUID(),
+      name: candidate.name,
+    };
+    await this.writeAtomic(destination, JSON.stringify(snapshot, null, 2));
+  }
+
+  private async removeCandidateFiles(candidate: SavedCandidate) {
+    await Promise.all([
+      fs.rm(path.join(this.candidateDirectory, candidate.file), {
+        force: true,
+      }),
+      fs.rm(
+        path.join(
+          this.historyDirectory,
+          this.candidateRevisionSnapshotPath(candidate),
+        ),
+        { force: true },
+      ),
+    ]);
   }
 
   private async readCandidate(candidate: SavedCandidate) {
