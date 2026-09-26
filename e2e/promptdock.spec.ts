@@ -698,14 +698,21 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
 
   const nestedDirectory = path.join(workspace, "nested");
   await mkdir(nestedDirectory);
+  const nestedFormalFile = path.join(nestedDirectory, "AGENTS.md");
   await page.getByRole("button", { name: "初始化目录" }).click();
   await expect(page.getByRole("heading", { name: "初始化目录" })).toBeVisible();
+  await page.getByLabel("目录路径").fill(nestedDirectory);
+  await page.getByRole("button", { name: "取消" }).click();
+  await expect(page.getByRole("heading", { name: "初始化目录" })).toHaveCount(
+    0,
+  );
+  await expect(readFile(nestedFormalFile, "utf8")).rejects.toThrow();
+  await page.getByRole("button", { name: "初始化目录" }).click();
   await page.getByLabel("目录路径").fill(nestedDirectory);
   await page.getByRole("button", { name: "初始化并锁定" }).click();
   await expect(page.getByRole("heading", { name: "初始化目录" })).toHaveCount(
     0,
   );
-  const nestedFormalFile = path.join(nestedDirectory, "AGENTS.md");
   expect(await readFile(nestedFormalFile, "utf8")).toBe("# AGENTS.md\n");
 
   await expect(
@@ -900,5 +907,23 @@ test("帮助诊断链接可打开本机日志，错误添加可重试", async ({
   await expect(
     page.getByRole("heading", { name: "添加工作空间" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  const retryWorkspace = await makeWorkspace("retry-workspace");
+  await page.getByPlaceholder(/例如 C:/).fill(retryWorkspace);
+  const retryResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/workspaces") &&
+      response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "添加并扫描" }).click();
+  const retryResponse = await retryResponsePromise;
+  expect(retryResponse.ok()).toBe(true);
+  await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("button", { name: "retry-workspace", exact: true }),
+  ).toBeVisible();
+  const retryStateResponse = await page.request.get("/api/state");
+  const retryState = await retryStateResponse.json();
+  expect(retryState.workspaces).toContain(retryWorkspace);
 });
