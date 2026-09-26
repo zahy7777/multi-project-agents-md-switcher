@@ -17,7 +17,11 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import type { Candidate, ManagerState } from "../shared/contracts.js";
+import type {
+  Candidate,
+  CandidateRevision,
+  ManagerState,
+} from "../shared/contracts.js";
 import { api } from "./api.js";
 
 const empty: ManagerState = {
@@ -68,6 +72,18 @@ function App() {
   const [resolution, setResolution] = useState("");
   const [resolutionName, setResolutionName] = useState("冲突解决结果");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyCandidate, setHistoryCandidate] = useState<Candidate | null>(
+    null,
+  );
+  const [historyTargetPath, setHistoryTargetPath] = useState("");
+  const [historyRevisions, setHistoryRevisions] = useState<CandidateRevision[]>(
+    [],
+  );
+  const [selectedHistoryCommit, setSelectedHistoryCommit] = useState("");
+  const [historyContent, setHistoryContent] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const openingScan = useRef<Promise<ManagerState> | null>(null);
 
   const target =
@@ -267,6 +283,91 @@ function App() {
     setSelectedCandidateId(locked.id);
     setContent(locked.content);
     setName(locked.name);
+  }
+
+  async function openCandidateHistory() {
+    if (!target || !candidate) return;
+    setHistoryCandidate(candidate);
+    setHistoryTargetPath(target.path);
+    setHistoryRevisions([]);
+    setSelectedHistoryCommit("");
+    setHistoryContent(null);
+    setHistoryError("");
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    try {
+      const revisions = await api.candidateHistory(target.path, candidate.id);
+      setHistoryRevisions(revisions);
+      if (revisions[0]) {
+        setSelectedHistoryCommit(revisions[0].commit);
+        const version = await api.candidateRevision(
+          target.path,
+          candidate.id,
+          revisions[0].commit,
+        );
+        setHistoryContent(version.content);
+      }
+    } catch (reason) {
+      setHistoryError(message(reason));
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function selectCandidateRevision(revision: CandidateRevision) {
+    if (!historyCandidate) return;
+    setSelectedHistoryCommit(revision.commit);
+    setHistoryContent(null);
+    setHistoryError("");
+    setHistoryLoading(true);
+    try {
+      const version = await api.candidateRevision(
+        historyTargetPath,
+        historyCandidate.id,
+        revision.commit,
+      );
+      setHistoryContent(version.content);
+    } catch (reason) {
+      setHistoryError(message(reason));
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function createCandidateFromHistory() {
+    if (!historyCandidate || historyContent === null || !selectedHistoryCommit)
+      return;
+    if (
+      dirty &&
+      !window.confirm(
+        "当前编辑器有未保存修改。创建历史候选后将切换编辑器，确定继续吗？",
+      )
+    )
+      return;
+    const targetPath = historyTargetPath;
+    const knownIds = new Set(
+      state.targets
+        .find((item) => samePath(item.path, targetPath))
+        ?.candidates.map((item) => item.id) ?? [],
+    );
+    const next = await act(
+      () =>
+        api.createCandidate(
+          targetPath,
+          `${historyCandidate.name}（历史恢复）`,
+          historyContent,
+        ),
+      "已从历史版本创建新候选；正式文件未更改",
+    );
+    const created = next?.targets
+      .find((item) => samePath(item.path, targetPath))
+      ?.candidates.find((item) => !knownIds.has(item.id));
+    if (!created) return;
+    setSelectedPath(targetPath);
+    setSelectedCandidateId(created.id);
+    setContent(created.content);
+    setName(created.name);
+    setHistoryOpen(false);
   }
 
   const relativePath =
@@ -592,14 +693,24 @@ function App() {
               <aside className="candidate-panel">
                 <div className="candidate-heading">
                   <span>候选版本</span>
-                  <button
-                    aria-label="新建候选"
-                    title="新建候选"
-                    disabled={busy}
-                    onClick={() => setShowCandidateForm(true)}
-                  >
-                    <Plus size={15} />
-                  </button>
+                  <div className="candidate-heading-actions">
+                    <button
+                      aria-label="查看候选历史"
+                      title="查看此候选的已保存版本"
+                      disabled={busy || historyLoading}
+                      onClick={() => void openCandidateHistory()}
+                    >
+                      <Clock3 size={14} />
+                    </button>
+                    <button
+                      aria-label="新建候选"
+                      title="新建候选"
+                      disabled={busy}
+                      onClick={() => setShowCandidateForm(true)}
+                    >
+                      <Plus size={15} />
+                    </button>
+                  </div>
                 </div>
                 <div className="candidate-list">
                   {target.candidates.map((item) => (
@@ -854,6 +965,92 @@ function App() {
               </button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {historyOpen ? (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) =>
+            event.currentTarget === event.target && setHistoryOpen(false)
+          }
+        >
+          <section className="modal-card history-modal">
+            <div className="modal-title">
+              <div>
+                <p className="eyebrow">本机 Git 历史</p>
+                <h2>{historyCandidate?.name ?? "候选"} 的已保存版本</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="关闭历史版本"
+                onClick={() => setHistoryOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="modal-description">
+              历史快照只读。创建历史候选不会回滚记录或修改正式文件。
+            </p>
+            {historyError ? (
+              <p className="history-error">读取历史失败：{historyError}</p>
+            ) : null}
+            <div className="history-layout">
+              <div className="history-revisions">
+                {historyRevisions.map((revision) => (
+                  <button
+                    key={revision.commit}
+                    className={`history-revision ${selectedHistoryCommit === revision.commit ? "active" : ""}`}
+                    aria-pressed={selectedHistoryCommit === revision.commit}
+                    onClick={() => void selectCandidateRevision(revision)}
+                  >
+                    <strong>
+                      {new Date(revision.createdAt).toLocaleString()}
+                    </strong>
+                    <small>
+                      {revision.summary} · {revision.commit.slice(0, 7)}
+                    </small>
+                  </button>
+                ))}
+                {historyLoading && historyRevisions.length === 0 ? (
+                  <p className="history-empty">正在读取历史…</p>
+                ) : null}
+                {!historyLoading &&
+                !historyError &&
+                historyRevisions.length === 0 ? (
+                  <p className="history-empty">这个候选还没有保存记录。</p>
+                ) : null}
+              </div>
+              <pre className="history-preview">
+                {historyContent ??
+                  (historyLoading ? "正在读取版本内容…" : "选择一个历史版本")}
+              </pre>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setHistoryOpen(false)}
+              >
+                关闭
+              </button>
+              <button
+                className="primary-button"
+                disabled={
+                  busy ||
+                  historyLoading ||
+                  !selectedHistoryCommit ||
+                  historyContent === null ||
+                  !!target?.conflict
+                }
+                onClick={() => void createCandidateFromHistory()}
+              >
+                <Clock3 size={14} />
+                从此版本创建候选
+              </button>
+            </div>
+          </section>
         </div>
       ) : null}
 

@@ -4,7 +4,12 @@ import { constants, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { Candidate, ManagerState, RulePath } from "../shared/contracts.js";
+import type {
+  Candidate,
+  CandidateRevision,
+  ManagerState,
+  RulePath,
+} from "../shared/contracts.js";
 import { applicationDataDirectory, userRulesFile } from "./settings.js";
 
 const execute = promisify(execFile);
@@ -189,6 +194,46 @@ export class PromptLibrary {
       );
       return this.view();
     });
+  }
+
+  async candidateHistory(selectedPath: string, candidateId: string) {
+    const targetPath = await this.authorizedDirectory(selectedPath);
+    const target = this.requireInitializedTarget(targetPath);
+    const candidate = this.requireCandidate(target, candidateId);
+    const historyFile = `candidates/${candidate.file}`;
+    const { stdout } = await execute(
+      "git",
+      ["log", "--format=%H%x1f%aI%x1f%s", "--", historyFile],
+      { cwd: this.historyDirectory, maxBuffer: 10 * 1024 * 1024 },
+    );
+    return stdout
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line): CandidateRevision => {
+        const [commit, createdAt, ...summary] = line.split("\x1f");
+        return { commit, createdAt, summary: summary.join("\x1f") };
+      });
+  }
+
+  async candidateRevision(
+    selectedPath: string,
+    candidateId: string,
+    commit: string,
+  ) {
+    const targetPath = await this.authorizedDirectory(selectedPath);
+    const target = this.requireInitializedTarget(targetPath);
+    const candidate = this.requireCandidate(target, candidateId);
+    if (!/^[a-f\d]{40,64}$/i.test(commit)) {
+      throw new Error("历史版本标识无效。");
+    }
+    const historyFile = `candidates/${candidate.file}`;
+    const { stdout } = await execute(
+      "git",
+      ["show", `${commit}:${historyFile}`],
+      { cwd: this.historyDirectory, maxBuffer: 16 * 1024 * 1024 },
+    );
+    return { content: stdout };
   }
 
   async saveCandidate(

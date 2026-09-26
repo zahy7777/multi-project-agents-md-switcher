@@ -83,6 +83,26 @@ export function createHttpApp(library: PromptLibrary) {
       ),
     );
   });
+  app.get("/api/candidates/:candidateId/history", async (request, response) => {
+    response.json(
+      await library.candidateHistory(
+        readString(request.query.path, "path"),
+        readString(request.params.candidateId, "candidateId"),
+      ),
+    );
+  });
+  app.get(
+    "/api/candidates/:candidateId/history/:commit",
+    async (request, response) => {
+      response.json(
+        await library.candidateRevision(
+          readString(request.query.path, "path"),
+          readString(request.params.candidateId, "candidateId"),
+          readString(request.params.commit, "commit"),
+        ),
+      );
+    },
+  );
   app.put("/api/candidates", async (request, response) => {
     response.json(
       await library.saveCandidate(

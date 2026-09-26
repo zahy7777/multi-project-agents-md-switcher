@@ -5,6 +5,12 @@ export type Candidate = {
   locked: boolean;
 };
 
+export type CandidateRevision = {
+  commit: string;
+  createdAt: string;
+  summary: string;
+};
+
 export type RulePath = {
   path: string;
   initialized: boolean;

@@ -1,4 +1,4 @@
-import type { ManagerState } from "../shared/contracts.js";
+import type { CandidateRevision, ManagerState } from "../shared/contracts.js";
 
 async function request<T>(url: string, options?: RequestInit) {
   const response = await fetch(url, {
@@ -29,6 +29,14 @@ export const api = {
     request<ManagerState>("/api/paths/initialize", post({ path })),
   createCandidate: (path: string, name: string, content: string) =>
     request<ManagerState>("/api/candidates", post({ path, name, content })),
+  candidateHistory: (path: string, candidateId: string) =>
+    request<CandidateRevision[]>(
+      `/api/candidates/${encodeURIComponent(candidateId)}/history?${new URLSearchParams({ path })}`,
+    ),
+  candidateRevision: (path: string, candidateId: string, commit: string) =>
+    request<{ content: string }>(
+      `/api/candidates/${encodeURIComponent(candidateId)}/history/${encodeURIComponent(commit)}?${new URLSearchParams({ path })}`,
+    ),
   saveCandidate: (
     path: string,
     candidateId: string,

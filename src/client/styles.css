@@ -517,7 +517,11 @@ textarea {
   font-size: 10px;
   font-weight: 700;
 }
-.candidate-heading button {
+.candidate-heading-actions {
+  display: flex;
+  gap: 5px;
+}
+.candidate-heading-actions button {
   display: grid;
   width: 24px;
   height: 24px;
@@ -856,6 +860,77 @@ textarea {
   background: #fff;
   box-shadow: 0 22px 70px #16252535;
 }
+.history-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(920px, 100%);
+  max-height: calc(100vh - 40px);
+}
+.history-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.75fr) minmax(0, 1.6fr);
+  gap: 10px;
+  min-height: 250px;
+  max-height: min(56vh, 560px);
+}
+.history-revisions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow: auto;
+}
+.history-revision {
+  display: grid;
+  gap: 5px;
+  padding: 9px 10px;
+  border: 1px solid #e8eeeb;
+  border-radius: 6px;
+  color: #617178;
+  background: #fff;
+  text-align: left;
+}
+.history-revision.active {
+  border-color: #cfe4dc;
+  color: #397c70;
+  background: #f1f8f5;
+}
+.history-revision strong {
+  font-size: 10px;
+  font-weight: 600;
+}
+.history-revision small {
+  overflow: hidden;
+  color: #98a4a3;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-empty {
+  padding: 10px;
+  color: #8a989a;
+  font-size: 10px;
+}
+.history-preview {
+  min-width: 0;
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #e8eeeb;
+  border-radius: 6px;
+  color: #46585e;
+  background: #fafcfb;
+  font:
+    11px/1.7 "Cascadia Code",
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.history-error {
+  color: #a9443d;
+  font-size: 10px;
+}
 .modal-title {
   display: flex;
   align-items: flex-start;
@@ -940,5 +1015,13 @@ textarea {
   }
   .app-footer {
     padding: 11px 21px;
+  }
+}
+
+@media (max-width: 700px) {
+  .history-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(100px, 0.7fr) minmax(180px, 1.3fr);
+    max-height: calc(100vh - 250px);
   }
 }
