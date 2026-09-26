@@ -45,9 +45,10 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     "# Shared\n\n| Topic | Detail |\n| --- | --- |\n| Prompt | Local |\n\ncommon line\ncandidate only\n- [x] review locally\n![test marker](http://127.0.0.1:9999/private.png)\n";
   const externalRules =
     "# Shared\n\n| Topic | Detail |\n| --- | --- |\n| Prompt | Local |\n\ncommon line\nexternal only\n";
+  const refreshedExternalRules = `${externalRules}external second edit\n`;
   const conflictDraft = `${candidateRules}locked candidate edit\nunsaved merge idea\n`;
   const mergedRules =
-    "# Merged\n\ncommon line\nexternal only\ncandidate only\nunsaved merge idea\n";
+    "# Merged\n\ncommon line\nexternal only\nexternal second edit\ncandidate only\nunsaved merge idea\n";
   const workspace = await makeWorkspace("project-rules", originalRules);
   const unexpectedImageRequests: string[] = [];
   page.on("request", (request) => {
@@ -361,6 +362,57 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(externalRules);
   await page.getByRole("button", { name: "把锁定候选放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(lockedRules);
+  await page.getByRole("button", { name: "把未保存草稿放入解决稿" }).click();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(conflictDraft);
+  const conflictRescanRequests: string[] = [];
+  const observeConflictRescan = (
+    request: import("@playwright/test").Request,
+  ) => {
+    if (
+      request.url().endsWith("/api/workspaces/scan") &&
+      request.method() === "POST"
+    ) {
+      conflictRescanRequests.push(request.url());
+    }
+  };
+  page.on("request", observeConflictRescan);
+  await writeFile(
+    path.join(workspace, "AGENTS.md"),
+    refreshedExternalRules,
+    "utf8",
+  );
+  const cancelledConflictRescanConfirmation = page.waitForEvent("dialog");
+  const cancelledConflictRescanClick = page
+    .getByRole("button", { name: "重新扫描当前工作空间" })
+    .click();
+  const cancelledConflictRescanDialog =
+    await cancelledConflictRescanConfirmation;
+  expect(cancelledConflictRescanDialog.message()).toContain("冲突解决稿");
+  await cancelledConflictRescanDialog.dismiss();
+  await cancelledConflictRescanClick;
+  expect(conflictRescanRequests).toHaveLength(0);
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(conflictDraft);
+
+  const conflictRescanResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/workspaces/scan") &&
+      response.request().method() === "POST",
+  );
+  const conflictRescanConfirmation = page.waitForEvent("dialog");
+  const conflictRescanClick = page
+    .getByRole("button", { name: "重新扫描当前工作空间" })
+    .click();
+  const conflictRescanDialog = await conflictRescanConfirmation;
+  expect(conflictRescanDialog.message()).toContain("冲突解决稿");
+  await conflictRescanDialog.accept();
+  const conflictRescanResponse = await conflictRescanResponsePromise;
+  expect(conflictRescanResponse.ok()).toBe(true);
+  await conflictRescanClick;
+  expect(conflictRescanRequests).toHaveLength(1);
+  page.off("request", observeConflictRescan);
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(
+    refreshedExternalRules,
+  );
   await page.getByRole("button", { name: "把未保存草稿放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(conflictDraft);
   await page.getByLabel("冲突候选名称").fill("Merged rules");

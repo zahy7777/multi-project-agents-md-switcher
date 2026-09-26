@@ -387,11 +387,21 @@ function App() {
   }
 
   function rescanSelectedWorkspace() {
+    const hasUncommittedResolution =
+      target?.conflict && resolution !== (target.formalContent ?? "");
+    const warnings = [
+      dirty
+        ? "当前候选有未保存修改；如果扫描发现冲突，可从冲突页把草稿放入解决稿。"
+        : "",
+      hasUncommittedResolution
+        ? "当前冲突解决稿有未保存修改；重扫后会用磁盘正式文件重置解决稿。"
+        : "",
+      dirty ? "建议先保存或导出候选。" : "",
+      hasUncommittedResolution ? "请先复制解决稿。" : "",
+    ].filter(Boolean);
     if (
-      dirty &&
-      !window.confirm(
-        "当前候选有未保存修改。重新扫描可能发现正式文件冲突并切换到解决页面；届时可以把未保存草稿放入解决稿。建议先保存或导出。仍要扫描吗？",
-      )
+      warnings.length > 0 &&
+      !window.confirm(`${warnings.join("\n")}\n仍要扫描吗？`)
     )
       return;
     void act(
