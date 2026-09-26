@@ -1368,6 +1368,16 @@ textarea {
   .editor-layout {
     grid-template-columns: 195px minmax(0, 1fr);
   }
+  .editor-footer {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .editor-footer > span {
+    flex-basis: 100%;
+  }
+  .editor-footer .heading-actions {
+    margin-left: auto;
+  }
   .app-footer {
     padding: 11px 21px;
   }

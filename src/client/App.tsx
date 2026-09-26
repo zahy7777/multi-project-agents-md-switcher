@@ -1233,7 +1233,7 @@ function App() {
                 <div className="editor-footer">
                   <span
                     data-testid="candidate-content-stats"
-                    title="字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算"
+                    title="行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。"
                   >
                     {dirty ? "有未保存更改" : "所有更改已保存"} ·{" "}
                     {contentLineCount} 行 · {contentCharacterCount} 字符 ·{" "}

@@ -78,15 +78,47 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
   await expect(page.getByLabel("候选名称")).toHaveValue("Candidate B");
   await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
+  await page.getByRole("button", { name: "关闭提示" }).click();
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await page.getByLabel("候选内容").fill("");
+  await expect(page.getByTestId("candidate-content-stats")).toHaveText(
+    "有未保存更改 · 1 行 · 0 字符 · 0 UTF-8 字节",
+  );
   await page.getByLabel("候选内容").fill("first\n中文🌍\n");
   await expect(page.getByTestId("candidate-content-stats")).toHaveText(
     "有未保存更改 · 3 行 · 10 字符 · 17 UTF-8 字节",
+  );
+  await expect(page.getByTestId("candidate-content-stats")).toHaveAttribute(
+    "title",
+    /结尾换行会保留空行/,
   );
   if (process.env.PROMPTDOCK_CONTENT_STATS_SCREENSHOT_PATH) {
     await page.screenshot({
       path: process.env.PROMPTDOCK_CONTENT_STATS_SCREENSHOT_PATH,
     });
   }
+  await page.setViewportSize({ width: 800, height: 720 });
+  const footerGeometry = await page.evaluate(() => {
+    const stats = document.querySelector(
+      '[data-testid="candidate-content-stats"]',
+    );
+    const actions = document.querySelector(".editor-footer .heading-actions");
+    if (!(stats instanceof HTMLElement) || !(actions instanceof HTMLElement)) {
+      throw new Error("编辑器统计或操作区不可见");
+    }
+    const statsBounds = stats.getBoundingClientRect();
+    const actionsBounds = actions.getBoundingClientRect();
+    return { statsBottom: statsBounds.bottom, actionsTop: actionsBounds.top };
+  });
+  expect(footerGeometry.statsBottom).toBeLessThanOrEqual(
+    footerGeometry.actionsTop,
+  );
+  if (process.env.PROMPTDOCK_CONTENT_STATS_NARROW_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_CONTENT_STATS_NARROW_SCREENSHOT_PATH,
+    });
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByLabel("候选内容").fill(originalRules);
   await page.getByLabel("候选内容").fill(candidateRules);
   const shortcutSavePromise = page.waitForResponse(
