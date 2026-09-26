@@ -410,6 +410,8 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await conflictRescanClick;
   expect(conflictRescanRequests).toHaveLength(1);
   page.off("request", observeConflictRescan);
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(conflictDraft);
+  await page.getByRole("button", { name: "把正式文件放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     refreshedExternalRules,
   );

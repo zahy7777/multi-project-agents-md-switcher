@@ -155,6 +155,7 @@ function App() {
   const openingScan = useRef<Promise<ManagerState> | null>(null);
   const saveInFlight = useRef(false);
   const candidateFileInput = useRef<HTMLInputElement>(null);
+  const resolutionTargetPath = useRef("");
 
   const target =
     state.targets.find((item) => item.path === selectedPath) ?? null;
@@ -306,8 +307,15 @@ function App() {
   ]);
 
   useEffect(() => {
-    if (target?.conflict) setResolution(target.formalContent ?? "");
-  }, [target?.conflict, target?.formalContent]);
+    if (!target?.conflict) {
+      resolutionTargetPath.current = "";
+      return;
+    }
+    if (resolutionTargetPath.current !== target.path) {
+      setResolution(target.formalContent ?? "");
+      resolutionTargetPath.current = target.path;
+    }
+  }, [target?.path, target?.conflict, target?.formalContent]);
 
   async function refresh() {
     const next = await api.state();
@@ -394,10 +402,9 @@ function App() {
         ? "当前候选有未保存修改；如果扫描发现冲突，可从冲突页把草稿放入解决稿。"
         : "",
       hasUncommittedResolution
-        ? "当前冲突解决稿有未保存修改；重扫后会用磁盘正式文件重置解决稿。"
+        ? "当前冲突解决稿有未保存修改；重扫会更新冲突两侧并保留解决稿，请核对后按需重新载入正式文件。"
         : "",
       dirty ? "建议先保存或导出候选。" : "",
-      hasUncommittedResolution ? "请先复制解决稿。" : "",
     ].filter(Boolean);
     if (
       warnings.length > 0 &&
