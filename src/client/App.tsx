@@ -67,6 +67,51 @@ function shortPath(value: string, levels = 3) {
   return parts.length > levels ? `…/${parts.slice(-levels).join("/")}` : value;
 }
 
+function LineDiffView({
+  changes,
+  ariaLabel,
+  emptyMessage,
+  className = "conflict-diff",
+}: {
+  changes: ReturnType<typeof diffLines>;
+  ariaLabel: string;
+  emptyMessage: string;
+  className?: string;
+}) {
+  const changed = changes.flatMap((change, chunkIndex) => {
+    const lines = change.value.split(/\r?\n/);
+    if (lines.at(-1) === "") lines.pop();
+    return lines.map((line, lineIndex) => ({
+      line,
+      chunkIndex,
+      lineIndex,
+      change,
+    }));
+  });
+  const hasDifferences = changes.some(
+    (change) => change.added || change.removed,
+  );
+
+  return (
+    <div className={className} aria-label={ariaLabel}>
+      {changed.map(({ line, chunkIndex, lineIndex, change }) => (
+        <div
+          className={`conflict-diff-line ${change.added ? "added" : change.removed ? "removed" : "unchanged"}`}
+          key={`${chunkIndex}-${lineIndex}`}
+        >
+          <span aria-hidden="true">
+            {change.added ? "+" : change.removed ? "−" : " "}
+          </span>
+          <code>{line || " "}</code>
+        </div>
+      ))}
+      {!hasDifferences ? (
+        <p className="conflict-diff-empty">{emptyMessage}</p>
+      ) : null}
+    </div>
+  );
+}
+
 function App() {
   const [state, setState] = useState(empty);
   const [selectedWorkspace, setSelectedWorkspace] = useState("");
@@ -103,6 +148,7 @@ function App() {
   const [historyError, setHistoryError] = useState("");
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareBaseId, setCompareBaseId] = useState("");
+  const [showCompareDiff, setShowCompareDiff] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [showConflictDiff, setShowConflictDiff] = useState(true);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
@@ -126,6 +172,20 @@ function App() {
   const compareBase =
     target?.candidates.find((item) => item.id === compareBaseId) ??
     lockedCandidate;
+  const compareChanges = useMemo(
+    () =>
+      compareBase
+        ? diffLines(compareBase.content, content, { stripTrailingCr: true })
+        : [],
+    [compareBase?.content, content],
+  );
+  const compareLineCounts = compareChanges.reduce(
+    (counts, change) => ({
+      added: counts.added + (change.added ? change.count : 0),
+      removed: counts.removed + (change.removed ? change.count : 0),
+    }),
+    { added: 0, removed: 0 },
+  );
   const lockedCandidateContent = lockedCandidate?.content ?? "";
   const conflictChanges = useMemo(
     () =>
@@ -847,31 +907,11 @@ function App() {
               </div>
             </div>
             {showConflictDiff ? (
-              <div
-                className="conflict-diff"
-                aria-label="正式文件与锁定候选的行差异"
-              >
-                {conflictChanges.map((change, chunkIndex) => {
-                  const lines = change.value.split(/\r?\n/);
-                  if (lines.at(-1) === "") lines.pop();
-                  return lines.map((line, lineIndex) => (
-                    <div
-                      className={`conflict-diff-line ${change.added ? "added" : change.removed ? "removed" : "unchanged"}`}
-                      key={`${chunkIndex}-${lineIndex}`}
-                    >
-                      <span aria-hidden="true">
-                        {change.added ? "+" : change.removed ? "−" : " "}
-                      </span>
-                      <code>{line || " "}</code>
-                    </div>
-                  ));
-                })}
-                {conflictChanges.length === 0 ? (
-                  <p className="conflict-diff-empty">
-                    没有可显示的文本差异；请检查正式文件或锁定候选是否缺失。
-                  </p>
-                ) : null}
-              </div>
+              <LineDiffView
+                changes={conflictChanges}
+                ariaLabel="正式文件与锁定候选的行差异"
+                emptyMessage="没有可显示的文本差异；请检查正式文件或锁定候选是否缺失。"
+              />
             ) : (
               <div className="conflict-grid">
                 <div className="compare-panel">
@@ -1441,22 +1481,59 @@ function App() {
                   ))}
               </select>
             </label>
-            <div className="compare-columns">
-              <section className="compare-column">
-                <header>
-                  <strong>{candidate.name}</strong>
-                  <span>{dirty ? "当前草稿" : "候选"}</span>
-                </header>
-                <pre>{content}</pre>
-              </section>
-              <section className="compare-column">
-                <header>
-                  <strong>{compareBase.name}</strong>
-                  <span>{compareBase.locked ? "正式生效" : "候选基准"}</span>
-                </header>
-                <pre>{compareBase.content}</pre>
-              </section>
+            <div className="conflict-view-toolbar compare-view-toolbar">
+              <span>
+                {compareBase.name} → 当前编辑器 · 新增 {compareLineCounts.added}{" "}
+                行 · 删除 {compareLineCounts.removed} 行
+              </span>
+              <div
+                className="conflict-view-switch"
+                role="group"
+                aria-label="候选对比查看方式"
+              >
+                <button
+                  type="button"
+                  aria-pressed={!showCompareDiff}
+                  className={!showCompareDiff ? "active" : ""}
+                  onClick={() => setShowCompareDiff(false)}
+                >
+                  并排原文
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={showCompareDiff}
+                  className={showCompareDiff ? "active" : ""}
+                  onClick={() => setShowCompareDiff(true)}
+                >
+                  标记差异
+                </button>
+              </div>
             </div>
+            {showCompareDiff ? (
+              <LineDiffView
+                changes={compareChanges}
+                ariaLabel="对比基准到当前编辑器的行差异"
+                emptyMessage="两个版本的正文完全一致。"
+                className="conflict-diff candidate-compare-diff"
+              />
+            ) : (
+              <div className="compare-columns">
+                <section className="compare-column">
+                  <header>
+                    <strong>{candidate.name}</strong>
+                    <span>{dirty ? "当前草稿" : "候选"}</span>
+                  </header>
+                  <pre>{content}</pre>
+                </section>
+                <section className="compare-column">
+                  <header>
+                    <strong>{compareBase.name}</strong>
+                    <span>{compareBase.locked ? "正式生效" : "候选基准"}</span>
+                  </header>
+                  <pre>{compareBase.content}</pre>
+                </section>
+              </div>
+            )}
             <div className="modal-actions">
               <button
                 className="primary-button"

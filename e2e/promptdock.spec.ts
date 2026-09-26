@@ -134,6 +134,21 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.locator(".compare-column pre").nth(1)).toHaveText(
     importedRules,
   );
+  await page.getByRole("button", { name: "标记差异" }).click();
+  await expect(
+    page
+      .locator(".candidate-compare-diff .added code")
+      .getByText("candidate only", {
+        exact: true,
+      }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".candidate-compare-diff .removed code")
+      .getByText("Do not modify source.", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "并排原文" }).click();
+  await expect(page.locator(".compare-column")).toHaveCount(2);
   await page.getByRole("button", { name: "返回候选" }).click();
 
   const exportedDraft = `${candidateRules}export-only draft\n`;
