@@ -28,6 +28,7 @@ import type {
 } from "../shared/contracts.js";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { diffLines } from "diff";
 import { api } from "./api.js";
 
 const empty: ManagerState = {
@@ -94,6 +95,7 @@ function App() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareBaseId, setCompareBaseId] = useState("");
   const [previewMode, setPreviewMode] = useState(false);
+  const [showConflictDiff, setShowConflictDiff] = useState(true);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
   const saveInFlight = useRef(false);
 
@@ -110,6 +112,23 @@ function App() {
   const compareBase =
     target?.candidates.find((item) => item.id === compareBaseId) ??
     lockedCandidate;
+  const lockedCandidateContent = lockedCandidate?.content ?? "";
+  const conflictChanges = useMemo(
+    () =>
+      target?.conflict
+        ? diffLines(target.formalContent ?? "", lockedCandidateContent, {
+            stripTrailingCr: true,
+          })
+        : [],
+    [target?.conflict, target?.formalContent, lockedCandidateContent],
+  );
+  const conflictLineCounts = conflictChanges.reduce(
+    (counts, change) => ({
+      added: counts.added + (change.added ? change.count : 0),
+      removed: counts.removed + (change.removed ? change.count : 0),
+    }),
+    { added: 0, removed: 0 },
+  );
   const workspaceTargets = useMemo(
     () =>
       state.targets
@@ -722,19 +741,72 @@ function App() {
                 需要处理
               </span>
             </div>
-            <div className="conflict-grid">
-              <div className="compare-panel">
-                <label>磁盘正式文件</label>
-                <pre>{target.formalContent ?? "正式文件已被删除"}</pre>
-              </div>
-              <div className="compare-panel">
-                <label>锁定候选</label>
-                <pre>
-                  {target.candidates.find((item) => item.locked)?.content ??
-                    "锁定候选不存在"}
-                </pre>
+            <div className="conflict-view-toolbar">
+              <span>
+                正式文件 → 锁定候选 · 新增 {conflictLineCounts.added} 行 · 删除{" "}
+                {conflictLineCounts.removed} 行
+              </span>
+              <div
+                className="conflict-view-switch"
+                role="group"
+                aria-label="冲突查看方式"
+              >
+                <button
+                  type="button"
+                  aria-pressed={!showConflictDiff}
+                  className={!showConflictDiff ? "active" : ""}
+                  onClick={() => setShowConflictDiff(false)}
+                >
+                  并排原文
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={showConflictDiff}
+                  className={showConflictDiff ? "active" : ""}
+                  onClick={() => setShowConflictDiff(true)}
+                >
+                  标记差异
+                </button>
               </div>
             </div>
+            {showConflictDiff ? (
+              <div
+                className="conflict-diff"
+                aria-label="正式文件与锁定候选的行差异"
+              >
+                {conflictChanges.map((change, chunkIndex) => {
+                  const lines = change.value.split(/\r?\n/);
+                  if (lines.at(-1) === "") lines.pop();
+                  return lines.map((line, lineIndex) => (
+                    <div
+                      className={`conflict-diff-line ${change.added ? "added" : change.removed ? "removed" : "unchanged"}`}
+                      key={`${chunkIndex}-${lineIndex}`}
+                    >
+                      <span aria-hidden="true">
+                        {change.added ? "+" : change.removed ? "−" : " "}
+                      </span>
+                      <code>{line || " "}</code>
+                    </div>
+                  ));
+                })}
+                {conflictChanges.length === 0 ? (
+                  <p className="conflict-diff-empty">
+                    没有可显示的文本差异；请检查正式文件或锁定候选是否缺失。
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="conflict-grid">
+                <div className="compare-panel">
+                  <label>磁盘正式文件</label>
+                  <pre>{target.formalContent ?? "正式文件已被删除"}</pre>
+                </div>
+                <div className="compare-panel">
+                  <label>锁定候选</label>
+                  <pre>{lockedCandidate?.content ?? "锁定候选不存在"}</pre>
+                </div>
+              </div>
+            )}
             <div className="resolution-toolbar">
               <button onClick={() => setResolution(target.formalContent ?? "")}>
                 把正式文件放入解决稿
