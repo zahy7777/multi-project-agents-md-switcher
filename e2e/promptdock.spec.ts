@@ -168,6 +168,52 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     ).content,
   ).toBe(candidateRules);
 
+  const candidateB = shortcutSaveTarget.candidates.find(
+    (item: { name: string }) => item.name === "Candidate B",
+  );
+  const candidateHistoryUrl = `/api/candidates/${encodeURIComponent(candidateB.id)}/history?${new URLSearchParams({ path: workspace })}`;
+  const historyBeforeDiscardResponse =
+    await page.request.get(candidateHistoryUrl);
+  const historyBeforeDiscard = await historyBeforeDiscardResponse.json();
+  const formalBeforeDiscard = await readFile(
+    path.join(workspace, "AGENTS.md"),
+    "utf8",
+  );
+  await page.getByLabel("候选名称").fill("Unsaved name");
+  const discardDraft = `${candidateRules}unsaved discard draft\n`;
+  await page.getByLabel("候选内容").fill(discardDraft);
+  const cancelledDiscard = page.waitForEvent("dialog");
+  const cancelledDiscardClick = page
+    .getByRole("button", { name: "还原已保存版本" })
+    .click();
+  const cancelledDiscardDialog = await cancelledDiscard;
+  expect(cancelledDiscardDialog.message()).toContain("放弃当前未保存修改");
+  await cancelledDiscardDialog.dismiss();
+  await cancelledDiscardClick;
+  await expect(page.getByLabel("候选名称")).toHaveValue("Unsaved name");
+  await expect(page.getByLabel("候选内容")).toHaveValue(discardDraft);
+
+  const acceptedDiscard = page.waitForEvent("dialog");
+  const acceptedDiscardClick = page
+    .getByRole("button", { name: "还原已保存版本" })
+    .click();
+  const acceptedDiscardDialog = await acceptedDiscard;
+  await acceptedDiscardDialog.accept();
+  await acceptedDiscardClick;
+  await expect(page.getByLabel("候选名称")).toHaveValue("Candidate B");
+  await expect(page.getByLabel("候选内容")).toHaveValue(candidateRules);
+  await expect(
+    page.getByRole("button", { name: "还原已保存版本" }),
+  ).toHaveCount(0);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalBeforeDiscard,
+  );
+  const historyAfterDiscardResponse =
+    await page.request.get(candidateHistoryUrl);
+  expect(await historyAfterDiscardResponse.json()).toEqual(
+    historyBeforeDiscard,
+  );
+
   const scanRequests: string[] = [];
   const observeWorkspaceScan = (
     request: import("@playwright/test").Request,
@@ -551,7 +597,12 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
       path: process.env.PROMPTDOCK_COPY_BUTTON_NARROW_SCREENSHOT_PATH,
     });
   }
-  for (const label of ["复制内容", "导出 Markdown", "保存候选"]) {
+  for (const label of [
+    "复制内容",
+    "导出 Markdown",
+    "还原已保存版本",
+    "保存候选",
+  ]) {
     await expect(page.getByRole("button", { name: label })).toBeInViewport();
   }
   const actionBounds = await page
@@ -567,7 +618,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
         };
       }),
     );
-  expect(actionBounds).toHaveLength(3);
+  expect(actionBounds).toHaveLength(4);
   for (const [index, button] of actionBounds.entries()) {
     expect(button.left).toBeGreaterThanOrEqual(0);
     expect(button.right).toBeLessThanOrEqual(800);
@@ -1139,6 +1190,32 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   });
   await resolutionSaveButton.scrollIntoViewIfNeeded();
   await expect(resolutionSaveButton).toBeInViewport();
+  const resolutionCopyButton = page.getByRole("button", {
+    name: "复制解决稿",
+  });
+  await resolutionCopyButton.scrollIntoViewIfNeeded();
+  await expect(resolutionCopyButton).toBeInViewport();
+  const narrowCopyButtonGeometry = await resolutionCopyButton.evaluate(
+    (button) => {
+      const rect = button.getBoundingClientRect();
+      const hitTarget = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        receivesPointer: hitTarget === button || button.contains(hitTarget),
+      };
+    },
+  );
+  expect(narrowCopyButtonGeometry.left).toBeGreaterThanOrEqual(0);
+  expect(narrowCopyButtonGeometry.right).toBeLessThanOrEqual(800);
+  expect(narrowCopyButtonGeometry.top).toBeGreaterThanOrEqual(0);
+  expect(narrowCopyButtonGeometry.bottom).toBeLessThanOrEqual(720);
+  expect(narrowCopyButtonGeometry.receivesPointer).toBe(true);
   const resolutionFooterGeometry = await page.evaluate(() => {
     const stats = document.querySelector(
       '[data-testid="resolution-content-stats"]',
@@ -1183,6 +1260,17 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
       path: process.env.PROMPTDOCK_RESOLUTION_STATS_NARROW_SCREENSHOT_PATH,
     });
   }
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await resolutionCopyButton.click();
+  await expect(
+    page.getByRole("button", { name: "已复制解决稿" }),
+  ).toBeVisible();
+  expect(
+    (await page.evaluate(() => navigator.clipboard.readText())).replace(
+      /\r\n/g,
+      "\n",
+    ),
+  ).toBe("first\n中文🌍\n");
   await page.setViewportSize({ width: 1280, height: 720 });
   const pathSwitchDraft = "unsaved path switch resolution\n";
   await page.getByLabel("冲突解决内容").fill(pathSwitchDraft);
@@ -1225,6 +1313,23 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   expect(await lockedHistoryAfterCopyResponse.json()).toEqual(
     lockedHistoryBeforeCopy,
   );
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator.clipboard, "writeText", {
+      configurable: true,
+      value: async () => {
+        throw new Error("simulated clipboard denial");
+      },
+    });
+  });
+  await page
+    .locator('button[title="复制当前冲突解决稿，包括未保存修改"]')
+    .click();
+  await expect(page.locator(".toast-error")).toContainText(
+    "复制到剪贴板失败：simulated clipboard denial",
+  );
+  await expect(page.getByRole("button", { name: "复制解决稿" })).toBeVisible();
+  await page.getByRole("button", { name: "关闭提示" }).click();
 
   const beforeUnload = page.waitForEvent("dialog");
   await page.evaluate(() => {

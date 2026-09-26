@@ -25,6 +25,7 @@ import {
   Plus,
   PencilLine,
   RefreshCw,
+  RotateCcw,
   Save,
   Search,
   ShieldCheck,
@@ -1381,6 +1382,26 @@ function App() {
                       <Download size={14} />
                       导出 Markdown
                     </button>
+                    {dirty ? (
+                      <button
+                        className="secondary-button"
+                        disabled={busy}
+                        title="恢复此候选最近保存的名称和正文"
+                        onClick={() => {
+                          if (
+                            !window.confirm(
+                              "放弃当前未保存修改，并恢复到此候选最近保存的名称和正文吗？",
+                            )
+                          )
+                            return;
+                          setContent(candidate?.content ?? "");
+                          setName(candidate?.name ?? "");
+                        }}
+                      >
+                        <RotateCcw size={14} />
+                        还原已保存版本
+                      </button>
+                    ) : null}
                     <button
                       className="primary-button"
                       disabled={busy || !candidate || !dirty}
