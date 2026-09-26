@@ -289,20 +289,25 @@ function App() {
       return;
     }
     const next =
-      target.candidates.find((item) => item.id === selectedCandidateId) ??
+      candidate ??
       target.candidates.find((item) => item.locked) ??
       target.candidates[0] ??
       null;
     setSelectedCandidateId(next?.id ?? "");
     setContent(next?.content ?? "");
     setName(next?.name ?? "");
-    if (target.conflict) setResolution(target.formalContent ?? "");
   }, [
     target?.path,
     target?.lockedCandidateId,
-    target?.conflict,
-    target?.candidates,
+    selectedCandidateId,
+    candidate?.id,
+    candidate?.content,
+    candidate?.name,
   ]);
+
+  useEffect(() => {
+    if (target?.conflict) setResolution(target.formalContent ?? "");
+  }, [target?.conflict, target?.formalContent]);
 
   async function refresh() {
     const next = await api.state();
@@ -379,6 +384,20 @@ function App() {
     if (!next || !samePath(selectedWorkspace, workspace)) return;
     setSelectedWorkspace(next.workspaces[0] ?? "");
     setSelectedPath("");
+  }
+
+  function rescanSelectedWorkspace() {
+    if (
+      dirty &&
+      !window.confirm(
+        "当前候选有未保存修改。重新扫描可能发现正式文件冲突并切换到解决页面，草稿会暂时离开编辑器。建议先保存或导出。仍要扫描吗？",
+      )
+    )
+      return;
+    void act(
+      () => api.scanWorkspace(selectedWorkspace),
+      "扫描完成，已导入新发现的规则",
+    );
   }
 
   function chooseTarget(path: string) {
@@ -716,12 +735,7 @@ function App() {
                   aria-label="重新扫描当前工作空间"
                   title="重新扫描当前工作空间"
                   disabled={busy}
-                  onClick={() =>
-                    void act(
-                      () => api.scanWorkspace(selectedWorkspace),
-                      "扫描完成，已导入新发现的规则",
-                    )
-                  }
+                  onClick={rescanSelectedWorkspace}
                 >
                   <RefreshCw size={14} />
                 </button>

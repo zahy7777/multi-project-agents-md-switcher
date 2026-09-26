@@ -87,6 +87,51 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     ).content,
   ).toBe(candidateRules);
 
+  const scanRequests: string[] = [];
+  const observeWorkspaceScan = (
+    request: import("@playwright/test").Request,
+  ) => {
+    if (
+      request.url().endsWith("/api/workspaces/scan") &&
+      request.method() === "POST"
+    ) {
+      scanRequests.push(request.url());
+    }
+  };
+  page.on("request", observeWorkspaceScan);
+  const scanDraft = `${candidateRules}draft survives a workspace scan\n`;
+  await page.getByLabel("候选内容").fill(scanDraft);
+  const cancelledScanConfirmation = page.waitForEvent("dialog");
+  const cancelledScanClick = page
+    .getByRole("button", { name: "重新扫描当前工作空间" })
+    .click();
+  const cancelledScanDialog = await cancelledScanConfirmation;
+  expect(cancelledScanDialog.message()).toContain("未保存修改");
+  await cancelledScanDialog.dismiss();
+  await cancelledScanClick;
+  expect(scanRequests).toHaveLength(0);
+  await expect(page.getByLabel("候选内容")).toHaveValue(scanDraft);
+
+  const scanResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/workspaces/scan") &&
+      response.request().method() === "POST",
+  );
+  const scanConfirmation = page.waitForEvent("dialog");
+  const scanClick = page
+    .getByRole("button", { name: "重新扫描当前工作空间" })
+    .click();
+  const scanDialog = await scanConfirmation;
+  expect(scanDialog.message()).toContain("未保存修改");
+  await scanDialog.accept();
+  const scanResponse = await scanResponsePromise;
+  expect(scanResponse.ok()).toBe(true);
+  await scanClick;
+  expect(scanRequests).toHaveLength(1);
+  page.off("request", observeWorkspaceScan);
+  await expect(page.getByLabel("候选内容")).toHaveValue(scanDraft);
+  await page.getByLabel("候选内容").fill(candidateRules);
+
   const importedSource = path.join(testRoot, "legacy prompt.md");
   const importedRules = "# Imported legacy prompt\n\nDo not modify source.\n";
   await writeFile(importedSource, importedRules, "utf8");
