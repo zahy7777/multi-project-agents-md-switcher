@@ -88,6 +88,7 @@ function App() {
   const [historyError, setHistoryError] = useState("");
   const [compareOpen, setCompareOpen] = useState(false);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
+  const saveInFlight = useRef(false);
 
   const target =
     state.targets.find((item) => item.path === selectedPath) ?? null;
@@ -378,6 +379,45 @@ function App() {
     setName(created.name);
     setHistoryOpen(false);
   }
+
+  async function saveCurrentCandidate() {
+    if (
+      !target ||
+      !candidate ||
+      !dirty ||
+      busy ||
+      target.conflict ||
+      saveInFlight.current
+    )
+      return;
+    saveInFlight.current = true;
+    try {
+      await act(
+        () => api.saveCandidate(target.path, candidate.id, name, content),
+        candidate.locked
+          ? "候选与正式文件已同步并记入历史"
+          : "候选已保存并记入历史",
+      );
+    } finally {
+      saveInFlight.current = false;
+    }
+  }
+
+  useEffect(() => {
+    function saveFromEditor(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s")
+        return;
+      if (
+        !(event.target instanceof HTMLElement) ||
+        !event.target.matches(".candidate-name, .markdown-editor")
+      )
+        return;
+      event.preventDefault();
+      void saveCurrentCandidate();
+    }
+    window.addEventListener("keydown", saveFromEditor);
+    return () => window.removeEventListener("keydown", saveFromEditor);
+  }, [busy, candidate, content, dirty, name, target?.conflict, target?.path]);
 
   const relativePath =
     target && selectedWorkspace
@@ -824,20 +864,9 @@ function App() {
                   <button
                     className="primary-button"
                     disabled={busy || !candidate || !dirty}
-                    onClick={() =>
-                      void act(
-                        () =>
-                          api.saveCandidate(
-                            target.path,
-                            candidate!.id,
-                            name,
-                            content,
-                          ),
-                        candidate?.locked
-                          ? "候选与正式文件已同步并记入历史"
-                          : "候选已保存并记入历史",
-                      )
-                    }
+                    title={`保存候选（${navigator.platform.toLowerCase().includes("mac") ? "⌘S" : "Ctrl+S"}）`}
+                    aria-keyshortcuts="Control+S Meta+S"
+                    onClick={() => void saveCurrentCandidate()}
                   >
                     <Save size={15} />
                     {candidate?.locked ? "保存并同步正式文件" : "保存候选"}
