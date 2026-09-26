@@ -390,7 +390,7 @@ function App() {
     if (
       dirty &&
       !window.confirm(
-        "当前候选有未保存修改。重新扫描可能发现正式文件冲突并切换到解决页面，草稿会暂时离开编辑器。建议先保存或导出。仍要扫描吗？",
+        "当前候选有未保存修改。重新扫描可能发现正式文件冲突并切换到解决页面；届时可以把未保存草稿放入解决稿。建议先保存或导出。仍要扫描吗？",
       )
     )
       return;
@@ -968,6 +968,11 @@ function App() {
               >
                 把锁定候选放入解决稿
               </button>
+              {dirty ? (
+                <button onClick={() => setResolution(content)}>
+                  把未保存草稿放入解决稿
+                </button>
+              ) : null}
               <input
                 aria-label="冲突候选名称"
                 value={resolutionName}

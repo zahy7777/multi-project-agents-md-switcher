@@ -45,8 +45,9 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     "# Shared\n\n| Topic | Detail |\n| --- | --- |\n| Prompt | Local |\n\ncommon line\ncandidate only\n- [x] review locally\n![test marker](http://127.0.0.1:9999/private.png)\n";
   const externalRules =
     "# Shared\n\n| Topic | Detail |\n| --- | --- |\n| Prompt | Local |\n\ncommon line\nexternal only\n";
+  const conflictDraft = `${candidateRules}locked candidate edit\nunsaved merge idea\n`;
   const mergedRules =
-    "# Merged\n\ncommon line\nexternal only\ncandidate only\n";
+    "# Merged\n\ncommon line\nexternal only\ncandidate only\nunsaved merge idea\n";
   const workspace = await makeWorkspace("project-rules", originalRules);
   const unexpectedImageRequests: string[] = [];
   page.on("request", (request) => {
@@ -333,11 +334,24 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     lockedRules,
   );
+  await page.getByLabel("候选内容").fill(conflictDraft);
   await writeFile(path.join(workspace, "AGENTS.md"), externalRules, "utf8");
-  await page.getByRole("button", { name: "重新扫描当前工作空间" }).click();
+  const conflictScanConfirmation = page.waitForEvent("dialog");
+  const conflictScanClick = page
+    .getByRole("button", { name: "重新扫描当前工作空间" })
+    .click();
+  const conflictScanDialog = await conflictScanConfirmation;
+  expect(conflictScanDialog.message()).toContain("未保存修改");
+  await conflictScanDialog.accept();
+  await conflictScanClick;
   await expect(
     page.getByRole("heading", { name: "规则文件冲突" }),
   ).toBeVisible();
+  if (process.env.PROMPTDOCK_CONFLICT_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_CONFLICT_SCREENSHOT_PATH,
+    });
+  }
   await expect(page.getByText("external only", { exact: true })).toBeVisible();
   await expect(page.getByText("candidate only", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "并排原文" }).click();
@@ -347,6 +361,8 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(externalRules);
   await page.getByRole("button", { name: "把锁定候选放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(lockedRules);
+  await page.getByRole("button", { name: "把未保存草稿放入解决稿" }).click();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(conflictDraft);
   await page.getByLabel("冲突候选名称").fill("Merged rules");
   await page.getByLabel("冲突解决内容").fill(mergedRules);
   await page.getByRole("button", { name: "保存解决结果" }).click();
