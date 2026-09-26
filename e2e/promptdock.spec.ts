@@ -324,7 +324,35 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.getByRole("button", { name: "查看候选历史" }).click();
   await expect(page.locator(".history-revision")).toHaveCount(3);
   await page.locator(".history-revision").last().click();
+  await expect(
+    page
+      .locator(".history-version-view .removed code")
+      .getByText("formal only", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".history-version-view .added code")
+      .getByText("locked candidate edit", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "历史全文" }).click();
   await expect(page.locator(".history-preview")).toHaveText(originalRules);
+  await page.getByRole("button", { name: "标记差异" }).click();
+  const historyViewStateResponse = await page.request.get("/api/state");
+  const historyViewState = await historyViewStateResponse.json();
+  const historyViewTarget = historyViewState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    historyViewTarget.candidates.find(
+      (item: { name: string }) => item.name === "Candidate B",
+    ).content,
+  ).toBe(lockedRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    mergedRules,
+  );
+  if (process.env.PROMPTDOCK_SCREENSHOT_PATH) {
+    await page.screenshot({ path: process.env.PROMPTDOCK_SCREENSHOT_PATH });
+  }
   await page.getByRole("button", { name: "从此版本创建候选" }).click();
   await expect(page.getByLabel("候选名称")).toHaveValue(
     "Candidate B（历史恢复）",

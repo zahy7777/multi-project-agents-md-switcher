@@ -146,6 +146,7 @@ function App() {
   const [historyContent, setHistoryContent] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [showHistoryDiff, setShowHistoryDiff] = useState(true);
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareBaseId, setCompareBaseId] = useState("");
   const [showCompareDiff, setShowCompareDiff] = useState(false);
@@ -180,6 +181,20 @@ function App() {
     [compareBase?.content, content],
   );
   const compareLineCounts = compareChanges.reduce(
+    (counts, change) => ({
+      added: counts.added + (change.added ? change.count : 0),
+      removed: counts.removed + (change.removed ? change.count : 0),
+    }),
+    { added: 0, removed: 0 },
+  );
+  const historyChanges = useMemo(
+    () =>
+      historyContent === null
+        ? []
+        : diffLines(historyContent, content, { stripTrailingCr: true }),
+    [historyContent, content],
+  );
+  const historyLineCounts = historyChanges.reduce(
     (counts, change) => ({
       added: counts.added + (change.added ? change.count : 0),
       removed: counts.removed + (change.removed ? change.count : 0),
@@ -467,6 +482,7 @@ function App() {
 
   async function openCandidateHistory() {
     if (!target || !candidate) return;
+    setShowHistoryDiff(true);
     setHistoryCandidate(candidate);
     setHistoryTargetPath(target.path);
     setHistoryRevisions([]);
@@ -1374,7 +1390,8 @@ function App() {
               </button>
             </div>
             <p className="modal-description">
-              历史快照只读。创建历史候选不会回滚记录或修改正式文件。
+              差异方向：所选历史版本 →
+              当前编辑器（含未保存修改）。历史快照只读；创建历史候选不会回滚记录或修改正式文件。
             </p>
             {historyError ? (
               <p className="history-error">读取历史失败：{historyError}</p>
@@ -1405,10 +1422,48 @@ function App() {
                   <p className="history-empty">这个候选还没有保存记录。</p>
                 ) : null}
               </div>
-              <pre className="history-preview">
-                {historyContent ??
-                  (historyLoading ? "正在读取版本内容…" : "选择一个历史版本")}
-              </pre>
+              <div className="history-version-view">
+                <div className="history-preview-toolbar">
+                  <span>
+                    历史版本 → 当前草稿 · 新增 {historyLineCounts.added} 行 ·
+                    删除 {historyLineCounts.removed} 行
+                  </span>
+                  <div
+                    className="conflict-view-switch"
+                    aria-label="历史版本查看方式"
+                  >
+                    <button
+                      type="button"
+                      className={showHistoryDiff ? "active" : ""}
+                      aria-pressed={showHistoryDiff}
+                      onClick={() => setShowHistoryDiff(true)}
+                    >
+                      标记差异
+                    </button>
+                    <button
+                      type="button"
+                      className={!showHistoryDiff ? "active" : ""}
+                      aria-pressed={!showHistoryDiff}
+                      onClick={() => setShowHistoryDiff(false)}
+                    >
+                      历史全文
+                    </button>
+                  </div>
+                </div>
+                {historyContent === null ? (
+                  <pre className="history-preview">
+                    {historyLoading ? "正在读取版本内容…" : "选择一个历史版本"}
+                  </pre>
+                ) : showHistoryDiff ? (
+                  <LineDiffView
+                    changes={historyChanges}
+                    ariaLabel="历史版本与当前草稿的差异"
+                    emptyMessage="历史版本与当前草稿一致。"
+                  />
+                ) : (
+                  <pre className="history-preview">{historyContent}</pre>
+                )}
+              </div>
             </div>
             <div className="modal-actions">
               <button

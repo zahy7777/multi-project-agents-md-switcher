@@ -1133,6 +1133,24 @@ textarea {
   min-height: 250px;
   max-height: min(56vh, 560px);
 }
+.history-version-view {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  min-height: 0;
+}
+.history-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #718083;
+  font-size: 9px;
+}
+.history-preview-toolbar .conflict-view-switch {
+  flex: 0 0 auto;
+}
 .history-revisions {
   display: flex;
   flex-direction: column;
