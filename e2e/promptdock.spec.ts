@@ -60,9 +60,17 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
 
   await page.goto("/");
   await expect(page.getByRole("button", { name: /用户级规则/ })).toBeVisible();
+  await page.getByRole("button", { name: "添加工作空间" }).first().click();
+  await page.getByRole("button", { name: "取消" }).click();
+  await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
+    0,
+  );
   await addWorkspace(page, workspace);
   await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
 
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByRole("button", { name: "取消" }).click();
+  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
   await page.getByRole("button", { name: "新建候选" }).click();
   await page.getByPlaceholder("例如：更严格的代码审查").fill("Candidate B");
   await expect(page.getByRole("button", { name: "创建候选" })).toBeEnabled();
@@ -70,6 +78,16 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
   await expect(page.getByLabel("候选名称")).toHaveValue("Candidate B");
   await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
+  await page.getByLabel("候选内容").fill("first\n中文🌍\n");
+  await expect(page.getByTestId("candidate-content-stats")).toHaveText(
+    "有未保存更改 · 3 行 · 10 字符 · 17 UTF-8 字节",
+  );
+  if (process.env.PROMPTDOCK_CONTENT_STATS_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_CONTENT_STATS_SCREENSHOT_PATH,
+    });
+  }
+  await page.getByLabel("候选内容").fill(originalRules);
   await page.getByLabel("候选内容").fill(candidateRules);
   const shortcutSavePromise = page.waitForResponse(
     (response) =>
@@ -441,6 +459,13 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.getByLabel("候选内容").fill(historyComparisonDraft);
   await page.getByRole("button", { name: "查看候选历史" }).click();
   await expect(page.locator(".history-revision")).toHaveCount(3);
+  await page.getByRole("button", { name: "关闭历史版本" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Candidate B 的已保存版本" }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("候选内容")).toHaveValue(historyComparisonDraft);
+  await page.getByRole("button", { name: "查看候选历史" }).click();
+  await expect(page.locator(".history-revision")).toHaveCount(3);
   await page.locator(".history-revision").last().click();
   await expect(
     page
@@ -703,6 +728,13 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
 
   await page.goto("/");
   await addWorkspace(page, workspace);
+  const ruleFilter = page.getByLabel("筛选规则路径");
+  await expect(page.locator(".rule-row")).toHaveCount(2);
+  await ruleFilter.fill("nested");
+  await expect(page.locator(".rule-row")).toHaveCount(1);
+  await expect(page.locator(".rule-row")).toContainText("nested");
+  await ruleFilter.fill("");
+  await expect(page.locator(".rule-row")).toHaveCount(2);
   const rootRule = page.getByRole("button", {
     name: "AGENTS.md",
     exact: true,

@@ -238,6 +238,9 @@ function App() {
     !!target?.conflict &&
     (resolution !== (target.formalContent ?? "") ||
       resolutionName !== "冲突解决结果");
+  const contentLineCount = content.split(/\r\n|\r|\n/).length;
+  const contentCharacterCount = Array.from(content).length;
+  const contentUtf8Bytes = new TextEncoder().encode(content).byteLength;
   const userWorkspace = useMemo(() => {
     const file = state.userRulesPath.replace(/\\/g, "/").toLowerCase();
     return state.workspaces.find((workspace) => {
@@ -1228,9 +1231,13 @@ function App() {
                   )}
                 </div>
                 <div className="editor-footer">
-                  <span>
+                  <span
+                    data-testid="candidate-content-stats"
+                    title="字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算"
+                  >
                     {dirty ? "有未保存更改" : "所有更改已保存"} ·{" "}
-                    {content.length} 字符
+                    {contentLineCount} 行 · {contentCharacterCount} 字符 ·{" "}
+                    {contentUtf8Bytes} UTF-8 字节
                   </span>
                   <div className="heading-actions">
                     <button
