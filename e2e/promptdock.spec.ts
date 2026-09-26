@@ -85,6 +85,18 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   );
   await page.getByRole("button", { name: "Candidate B 候选" }).click();
 
+  await page.getByRole("button", { name: "与其他版本对比" }).click();
+  await page
+    .getByLabel("对比基准版本")
+    .selectOption({ label: "legacy prompt" });
+  await expect(page.locator(".compare-column header strong").nth(1)).toHaveText(
+    "legacy prompt",
+  );
+  await expect(page.locator(".compare-column pre").nth(1)).toHaveText(
+    importedRules,
+  );
+  await page.getByRole("button", { name: "返回候选" }).click();
+
   const exportedDraft = `${candidateRules}export-only draft\n`;
   await page.getByLabel("候选名称").fill("Candidate/B*");
   await page.getByLabel("候选内容").fill(exportedDraft);
@@ -171,9 +183,33 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     target.candidates.find((item: { locked: boolean }) => item.locked).content,
   ).toBe(mergedRules);
 
+  await page.getByRole("button", { name: "Candidate B 候选" }).click();
   await page.getByRole("button", { name: "查看候选历史" }).click();
-  await expect(page.locator(".history-revision").first()).toBeVisible();
-  await page.getByRole("button", { name: "关闭历史版本" }).click();
+  await expect(page.locator(".history-revision")).toHaveCount(2);
+  await page.locator(".history-revision").last().click();
+  await expect(page.locator(".history-preview")).toHaveText(originalRules);
+  await page.getByRole("button", { name: "从此版本创建候选" }).click();
+  await expect(page.getByLabel("候选名称")).toHaveValue(
+    "Candidate B（历史恢复）",
+  );
+  await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    mergedRules,
+  );
+  const restoredStateResponse = await page.request.get("/api/state");
+  const restoredState = await restoredStateResponse.json();
+  const restoredTarget = restoredState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    restoredTarget.candidates.find(
+      (item: { name: string }) => item.name === "Candidate B（历史恢复）",
+    ).locked,
+  ).toBe(false);
+  expect(
+    restoredTarget.candidates.find((item: { locked: boolean }) => item.locked)
+      .content,
+  ).toBe(mergedRules);
   const candidateSearch = page.getByLabel("筛选候选");
   await candidateSearch.fill("Merged");
   await expect(page.locator(".candidate-row")).toHaveCount(1);
