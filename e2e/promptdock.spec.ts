@@ -610,11 +610,16 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     .evaluateAll((buttons) =>
       buttons.map((button) => {
         const rect = button.getBoundingClientRect();
+        const hitTarget = document.elementFromPoint(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        );
         return {
           left: rect.left,
           right: rect.right,
           top: rect.top,
           bottom: rect.bottom,
+          receivesPointer: hitTarget === button || button.contains(hitTarget),
         };
       }),
     );
@@ -624,6 +629,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     expect(button.right).toBeLessThanOrEqual(800);
     expect(button.top).toBeGreaterThanOrEqual(0);
     expect(button.bottom).toBeLessThanOrEqual(720);
+    expect(button.receivesPointer).toBe(true);
     if (index > 0)
       expect(actionBounds[index - 1].right).toBeLessThanOrEqual(button.left);
   }
@@ -701,6 +707,36 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(
     page.getByRole("button", { name: "切换为正式规则" }),
   ).toHaveCount(0);
+  const lockedHistoryUrl = `/api/candidates/${encodeURIComponent(candidateB.id)}/history?${new URLSearchParams({ path: workspace })}`;
+  const lockedHistoryBeforeRestoreResponse =
+    await page.request.get(lockedHistoryUrl);
+  const lockedHistoryBeforeRestore =
+    await lockedHistoryBeforeRestoreResponse.json();
+  const formalBeforeRestore = await readFile(
+    path.join(workspace, "AGENTS.md"),
+    "utf8",
+  );
+  await page.getByLabel("候选名称").fill("Unsaved locked name");
+  await page
+    .getByLabel("候选内容")
+    .fill(`${candidateRules}unsaved locked draft\n`);
+  const lockedRestoreConfirmation = page.waitForEvent("dialog");
+  const lockedRestoreClick = page
+    .getByRole("button", { name: "还原已保存版本" })
+    .click();
+  const lockedRestoreDialog = await lockedRestoreConfirmation;
+  await lockedRestoreDialog.accept();
+  await lockedRestoreClick;
+  await expect(page.getByLabel("候选名称")).toHaveValue("Candidate B");
+  await expect(page.getByLabel("候选内容")).toHaveValue(candidateRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalBeforeRestore,
+  );
+  const lockedHistoryAfterRestoreResponse =
+    await page.request.get(lockedHistoryUrl);
+  expect(await lockedHistoryAfterRestoreResponse.json()).toEqual(
+    lockedHistoryBeforeRestore,
+  );
   const lockedRules = `${candidateRules}locked candidate edit\n`;
   await page.getByLabel("候选内容").fill(lockedRules);
   await expect(
@@ -731,6 +767,9 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(
     page.getByRole("heading", { name: "规则文件冲突" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "还原已保存版本" }),
+  ).toHaveCount(0);
   if (process.env.PROMPTDOCK_CONFLICT_SCREENSHOT_PATH) {
     await page.screenshot({
       path: process.env.PROMPTDOCK_CONFLICT_SCREENSHOT_PATH,
