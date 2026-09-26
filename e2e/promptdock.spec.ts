@@ -1060,8 +1060,13 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   expect(nestedTarget).toBeDefined();
   expect(await readFile(nestedFormalFile, "utf8")).toBe("# AGENTS.md\n");
 
-  const discoveredDirectory = path.join(workspace, "discovered-later");
-  await mkdir(discoveredDirectory);
+  const discoveredDirectory = path.join(
+    workspace,
+    "discovered-later",
+    "nested",
+    "deeper",
+  );
+  await mkdir(discoveredDirectory, { recursive: true });
   const discoveredRules = "# Discovered on startup\n";
   await writeFile(
     path.join(discoveredDirectory, "AGENTS.md"),
