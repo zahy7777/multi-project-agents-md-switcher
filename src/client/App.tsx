@@ -88,6 +88,7 @@ function App() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [compareOpen, setCompareOpen] = useState(false);
+  const [compareBaseId, setCompareBaseId] = useState("");
   const openingScan = useRef<Promise<ManagerState> | null>(null);
   const saveInFlight = useRef(false);
 
@@ -101,6 +102,9 @@ function App() {
     ) ?? [];
   const lockedCandidate =
     target?.candidates.find((item) => item.locked) ?? null;
+  const compareBase =
+    target?.candidates.find((item) => item.id === compareBaseId) ??
+    lockedCandidate;
   const workspaceTargets = useMemo(
     () =>
       state.targets
@@ -785,10 +789,13 @@ function App() {
                   <div className="candidate-heading-actions">
                     {candidate && !candidate.locked && lockedCandidate ? (
                       <button
-                        aria-label="与正式版对比"
-                        title="将当前编辑器内容与正式生效版本并排查看"
+                        aria-label="与其他版本对比"
+                        title="将当前编辑器内容与任意其他候选并排查看"
                         disabled={busy}
-                        onClick={() => setCompareOpen(true)}
+                        onClick={() => {
+                          setCompareBaseId(lockedCandidate?.id ?? "");
+                          setCompareOpen(true);
+                        }}
                       >
                         <GitCompare size={14} />
                       </button>
@@ -1154,7 +1161,7 @@ function App() {
         </div>
       ) : null}
 
-      {compareOpen && candidate && lockedCandidate ? (
+      {compareOpen && candidate && lockedCandidate && compareBase ? (
         <div
           className="modal-backdrop"
           onMouseDown={(event) =>
@@ -1165,7 +1172,7 @@ function App() {
             <div className="modal-title">
               <div>
                 <p className="eyebrow">只读并排查看</p>
-                <h2>候选版本与正式版</h2>
+                <h2>候选版本对比</h2>
               </div>
               <button
                 type="button"
@@ -1178,9 +1185,26 @@ function App() {
             </div>
             <p className="modal-description">
               {dirty
-                ? "左侧包含尚未保存的编辑内容；此窗口不会修改任何文件。"
+                ? "左侧显示当前编辑器内容（含未保存修改）；右侧显示已保存的基准候选。此窗口只读。"
                 : "此窗口不会修改任何文件。"}
             </p>
+            <label className="compare-base">
+              对比基准
+              <select
+                aria-label="对比基准版本"
+                value={compareBase.id}
+                onChange={(event) => setCompareBaseId(event.target.value)}
+              >
+                {target?.candidates
+                  .filter((item) => item.id !== candidate.id)
+                  .map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                      {item.locked ? "（正式生效）" : ""}
+                    </option>
+                  ))}
+              </select>
+            </label>
             <div className="compare-columns">
               <section className="compare-column">
                 <header>
@@ -1191,10 +1215,10 @@ function App() {
               </section>
               <section className="compare-column">
                 <header>
-                  <strong>{lockedCandidate.name}</strong>
-                  <span>正式生效</span>
+                  <strong>{compareBase.name}</strong>
+                  <span>{compareBase.locked ? "正式生效" : "候选基准"}</span>
                 </header>
-                <pre>{lockedCandidate.content}</pre>
+                <pre>{compareBase.content}</pre>
               </section>
             </div>
             <div className="modal-actions">

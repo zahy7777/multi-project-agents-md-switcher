@@ -988,6 +988,24 @@ textarea {
   width: min(1160px, 100%);
   max-height: calc(100vh - 40px);
 }
+.compare-base {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 10px;
+  color: #74838a;
+  font-size: 10px;
+}
+.compare-base select {
+  min-width: 180px;
+  max-width: 360px;
+  padding: 7px 9px;
+  border: 1px solid #dfe8e4;
+  border-radius: 6px;
+  color: #405158;
+  background: #fff;
+  font-size: 10px;
+}
 .compare-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
