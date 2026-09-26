@@ -85,6 +85,20 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   );
   await page.getByRole("button", { name: "Candidate B 候选" }).click();
 
+  const unsavedDraft = `${candidateRules}do not discard without confirmation\n`;
+  await page.getByLabel("候选内容").fill(unsavedDraft);
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("button", { name: "legacy prompt 候选" }).click();
+  await expect(page.getByLabel("候选内容")).toHaveValue(unsavedDraft);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "legacy prompt 候选" }).click();
+  await expect(page.getByLabel("候选内容")).toHaveValue(importedRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    originalRules,
+  );
+  await page.getByRole("button", { name: "Candidate B 候选" }).click();
+  await expect(page.getByLabel("候选内容")).toHaveValue(candidateRules);
+
   await page.getByRole("button", { name: "与其他版本对比" }).click();
   await page
     .getByLabel("对比基准版本")
