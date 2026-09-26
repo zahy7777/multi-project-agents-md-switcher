@@ -68,6 +68,11 @@ function shortPath(value: string, levels = 3) {
   return parts.length > levels ? `…/${parts.slice(-levels).join("/")}` : value;
 }
 
+function formalFilePath(targetPath: string) {
+  const separator = targetPath.includes("\\") ? "\\" : "/";
+  return `${targetPath.replace(/[\\/]+$/, "")}${separator}AGENTS.md`;
+}
+
 function measureMarkdown(content: string) {
   return {
     lines: content.split(/\r\n|\r|\n/).length,
@@ -161,7 +166,9 @@ function App() {
   const [showCompareDiff, setShowCompareDiff] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [showConflictDiff, setShowConflictDiff] = useState(true);
-  const [copySucceeded, setCopySucceeded] = useState(false);
+  const [copiedItem, setCopiedItem] = useState<
+    "content" | "formal-path" | null
+  >(null);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
   const copyFeedbackTimeout = useRef<number | null>(null);
   const saveInFlight = useRef(false);
@@ -669,22 +676,34 @@ function App() {
     window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000);
   }
 
-  async function copyCurrentContent() {
+  async function copyToClipboard(
+    value: string,
+    item: "content" | "formal-path",
+  ) {
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(value);
       setError("");
       setNotice("");
-      setCopySucceeded(true);
+      setCopiedItem(item);
       if (copyFeedbackTimeout.current !== null)
         window.clearTimeout(copyFeedbackTimeout.current);
       copyFeedbackTimeout.current = window.setTimeout(() => {
-        setCopySucceeded(false);
+        setCopiedItem(null);
         copyFeedbackTimeout.current = null;
       }, 1800);
     } catch (reason) {
-      setCopySucceeded(false);
+      setCopiedItem(null);
       setError(`复制到剪贴板失败：${message(reason)}`);
     }
+  }
+
+  async function copyCurrentContent() {
+    await copyToClipboard(content, "content");
+  }
+
+  async function copyFormalPath() {
+    if (!target) return;
+    await copyToClipboard(formalFilePath(target.path), "formal-path");
   }
 
   useEffect(() => {
@@ -1293,8 +1312,12 @@ function App() {
                       title="复制当前编辑器内容，包括未保存修改"
                       onClick={() => void copyCurrentContent()}
                     >
-                      {copySucceeded ? <Check size={14} /> : <Copy size={14} />}
-                      {copySucceeded ? "已复制" : "复制内容"}
+                      {copiedItem === "content" ? (
+                        <Check size={14} />
+                      ) : (
+                        <Copy size={14} />
+                      )}
+                      {copiedItem === "content" ? "已复制" : "复制内容"}
                     </button>
                     <button
                       className="secondary-button"
@@ -1324,8 +1347,20 @@ function App() {
                 <FileCode2 size={15} />
                 <span>
                   <small>正式文件位置</small>
-                  <strong>{shortPath(`${target.path}/AGENTS.md`)}</strong>
+                  <strong>{shortPath(formalFilePath(target.path))}</strong>
                 </span>
+                <button
+                  className="formal-path-copy"
+                  title="复制完整正式文件路径到剪贴板"
+                  onClick={() => void copyFormalPath()}
+                >
+                  {copiedItem === "formal-path" ? (
+                    <Check size={13} />
+                  ) : (
+                    <Copy size={13} />
+                  )}
+                  {copiedItem === "formal-path" ? "路径已复制" : "复制路径"}
+                </button>
               </div>
               <span className="formal-match">
                 <Check size={13} />

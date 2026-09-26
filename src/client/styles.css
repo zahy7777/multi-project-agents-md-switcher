@@ -876,11 +876,14 @@ textarea {
 }
 .formal-card > div {
   display: flex;
+  min-width: 0;
+  flex: 1;
   align-items: center;
   gap: 9px;
   color: #71968c;
 }
 .formal-card span {
+  min-width: 0;
   display: grid;
   gap: 3px;
 }
@@ -889,10 +892,30 @@ textarea {
   font-size: 8px;
 }
 .formal-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #637279;
   font-family: "Cascadia Mono", Consolas, monospace;
   font-size: 9px;
   font-weight: 400;
+}
+.formal-path-copy {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border: 1px solid #e1e9e6;
+  border-radius: 5px;
+  color: #548c80;
+  background: #f9fbfa;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.formal-path-copy:hover {
+  border-color: #b9d5cc;
+  background: #f1f8f5;
 }
 .formal-card .formal-match {
   display: flex;

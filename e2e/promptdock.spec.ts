@@ -400,6 +400,67 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     `/api/candidates/${encodeURIComponent(candidateBeforeCopy.id)}/history?${new URLSearchParams({ path: workspace })}`,
   );
   expect(await historyAfterCopyResponse.json()).toEqual(historyBeforeCopy);
+  await page.getByRole("button", { name: "复制路径" }).click();
+  await expect(page.getByRole("button", { name: "路径已复制" })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    path.join(workspace, "AGENTS.md"),
+  );
+  const stateAfterPathCopyResponse = await page.request.get("/api/state");
+  const stateAfterPathCopy = await stateAfterPathCopyResponse.json();
+  const targetAfterPathCopy = stateAfterPathCopy.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    targetAfterPathCopy.candidates.find(
+      (item: { id: string }) => item.id === candidateBeforeCopy.id,
+    ).content,
+  ).toBe(candidateRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalBeforeCopy,
+  );
+  const historyAfterPathCopyResponse = await page.request.get(
+    `/api/candidates/${encodeURIComponent(candidateBeforeCopy.id)}/history?${new URLSearchParams({ path: workspace })}`,
+  );
+  expect(await historyAfterPathCopyResponse.json()).toEqual(historyBeforeCopy);
+  if (process.env.PROMPTDOCK_FORMAL_PATH_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_FORMAL_PATH_SCREENSHOT_PATH,
+    });
+  }
+  await page.setViewportSize({ width: 800, height: 720 });
+  const copiedFormalPathButton = page.getByRole("button", {
+    name: "路径已复制",
+  });
+  await copiedFormalPathButton.scrollIntoViewIfNeeded();
+  const formalPathButtonBounds = await copiedFormalPathButton.evaluate(
+    (button) => {
+      const rect = button.getBoundingClientRect();
+      const hitTarget = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        receivesPointer: hitTarget === button || button.contains(hitTarget),
+      };
+    },
+  );
+  expect(formalPathButtonBounds.left).toBeGreaterThanOrEqual(0);
+  expect(formalPathButtonBounds.right).toBeLessThanOrEqual(800);
+  expect(formalPathButtonBounds.top).toBeGreaterThanOrEqual(0);
+  expect(formalPathButtonBounds.bottom).toBeLessThanOrEqual(720);
+  expect(formalPathButtonBounds.receivesPointer).toBe(true);
+  if (process.env.PROMPTDOCK_FORMAL_PATH_NARROW_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_FORMAL_PATH_NARROW_SCREENSHOT_PATH,
+    });
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
   if (process.env.PROMPTDOCK_COPY_BUTTON_SCREENSHOT_PATH) {
     await page.screenshot({
       path: process.env.PROMPTDOCK_COPY_BUTTON_SCREENSHOT_PATH,
