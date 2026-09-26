@@ -14,7 +14,12 @@ import { applicationDataDirectory, userRulesFile } from "./settings.js";
 
 const execute = promisify(execFile);
 
-type SavedCandidate = { id: string; name: string; file: string };
+type SavedCandidate = {
+  id: string;
+  name: string;
+  file: string;
+  archived?: boolean;
+};
 type SavedTarget = {
   initialized: boolean;
   lockedCandidateId: string | null;
@@ -277,6 +282,7 @@ export class PromptLibrary {
       this.assertNoConflict(targetPath, target);
       const candidate = this.requireCandidate(target, candidateId);
       const wasLocked = target.lockedCandidateId === candidate.id;
+      if (candidate.archived) throw new Error("已归档候选必须先恢复才能编辑。");
       const previousContent = await this.readCandidate(candidate);
       const previousName = candidate.name;
       const formalBefore = await this.formalContent(targetPath);
@@ -331,6 +337,8 @@ export class PromptLibrary {
       const target = this.requireInitializedTarget(targetPath);
       this.assertNoConflict(targetPath, target);
       const candidate = this.requireCandidate(target, candidateId);
+      if (candidate.archived)
+        throw new Error("已归档候选必须先恢复才能切换为正式规则。");
       const formalBefore = await this.formalContent(targetPath);
       const locked = this.requireCandidate(
         target,
@@ -365,6 +373,41 @@ export class PromptLibrary {
         "candidate.lock",
         "ok",
         `path=${targetPath} candidate=${candidate.id}`,
+      );
+      return this.view();
+    });
+  }
+
+  async setCandidateArchived(
+    selectedPath: string,
+    candidateId: string,
+    archived: boolean,
+  ) {
+    return this.exclusively(async () => {
+      const targetPath = await this.authorizedDirectory(selectedPath);
+      const target = this.requireInitializedTarget(targetPath);
+      this.assertNoConflict(targetPath, target);
+      const candidate = this.requireCandidate(target, candidateId);
+      if (target.lockedCandidateId === candidate.id) {
+        throw new Error("锁定候选不能归档或恢复。");
+      }
+      const previous = candidate.archived ?? false;
+      if (previous === archived) {
+        throw new Error(archived ? "该候选已经归档。" : "该候选当前未归档。");
+      }
+      candidate.archived = archived;
+      try {
+        await this.persist();
+        await this.record(archived ? "归档候选规则" : "恢复候选规则");
+      } catch (error) {
+        candidate.archived = previous;
+        await this.persist().catch(() => undefined);
+        throw error;
+      }
+      await this.log(
+        "candidate.archive",
+        "ok",
+        `path=${targetPath} candidate=${candidate.id} archived=${archived}`,
       );
       return this.view();
     });
@@ -576,6 +619,7 @@ export class PromptLibrary {
           name: candidate.name,
           content: await this.readCandidate(candidate),
           locked: stored.lockedCandidateId === candidate.id,
+          archived: candidate.archived ?? false,
         });
       }
       targets.push({
@@ -635,6 +679,7 @@ export class PromptLibrary {
       id,
       name: name.trim() || "未命名候选",
       file: `${id}.md`,
+      archived: false,
     };
     await this.writeCandidate(candidate, content);
     target.candidates.push(candidate);

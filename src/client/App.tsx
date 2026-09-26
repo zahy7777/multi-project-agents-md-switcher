@@ -8,6 +8,8 @@ import {
 } from "react";
 import {
   AlertTriangle,
+  Archive,
+  ArchiveRestore,
   ArrowDownUp,
   Check,
   ChevronRight,
@@ -133,6 +135,7 @@ function App() {
   const [selectedPath, setSelectedPath] = useState("");
   const [selectedCandidateId, setSelectedCandidateId] = useState("");
   const [candidateFilter, setCandidateFilter] = useState("");
+  const [showArchivedCandidates, setShowArchivedCandidates] = useState(false);
   const [content, setContent] = useState("");
   const [name, setName] = useState("");
   const [filter, setFilter] = useState("");
@@ -226,6 +229,7 @@ function App() {
   const candidateQuery = candidateFilter.trim().toLowerCase();
   const visibleCandidates =
     target?.candidates.filter((item) => {
+      if (item.archived !== showArchivedCandidates) return false;
       return (
         item.name.toLowerCase().includes(candidateQuery) ||
         item.content.toLowerCase().includes(candidateQuery)
@@ -464,6 +468,7 @@ function App() {
 
   function chooseWorkspace(workspace: string) {
     if (!confirmLeavingCurrentDraft("切换工作空间")) return;
+    setShowArchivedCandidates(false);
     setSelectedWorkspace(workspace);
   }
 
@@ -512,6 +517,7 @@ function App() {
 
   function chooseTarget(path: string) {
     if (!confirmLeavingCurrentDraft("切换规则路径")) return;
+    setShowArchivedCandidates(false);
     setSelectedPath(path);
   }
 
@@ -521,6 +527,41 @@ function App() {
     setSelectedCandidateId(item.id);
     setContent(item.content);
     setName(item.name);
+  }
+
+  async function archiveCurrentCandidate() {
+    if (
+      !target ||
+      !candidate ||
+      candidate.locked ||
+      candidate.archived ||
+      dirty
+    )
+      return;
+    const next = await act(
+      () => api.setCandidateArchived(target.path, candidate.id, true),
+      `已归档「${candidate.name}」，正文和版本历史仍保留`,
+    );
+    if (!next) return;
+    const currentTarget = next.targets.find(
+      (item) => item.path === target.path,
+    );
+    const locked = currentTarget?.candidates.find((item) => item.locked);
+    if (locked) {
+      setSelectedCandidateId(locked.id);
+      setContent(locked.content);
+      setName(locked.name);
+    }
+    setShowArchivedCandidates(false);
+  }
+
+  async function restoreCurrentCandidate() {
+    if (!target || !candidate?.archived || dirty) return;
+    const next = await act(
+      () => api.setCandidateArchived(target.path, candidate.id, false),
+      `已恢复「${candidate.name}」`,
+    );
+    if (next) setShowArchivedCandidates(false);
   }
 
   async function createCandidate(event: FormEvent) {
@@ -1309,6 +1350,30 @@ function App() {
                     onChange={(event) => setCandidateFilter(event.target.value)}
                   />
                 </label>
+                <button
+                  className="archive-filter-button"
+                  aria-label={
+                    showArchivedCandidates ? "返回当前候选" : "查看已归档候选"
+                  }
+                  disabled={
+                    busy ||
+                    (!showArchivedCandidates &&
+                      !(
+                        target?.candidates.some((item) => item.archived) ??
+                        false
+                      ))
+                  }
+                  onClick={() => setShowArchivedCandidates((value) => !value)}
+                >
+                  {showArchivedCandidates ? (
+                    <ArchiveRestore size={13} />
+                  ) : (
+                    <Archive size={13} />
+                  )}
+                  {showArchivedCandidates
+                    ? "返回当前候选"
+                    : `已归档 (${target?.candidates.filter((item) => item.archived).length ?? 0})`}
+                </button>
                 <div className="candidate-list">
                   {visibleCandidates.map((item) => (
                     <button
@@ -1319,7 +1384,13 @@ function App() {
                       <FileCode2 size={15} />
                       <span>
                         <strong>{item.name}</strong>
-                        <small>{item.locked ? "正在生效" : "候选"}</small>
+                        <small>
+                          {item.locked
+                            ? "正在生效"
+                            : item.archived
+                              ? "已归档"
+                              : "候选"}
+                        </small>
                       </span>
                       {item.locked ? (
                         <span className="lock-mark">
@@ -1332,20 +1403,41 @@ function App() {
                     <p className="candidate-list-empty">没有匹配的候选。</p>
                   ) : null}
                 </div>
-                {candidate && !candidate.locked ? (
+                {candidate && candidate.archived ? (
                   <button
                     className="switch-button"
-                    disabled={busy || dirty}
-                    onClick={() =>
-                      void act(
-                        () => api.lockCandidate(target.path, candidate.id),
-                        `已锁定「${candidate.name}」，正式文件已同步`,
-                      )
-                    }
+                    disabled={busy || dirty || target.conflict}
+                    onClick={() => void restoreCurrentCandidate()}
                   >
-                    <ArrowDownUp size={14} />
-                    切换为正式规则
+                    <ArchiveRestore size={14} />
+                    恢复候选
                   </button>
+                ) : candidate && !candidate.locked ? (
+                  <div className="candidate-actions">
+                    <button
+                      className="switch-button"
+                      disabled={busy || dirty}
+                      onClick={() =>
+                        void act(
+                          () => api.lockCandidate(target.path, candidate.id),
+                          `已锁定「${candidate.name}」，正式文件已同步`,
+                        )
+                      }
+                    >
+                      <ArrowDownUp size={14} />
+                      切换为正式规则
+                    </button>
+                    <button
+                      className="archive-candidate-button"
+                      aria-label="归档当前候选"
+                      title="从当前候选列表收起；正文和历史保留"
+                      disabled={busy || dirty || target.conflict}
+                      onClick={() => void archiveCurrentCandidate()}
+                    >
+                      <Archive size={14} />
+                      归档
+                    </button>
+                  </div>
                 ) : null}
                 <div className="candidate-foot">
                   <span className="live-dot" />
@@ -1366,6 +1458,8 @@ function App() {
                       <Check size={12} />
                       锁定中
                     </span>
+                  ) : candidate?.archived ? (
+                    <span className="draft-tag">已归档 · 只读</span>
                   ) : (
                     <span className="draft-tag">候选草稿</span>
                   )}
@@ -1378,10 +1472,16 @@ function App() {
                       type="button"
                       aria-pressed={!previewMode}
                       className={!previewMode ? "active" : ""}
+                      disabled={candidate?.archived ?? false}
+                      title={candidate?.archived ? "已归档候选只读" : undefined}
                       onClick={() => setPreviewMode(false)}
                     >
-                      <PencilLine size={12} />
-                      编辑
+                      {candidate?.archived ? (
+                        <Eye size={12} />
+                      ) : (
+                        <PencilLine size={12} />
+                      )}
+                      {candidate?.archived ? "只读" : "编辑"}
                     </button>
                     <button
                       type="button"
@@ -1407,6 +1507,7 @@ function App() {
                         className="candidate-name"
                         aria-label="候选名称"
                         value={name}
+                        readOnly={candidate.archived}
                         onChange={(event) => setName(event.target.value)}
                       />
                     )
@@ -1436,6 +1537,7 @@ function App() {
                       aria-label="候选内容"
                       spellCheck={false}
                       value={content}
+                      readOnly={candidate?.archived ?? false}
                       onChange={(event) => setContent(event.target.value)}
                     />
                   )}
@@ -1508,7 +1610,9 @@ function App() {
                     ) : null}
                     <button
                       className="primary-button"
-                      disabled={busy || !candidate || !dirty}
+                      disabled={
+                        busy || !candidate || candidate.archived || !dirty
+                      }
                       title={`保存候选（${navigator.platform.toLowerCase().includes("mac") ? "⌘S" : "Ctrl+S"}）`}
                       aria-keyshortcuts="Control+S Meta+S"
                       onClick={() => void saveCurrentCandidate()}
@@ -1676,6 +1780,7 @@ function App() {
                   <option key={item.id} value={item.id}>
                     {item.name} · {item.id.slice(0, 7)}
                     {item.locked ? "（正式生效）" : ""}
+                    {item.archived ? "（已归档）" : ""}
                   </option>
                 ))}
               </select>

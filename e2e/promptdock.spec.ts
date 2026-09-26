@@ -148,7 +148,9 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   }
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByLabel("候选内容").fill(originalRules);
-  await page.getByLabel("候选内容").fill(candidateRules);
+  await page
+    .getByRole("textbox", { name: "候选内容", exact: true })
+    .fill(candidateRules);
   const shortcutSavePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/candidates") &&
@@ -1168,7 +1170,9 @@ test("候选来源默认保留未保存草稿，干净时分支会打开且有 G
   await expect(
     page.getByRole("textbox", { name: "候选名称", exact: true }),
   ).toHaveValue("Clean branch from formal");
-  await expect(page.getByLabel("候选内容")).toHaveValue(formalRules);
+  await expect(
+    page.getByRole("textbox", { name: "候选内容", exact: true }),
+  ).toHaveValue(formalRules);
   const afterCleanBranchResponse = await page.request.get("/api/state");
   const afterCleanBranch = await afterCleanBranchResponse.json();
   const targetAfterCleanBranch = afterCleanBranch.targets.find(
@@ -1762,4 +1766,84 @@ test("刷新页面时保护未保存候选草稿", async ({ page }) => {
   expect(reloadResponse).not.toBeNull();
   await page.getByRole("button", { name: "reload-draft", exact: true }).click();
   await expect(page.getByLabel("候选内容")).toHaveValue(unsavedRules);
+});
+
+test("候选归档与恢复保留正文、正式文件和候选历史", async ({ page }) => {
+  const formalRules = "formal stays active\n";
+  const candidateRules = "archived candidate revision\n";
+  const workspace = await makeWorkspace("candidate-archive", formalRules);
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByPlaceholder("例如：更严格的代码审查").fill("Archive me");
+  await page.getByRole("button", { name: "创建候选" }).click();
+  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await expect(page.getByLabel("候选名称")).toHaveValue("Archive me");
+  await expect(
+    page.getByRole("textbox", { name: "候选内容", exact: true }),
+  ).toHaveValue(formalRules);
+  await page
+    .getByRole("textbox", { name: "候选内容", exact: true })
+    .fill(candidateRules);
+  await expect(
+    page.getByRole("textbox", { name: "候选内容", exact: true }),
+  ).toHaveValue(candidateRules);
+  await expect(page.getByRole("button", { name: "保存候选" })).toBeEnabled();
+  await page.getByRole("button", { name: "保存候选" }).click();
+  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+
+  const beforeArchiveResponse = await page.request.get("/api/state");
+  const beforeArchive = await beforeArchiveResponse.json();
+  const beforeTarget = beforeArchive.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  const savedCandidate = beforeTarget.candidates.find(
+    (item: { name: string }) => item.name === "Archive me",
+  );
+  expect(savedCandidate).toMatchObject({ archived: false, locked: false });
+
+  await page.getByRole("button", { name: "归档当前候选" }).click();
+  await expect(page.getByLabel("候选内容")).toHaveValue(formalRules);
+  await expect(
+    page.getByRole("button", { name: "查看已归档候选" }),
+  ).toBeEnabled();
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalRules,
+  );
+
+  const historyResponse = await page.request.get(
+    `/api/candidates/${encodeURIComponent(savedCandidate.id)}/history?${new URLSearchParams({ path: workspace })}`,
+  );
+  expect(historyResponse.ok()).toBe(true);
+  expect(await historyResponse.json()).toHaveLength(2);
+
+  await page.getByRole("button", { name: "查看已归档候选" }).click();
+  const archivedRow = page.getByRole("button", { name: /Archive me/ });
+  await expect(archivedRow).toContainText("已归档");
+  await archivedRow.click();
+  if (process.env.PROMPTDOCK_ARCHIVE_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_ARCHIVE_SCREENSHOT_PATH,
+    });
+  }
+  await expect(page.getByLabel("候选名称")).toHaveAttribute("readonly", "");
+  await expect(page.getByLabel("候选内容")).toHaveAttribute("readonly", "");
+  await expect(page.getByRole("button", { name: "只读" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "保存候选" })).toBeDisabled();
+  await page.getByRole("button", { name: "恢复候选" }).click();
+  await expect(
+    page.getByRole("button", { name: "返回当前候选" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("候选内容")).toHaveValue(candidateRules);
+
+  const afterRestoreResponse = await page.request.get("/api/state");
+  const afterRestore = await afterRestoreResponse.json();
+  const restored = afterRestore.targets
+    .find((item: { path: string }) => item.path === workspace)
+    .candidates.find((item: { id: string }) => item.id === savedCandidate.id);
+  expect(restored).toMatchObject({ archived: false, locked: false });
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalRules,
+  );
 });

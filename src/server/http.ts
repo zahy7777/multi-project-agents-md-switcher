@@ -126,6 +126,15 @@ export function createHttpApp(library: PromptLibrary) {
       ),
     );
   });
+  app.post("/api/candidates/archive", async (request, response) => {
+    response.json(
+      await library.setCandidateArchived(
+        readString(request.body?.path, "path"),
+        readString(request.body?.candidateId, "candidateId"),
+        readBoolean(request.body?.archived, "archived"),
+      ),
+    );
+  });
   app.post("/api/conflicts/resolve", async (request, response) => {
     response.json(
       await library.resolveConflict(
@@ -183,5 +192,10 @@ function readString(value: unknown, name: string, allowEmpty = false) {
   if (typeof value !== "string" || (!allowEmpty && value.trim() === "")) {
     throw new Error(`请求字段 ${name} 无效。`);
   }
+  return value;
+}
+
+function readBoolean(value: unknown, name: string) {
+  if (typeof value !== "boolean") throw new Error(`请求字段 ${name} 无效。`);
   return value;
 }

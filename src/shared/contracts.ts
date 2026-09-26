@@ -3,6 +3,7 @@ export type Candidate = {
   name: string;
   content: string;
   locked: boolean;
+  archived: boolean;
 };
 
 export type CandidateRevision = {

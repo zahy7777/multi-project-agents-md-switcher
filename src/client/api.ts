@@ -54,6 +54,15 @@ export const api = {
     }),
   lockCandidate: (path: string, candidateId: string) =>
     request<ManagerState>("/api/candidates/lock", post({ path, candidateId })),
+  setCandidateArchived: (
+    path: string,
+    candidateId: string,
+    archived: boolean,
+  ) =>
+    request<ManagerState>(
+      "/api/candidates/archive",
+      post({ path, candidateId, archived }),
+    ),
   resolveConflict: (path: string, name: string, content: string) =>
     request<ManagerState>(
       "/api/conflicts/resolve",

@@ -603,6 +603,19 @@ textarea {
   color: #9aa5a4;
   font-size: 9px;
 }
+.archive-filter-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 27px;
+  margin: 0 1px 8px;
+  padding: 0 7px;
+  border: 1px solid #e8eeeb;
+  border-radius: 5px;
+  color: #758783;
+  background: #fbfcfc;
+  font-size: 9px;
+}
 .candidate-row {
   display: flex;
   align-items: center;
@@ -658,6 +671,28 @@ textarea {
   border-radius: 5px;
   color: #4f857a;
   background: #f7fbf9;
+  font-size: 9px;
+}
+.candidate-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+}
+.candidate-actions .switch-button {
+  width: 100%;
+}
+.archive-candidate-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 30px;
+  margin-top: 11px;
+  padding: 0 8px;
+  border: 1px solid #e8e8e4;
+  border-radius: 5px;
+  color: #85847b;
+  background: #fbfbf9;
   font-size: 9px;
 }
 .candidate-foot {
