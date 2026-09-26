@@ -1,0 +1,25 @@
+export type Candidate = {
+  id: string;
+  name: string;
+  content: string;
+  locked: boolean;
+};
+
+export type RulePath = {
+  path: string;
+  initialized: boolean;
+  formalContent: string | null;
+  lockedCandidateId: string | null;
+  candidates: Candidate[];
+  conflict: boolean;
+};
+
+export type ManagerState = {
+  workspaces: string[];
+  targets: RulePath[];
+  historyPath: string;
+  diagnosticsPath: string;
+  userRulesPath: string;
+};
+
+export type ApiFailure = { error: { code: string; message: string } };
