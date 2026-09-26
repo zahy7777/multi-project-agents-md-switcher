@@ -194,6 +194,38 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByLabel("候选内容")).toHaveValue(scanDraft);
   await page.getByLabel("候选内容").fill(candidateRules);
 
+  const unsupportedSource = path.join(testRoot, "unsupported prompt.txt");
+  await writeFile(unsupportedSource, "This is not Markdown.\n", "utf8");
+  const candidatesBeforeUnsupportedImportResponse =
+    await page.request.get("/api/state");
+  const candidatesBeforeUnsupportedImportState =
+    await candidatesBeforeUnsupportedImportResponse.json();
+  const candidatesBeforeUnsupportedImport =
+    candidatesBeforeUnsupportedImportState.targets
+      .find((item: { path: string }) => item.path === workspace)
+      .candidates.map((item: { id: string }) => item.id);
+  await page.getByRole("button", { name: "从 Markdown 导入候选" }).click();
+  await page
+    .getByLabel("选择候选 Markdown 文件")
+    .setInputFiles(unsupportedSource);
+  await expect(page.locator(".toast-error")).toContainText(
+    "只能导入 .md 或 .markdown 文件",
+  );
+  await expect(page.getByLabel("候选内容")).toHaveValue(candidateRules);
+  const candidatesAfterUnsupportedImportResponse =
+    await page.request.get("/api/state");
+  const candidatesAfterUnsupportedImportState =
+    await candidatesAfterUnsupportedImportResponse.json();
+  expect(
+    candidatesAfterUnsupportedImportState.targets
+      .find((item: { path: string }) => item.path === workspace)
+      .candidates.map((item: { id: string }) => item.id),
+  ).toEqual(candidatesBeforeUnsupportedImport);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    originalRules,
+  );
+  await page.getByRole("button", { name: "关闭提示" }).click();
+
   const importedSource = path.join(testRoot, "legacy prompt.md");
   const importedRules = "# Imported legacy prompt\n\nDo not modify source.\n";
   await writeFile(importedSource, importedRules, "utf8");
