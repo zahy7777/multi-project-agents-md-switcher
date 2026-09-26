@@ -349,6 +349,9 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   const historyViewTarget = historyViewState.targets.find(
     (item: { path: string }) => item.path === workspace,
   );
+  const historyViewCandidateIds = historyViewTarget.candidates
+    .map((item: { id: string }) => item.id)
+    .sort();
   expect(
     historyViewTarget.candidates.find(
       (item: { name: string }) => item.name === "Candidate B",
@@ -377,6 +380,11 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   const cancelledRestoreTarget = cancelledRestoreState.targets.find(
     (item: { path: string }) => item.path === workspace,
   );
+  expect(
+    cancelledRestoreTarget.candidates
+      .map((item: { id: string }) => item.id)
+      .sort(),
+  ).toEqual(historyViewCandidateIds);
   expect(
     cancelledRestoreTarget.candidates.some(
       (item: { name: string }) => item.name === "Candidate B（历史恢复）",
