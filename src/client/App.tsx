@@ -8,6 +8,7 @@ import {
   Clock3,
   FileCode2,
   FolderOpen,
+  FolderMinus,
   FolderPlus,
   GitCompare,
   GitBranch,
@@ -238,6 +239,31 @@ function App() {
     setSelectedWorkspace(workspace);
   }
 
+  async function removeWorkspace(workspace: string) {
+    if (samePath(workspace, userWorkspace ?? "")) return;
+    if (
+      samePath(workspace, selectedWorkspace) &&
+      dirty &&
+      !window.confirm(
+        "当前候选有未保存修改，移除后将放弃这些修改。确定继续吗？",
+      )
+    )
+      return;
+    if (
+      !window.confirm(
+        `从列表移除「${pathLeaf(workspace)}」？正式文件、候选和历史都会保留；以后重新添加该路径即可继续管理。`,
+      )
+    )
+      return;
+    const next = await act(
+      () => api.removeWorkspace(workspace),
+      "工作空间已从列表移除，文件和历史均已保留",
+    );
+    if (!next || !samePath(selectedWorkspace, workspace)) return;
+    setSelectedWorkspace(next.workspaces[0] ?? "");
+    setSelectedPath("");
+  }
+
   function chooseTarget(path: string) {
     if (dirty && !window.confirm("当前候选有未保存修改，确定放弃并切换吗？"))
       return;
@@ -451,21 +477,35 @@ function App() {
         </div>
         <div className="workspace-list">
           {state.workspaces.map((workspace) => (
-            <button
-              key={workspace}
-              className={`workspace-row ${workspace === selectedWorkspace ? "active" : ""}`}
-              onClick={() => chooseWorkspace(workspace)}
-              title={workspace}
-            >
-              <FolderOpen size={15} />
-              <span>
-                {pathLeaf(workspace)}
-                {workspace === userWorkspace ? <em>用户级规则</em> : null}
-              </span>
-              {workspace === selectedWorkspace ? (
-                <ChevronRight size={14} />
+            <div className="workspace-item" key={workspace}>
+              <button
+                className={`workspace-row ${workspace === selectedWorkspace ? "active" : ""}`}
+                onClick={() => chooseWorkspace(workspace)}
+                title={workspace}
+              >
+                <FolderOpen size={15} />
+                <span>
+                  {pathLeaf(workspace)}
+                  {samePath(workspace, userWorkspace ?? "") ? (
+                    <em>用户级规则</em>
+                  ) : null}
+                </span>
+                {samePath(workspace, selectedWorkspace) ? (
+                  <ChevronRight size={14} />
+                ) : null}
+              </button>
+              {!samePath(workspace, userWorkspace ?? "") ? (
+                <button
+                  className="workspace-remove"
+                  aria-label={`从列表移除工作空间 ${pathLeaf(workspace)}`}
+                  title="从列表移除（保留文件、候选和历史）"
+                  disabled={busy}
+                  onClick={() => void removeWorkspace(workspace)}
+                >
+                  <FolderMinus size={14} />
+                </button>
               ) : null}
-            </button>
+            </div>
           ))}
           {state.workspaces.length === 0 && (
             <div className="empty-note">还没有工作空间</div>

@@ -61,6 +61,11 @@ export function createHttpApp(library: PromptLibrary) {
       await library.addWorkspace(readString(request.body?.path, "path")),
     );
   });
+  app.delete("/api/workspaces", async (request, response) => {
+    response.json(
+      await library.removeWorkspace(readString(request.body?.path, "path")),
+    );
+  });
   app.post("/api/workspaces/scan", async (request, response) => {
     response.json(
       await library.rescanWorkspace(readString(request.body?.path, "path")),

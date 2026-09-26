@@ -66,6 +66,35 @@ export class PromptLibrary {
     });
   }
 
+  async removeWorkspace(selectedPath: string) {
+    return this.exclusively(async () => {
+      if (!selectedPath.trim()) throw new Error("未指定要移除的工作空间。");
+      const requested = path.resolve(selectedPath.trim());
+      const workspace = this.state.workspaces.find((item) =>
+        this.samePath(item, requested),
+      );
+      if (!workspace) throw new Error("该工作空间当前未登记。");
+      if (this.samePath(workspace, path.dirname(userRulesFile()))) {
+        throw new Error("Codex 用户级规则路径由应用自动管理，不能移除。");
+      }
+
+      const previousWorkspaces = [...this.state.workspaces];
+      this.state.workspaces = this.state.workspaces.filter(
+        (item) => !this.samePath(item, workspace),
+      );
+      try {
+        await this.persist();
+        await this.record("从列表移除工作空间");
+      } catch (error) {
+        this.state.workspaces = previousWorkspaces;
+        await this.persist().catch(() => undefined);
+        throw error;
+      }
+      await this.log("workspace.remove", "ok", `path=${workspace}`);
+      return this.view();
+    });
+  }
+
   async rescanWorkspace(selectedPath: string) {
     return this.exclusively(async () => {
       const workspace = await this.authorizedDirectory(selectedPath);

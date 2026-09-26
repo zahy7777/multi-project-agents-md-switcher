@@ -21,6 +21,11 @@ export const api = {
   state: () => request<ManagerState>("/api/state"),
   addWorkspace: (path: string) =>
     request<ManagerState>("/api/workspaces", post({ path })),
+  removeWorkspace: (path: string) =>
+    request<ManagerState>("/api/workspaces", {
+      method: "DELETE",
+      body: JSON.stringify({ path }),
+    }),
   scanWorkspace: (path: string) =>
     request<ManagerState>("/api/workspaces/scan", post({ path })),
   scanAllWorkspaces: () =>
