@@ -428,6 +428,21 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     });
   }
   await page.setViewportSize({ width: 800, height: 720 });
+  const formalCard = page.locator(".formal-card");
+  await formalCard.scrollIntoViewIfNeeded();
+  const formalCardBounds = await formalCard.evaluate((card) => {
+    const rect = card.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
+    };
+  });
+  expect(formalCardBounds.left).toBeGreaterThanOrEqual(0);
+  expect(formalCardBounds.right).toBeLessThanOrEqual(800);
+  expect(formalCardBounds.top).toBeGreaterThanOrEqual(0);
+  expect(formalCardBounds.bottom).toBeLessThanOrEqual(720);
   const copiedFormalPathButton = page.getByRole("button", {
     name: "路径已复制",
   });
@@ -455,6 +470,10 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   expect(formalPathButtonBounds.top).toBeGreaterThanOrEqual(0);
   expect(formalPathButtonBounds.bottom).toBeLessThanOrEqual(720);
   expect(formalPathButtonBounds.receivesPointer).toBe(true);
+  await copiedFormalPathButton.click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    path.join(workspace, "AGENTS.md"),
+  );
   if (process.env.PROMPTDOCK_FORMAL_PATH_NARROW_SCREENSHOT_PATH) {
     await page.screenshot({
       path: process.env.PROMPTDOCK_FORMAL_PATH_NARROW_SCREENSHOT_PATH,
