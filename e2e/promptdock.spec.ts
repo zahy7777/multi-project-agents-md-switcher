@@ -688,6 +688,134 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   expect(await readFile(nestedFormalFile, "utf8")).toBe("# AGENTS.md\n");
 });
 
+test("未保存冲突解决稿保护规则路径切换、添加和移除操作", async ({ page }) => {
+  const workspace = await makeWorkspace("navigation-rules", "initial formal\n");
+  const childDirectory = path.join(workspace, "nested");
+  await mkdir(childDirectory, { recursive: true });
+  await writeFile(
+    path.join(childDirectory, "AGENTS.md"),
+    "nested rules\n",
+    "utf8",
+  );
+  const newWorkspace = await makeWorkspace("navigation-added-workspace");
+  const formalFile = path.join(workspace, "AGENTS.md");
+  const externalFormal = "external formal update\n";
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  const rootRule = page.getByRole("button", {
+    name: "AGENTS.md",
+    exact: true,
+  });
+  await rootRule.click();
+  await writeFile(formalFile, externalFormal, "utf8");
+  await page.getByRole("button", { name: "重新扫描当前工作空间" }).click();
+  await expect(
+    page.getByRole("heading", { name: "规则文件冲突" }),
+  ).toBeVisible();
+
+  const pathSwitchDraft = "unsaved path switch resolution\n";
+  await page.getByLabel("冲突解决内容").fill(pathSwitchDraft);
+  const cancelledPathSwitch = page.waitForEvent("dialog");
+  const cancelledPathClick = page
+    .locator(".rule-row")
+    .filter({ hasText: "nested" })
+    .click();
+  const cancelledPathDialog = await cancelledPathSwitch;
+  expect(cancelledPathDialog.message()).toContain("冲突解决稿");
+  await cancelledPathDialog.dismiss();
+  await cancelledPathClick;
+  await expect(
+    page.getByRole("heading", { name: "规则文件冲突" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(pathSwitchDraft);
+
+  const acceptedPathSwitch = page.waitForEvent("dialog");
+  const acceptedPathClick = page
+    .locator(".rule-row")
+    .filter({ hasText: "nested" })
+    .click();
+  const acceptedPathDialog = await acceptedPathSwitch;
+  await acceptedPathDialog.accept();
+  await acceptedPathClick;
+  await expect(page.getByLabel("候选内容")).toHaveValue("nested rules\n");
+  await rootRule.click();
+  await expect(
+    page.getByRole("heading", { name: "规则文件冲突" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(externalFormal);
+
+  const addWorkspaceButton = page
+    .getByRole("button", {
+      name: "添加工作空间",
+    })
+    .first();
+  const addWorkspaceDraft = "unsaved add-workspace resolution\n";
+  await page.getByLabel("冲突解决内容").fill(addWorkspaceDraft);
+  await addWorkspaceButton.click();
+  await page.getByPlaceholder(/例如 C:/).fill(newWorkspace);
+  const cancelledAddConfirmation = page.waitForEvent("dialog");
+  const cancelledAddClick = page
+    .getByRole("button", { name: "添加并扫描" })
+    .click();
+  const cancelledAddDialog = await cancelledAddConfirmation;
+  expect(cancelledAddDialog.message()).toContain("冲突解决稿");
+  await cancelledAddDialog.dismiss();
+  await cancelledAddClick;
+  await expect(
+    page.getByRole("heading", { name: "添加工作空间" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(addWorkspaceDraft);
+
+  const acceptedAddConfirmation = page.waitForEvent("dialog");
+  const acceptedAddClick = page
+    .getByRole("button", { name: "添加并扫描" })
+    .click();
+  const acceptedAddDialog = await acceptedAddConfirmation;
+  await acceptedAddDialog.accept();
+  await acceptedAddClick;
+  await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
+    0,
+  );
+  await page
+    .getByRole("button", { name: "navigation-rules", exact: true })
+    .click();
+  await rootRule.click();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(externalFormal);
+
+  const removalDraftName = "Unsaved removal draft";
+  await page.getByLabel("冲突候选名称").fill(removalDraftName);
+  const cancelledRemoval = page.waitForEvent("dialog");
+  const cancelledRemovalClick = page
+    .getByRole("button", { name: "从列表移除工作空间 navigation-rules" })
+    .click();
+  const cancelledRemovalDialog = await cancelledRemoval;
+  expect(cancelledRemovalDialog.message()).toContain("冲突解决稿");
+  await cancelledRemovalDialog.dismiss();
+  await cancelledRemovalClick;
+  await expect(page.getByLabel("冲突候选名称")).toHaveValue(removalDraftName);
+  await expect(
+    page.getByRole("button", { name: "navigation-rules", exact: true }),
+  ).toBeVisible();
+
+  const acceptedRemoval = page.waitForEvent("dialog");
+  const acceptedRemovalClick = page
+    .getByRole("button", { name: "从列表移除工作空间 navigation-rules" })
+    .click();
+  const acceptedRemovalDialog = await acceptedRemoval;
+  expect(acceptedRemovalDialog.message()).toContain("冲突解决稿");
+  const removalConfirmation = page.waitForEvent("dialog");
+  await acceptedRemovalDialog.accept();
+  const removalDialog = await removalConfirmation;
+  expect(removalDialog.message()).toContain("正式文件、候选和历史都会保留");
+  await removalDialog.accept();
+  await acceptedRemovalClick;
+  await expect(
+    page.getByRole("button", { name: "navigation-rules", exact: true }),
+  ).toHaveCount(0);
+  expect(await readFile(formalFile, "utf8")).toBe(externalFormal);
+});
+
 test("帮助诊断链接可打开本机日志，错误添加可重试", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "使用说明与诊断" }).click();
