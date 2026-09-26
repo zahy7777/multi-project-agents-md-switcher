@@ -84,6 +84,17 @@ function measureMarkdown(content: string) {
   };
 }
 
+function findTextMatches(content: string, query: string) {
+  if (!query) return [];
+  const matches: number[] = [];
+  let position = content.indexOf(query);
+  while (position !== -1) {
+    matches.push(position);
+    position = content.indexOf(query, position + query.length);
+  }
+  return matches;
+}
+
 function LineDiffView({
   changes,
   ariaLabel,
@@ -137,6 +148,10 @@ function App() {
   const [candidateFilter, setCandidateFilter] = useState("");
   const [showArchivedCandidates, setShowArchivedCandidates] = useState(false);
   const [content, setContent] = useState("");
+  const [findReplaceOpen, setFindReplaceOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [replacementText, setReplacementText] = useState("");
+  const [activeFindMatch, setActiveFindMatch] = useState(-1);
   const [name, setName] = useState("");
   const [filter, setFilter] = useState("");
   const [ruleSearchOpen, setRuleSearchOpen] = useState(false);
@@ -184,6 +199,7 @@ function App() {
   const copyFeedbackTimeout = useRef<number | null>(null);
   const saveInFlight = useRef(false);
   const candidateFileInput = useRef<HTMLInputElement>(null);
+  const candidateEditor = useRef<HTMLTextAreaElement>(null);
   const resolutionTargetPath = useRef("");
   const workspaceNameCounts = new Map<string, number>();
   for (const workspace of state.workspaces) {
@@ -430,6 +446,10 @@ function App() {
   );
   const dirty =
     !!candidate && (content !== candidate.content || name !== candidate.name);
+  const findMatchPositions = useMemo(
+    () => findTextMatches(content, findQuery),
+    [content, findQuery],
+  );
   const resolutionDirty =
     !!target?.conflict &&
     (resolution !== (target.formalContent ?? "") ||
@@ -1029,6 +1049,51 @@ function App() {
     await copyToClipboard(resolution, "resolution");
   }
 
+  function moveToFindMatch(direction: -1 | 1) {
+    if (findMatchPositions.length === 0) return;
+    const nextMatch =
+      activeFindMatch === -1
+        ? direction === 1
+          ? 0
+          : findMatchPositions.length - 1
+        : (activeFindMatch + direction + findMatchPositions.length) %
+          findMatchPositions.length;
+    setActiveFindMatch(nextMatch);
+    const start = findMatchPositions[nextMatch];
+    const editor = candidateEditor.current;
+    if (!editor || start === undefined) return;
+    editor.focus();
+    editor.setSelectionRange(start, start + findQuery.length);
+  }
+
+  function replaceFindMatch(replaceAll: boolean) {
+    if (findMatchPositions.length === 0) return;
+    if (replaceAll) {
+      let nextContent = content;
+      for (const position of [...findMatchPositions].reverse()) {
+        nextContent =
+          nextContent.slice(0, position) +
+          replacementText +
+          nextContent.slice(position + findQuery.length);
+      }
+      setContent(nextContent);
+      setActiveFindMatch(-1);
+      setNotice(`已替换 ${findMatchPositions.length} 处；保存后才会写入文件。`);
+      window.setTimeout(() => setNotice(""), 3500);
+      return;
+    }
+
+    const matchIndex = activeFindMatch < 0 ? 0 : activeFindMatch;
+    const position = findMatchPositions[matchIndex];
+    if (position === undefined) return;
+    setContent(
+      content.slice(0, position) +
+        replacementText +
+        content.slice(position + findQuery.length),
+    );
+    setActiveFindMatch(-1);
+  }
+
   useEffect(() => {
     return () => {
       if (copyFeedbackTimeout.current !== null)
@@ -1101,6 +1166,7 @@ function App() {
       else if (switchPreviewOpen) setSwitchPreviewOpen(false);
       else if (compareOpen) setCompareOpen(false);
       else if (historyOpen) setHistoryOpen(false);
+      else if (findReplaceOpen) setFindReplaceOpen(false);
       else if (showCandidateForm) setShowCandidateForm(false);
       else if (showWorkspaceForm) setShowWorkspaceForm(false);
       else return;
@@ -1114,6 +1180,7 @@ function App() {
     helpOpen,
     ruleSearchOpen,
     historyOpen,
+    findReplaceOpen,
     switchPreviewOpen,
     showCandidateForm,
     showInitializeForm,
@@ -1726,7 +1793,108 @@ function App() {
                       预览
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    className="secondary-button editor-find-toggle"
+                    aria-expanded={findReplaceOpen}
+                    disabled={
+                      !candidate || candidate.archived || previewMode || busy
+                    }
+                    onClick={() => {
+                      setFindReplaceOpen((open) => !open);
+                      setActiveFindMatch(-1);
+                    }}
+                  >
+                    <Search size={12} />
+                    查找替换
+                  </button>
                 </div>
+                {findReplaceOpen ? (
+                  <div
+                    className="editor-find-replace"
+                    role="group"
+                    aria-label="查找替换候选内容"
+                  >
+                    <input
+                      aria-label="查找候选内容"
+                      placeholder="查找文本"
+                      title="只查找当前候选，按原文区分大小写"
+                      value={findQuery}
+                      onChange={(event) => {
+                        setFindQuery(event.target.value);
+                        setActiveFindMatch(-1);
+                      }}
+                    />
+                    <input
+                      aria-label="替换为"
+                      placeholder="替换为"
+                      title="替换结果只修改当前草稿；保存候选后才会写入文件"
+                      value={replacementText}
+                      onChange={(event) =>
+                        setReplacementText(event.target.value)
+                      }
+                    />
+                    <span aria-live="polite">
+                      {findMatchPositions.length === 0
+                        ? "没有匹配"
+                        : activeFindMatch >= 0
+                          ? `第 ${activeFindMatch + 1} / ${findMatchPositions.length} 处`
+                          : `找到 ${findMatchPositions.length} 处`}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="上一个匹配"
+                      title="上一个匹配"
+                      disabled={findMatchPositions.length === 0}
+                      onClick={() => moveToFindMatch(-1)}
+                    >
+                      <ChevronRight className="find-previous-icon" size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="下一个匹配"
+                      title="下一个匹配"
+                      disabled={findMatchPositions.length === 0}
+                      onClick={() => moveToFindMatch(1)}
+                    >
+                      <ChevronRight size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      title="替换当前匹配；只修改草稿"
+                      disabled={
+                        findMatchPositions.length === 0 ||
+                        candidate?.archived ||
+                        busy
+                      }
+                      onClick={() => replaceFindMatch(false)}
+                    >
+                      替换当前
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      title="替换当前候选中的全部匹配；只修改草稿"
+                      disabled={
+                        findMatchPositions.length === 0 ||
+                        candidate?.archived ||
+                        busy
+                      }
+                      onClick={() => replaceFindMatch(true)}
+                    >
+                      全部替换
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label="关闭查找替换"
+                      onClick={() => setFindReplaceOpen(false)}
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ) : null}
                 <div
                   className="editor-view"
                   id="candidate-editor-view"
@@ -1766,6 +1934,7 @@ function App() {
                     </article>
                   ) : (
                     <textarea
+                      ref={candidateEditor}
                       className="markdown-editor"
                       aria-label="候选内容"
                       spellCheck={false}

@@ -2290,3 +2290,48 @@ test("升级前没有名称快照的候选历史仍能在界面查看正文", as
   await page.getByRole("button", { name: "历史全文" }).click();
   await expect(page.locator(".history-preview")).toHaveText("# Legacy rules\n");
 });
+
+test("候选查找替换只改草稿，保存锁定候选后才同步正式文件", async ({ page }) => {
+  const originalRules = "foo foo foo\n";
+  const workspace = await makeWorkspace(
+    "candidate-find-replace",
+    originalRules,
+  );
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page.getByRole("button", { name: "AGENTS.md", exact: true }).click();
+  await page.getByRole("button", { name: "查找替换" }).click();
+  await page.getByRole("textbox", { name: "查找候选内容" }).fill("foo");
+  await page.getByRole("textbox", { name: "替换为" }).fill("bar");
+  await expect(page.getByText("找到 3 处")).toBeVisible();
+  if (process.env.PROMPTDOCK_SCREENSHOT_PATH) {
+    await page.screenshot({ path: process.env.PROMPTDOCK_SCREENSHOT_PATH });
+  }
+
+  await page.getByRole("button", { name: "下一个匹配" }).click();
+  await page.getByRole("button", { name: "下一个匹配" }).click();
+  await page.getByRole("button", { name: "下一个匹配" }).click();
+  await expect(page.getByText("第 3 / 3 处")).toBeVisible();
+  await page.getByRole("button", { name: "替换当前" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "候选内容", exact: true }),
+  ).toHaveValue("foo foo bar\n");
+  await expect(page.getByText("找到 2 处")).toBeVisible();
+
+  await page.getByRole("textbox", { name: "替换为" }).fill("baz");
+  await page.getByRole("button", { name: "全部替换" }).click();
+  const replacedDraft = "baz baz bar\n";
+  await expect(
+    page.getByRole("textbox", { name: "候选内容", exact: true }),
+  ).toHaveValue(replacedDraft);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    originalRules,
+  );
+
+  await page.getByRole("button", { name: "保存并同步正式文件" }).click();
+  await expect(page.getByText("候选与正式文件已同步并记入历史")).toBeVisible();
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    replacedDraft,
+  );
+});

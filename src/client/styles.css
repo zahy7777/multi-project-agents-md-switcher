@@ -762,6 +762,70 @@ textarea {
   background: #fff;
   box-shadow: 0 1px 2px #1c373008;
 }
+.editor-find-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  font-size: 9px;
+}
+.editor-find-replace {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e8eeea;
+  background: #f8faf9;
+}
+.editor-find-replace input {
+  width: min(180px, 24%);
+  min-width: 90px;
+  height: 28px;
+  padding: 0 7px;
+  border: 1px solid #dfe7e3;
+  border-radius: 5px;
+  outline: none;
+  color: #405258;
+  background: #fff;
+  font: inherit;
+  font-size: 9px;
+}
+.editor-find-replace input:focus {
+  border-color: #83b5a8;
+  box-shadow: 0 0 0 2px #e9f3ef;
+}
+.editor-find-replace > span {
+  min-width: 62px;
+  color: #7f8d90;
+  font-size: 9px;
+}
+.editor-find-replace > button:not(.secondary-button):not(.icon-button) {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid #e1e8e4;
+  border-radius: 5px;
+  color: #63777a;
+  background: #fff;
+}
+.editor-find-replace .find-previous-icon {
+  transform: rotate(180deg);
+}
+.editor-find-replace .secondary-button {
+  padding: 6px 8px;
+  font-size: 9px;
+}
+.editor-find-replace .icon-button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  color: #7d898b;
+  background: transparent;
+}
 .editor-view {
   display: flex;
   flex: 1;
