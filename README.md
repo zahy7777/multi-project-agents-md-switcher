@@ -22,6 +22,16 @@ pnpm start
 
 Windows 可双击项目目录中的 `启动 PromptDock.cmd`：脚本先构建，再启动服务并打开默认浏览器。关闭启动窗口会结束服务。
 
+## 真实浏览器验收
+
+首次运行安装 Playwright Chromium：
+
+```powershell
+pnpm exec playwright install chromium
+```
+
+随后执行 `pnpm test:e2e`。验收会构建正式前端、启动本地 Node 服务并操作真实浏览器；用户规则、工作空间和应用数据都放在系统临时目录，结束后自动清理。
+
 ## 使用规则
 
 1. 用户级 Codex 规则作为普通路径自动添加并排在工作空间列表顶部；默认位置是 `CODEX_HOME/AGENTS.md`，未设置 `CODEX_HOME` 时是 `~/.codex/AGENTS.md`。

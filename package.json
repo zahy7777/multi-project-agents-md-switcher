@@ -12,6 +12,7 @@
     "dev:web": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "start": "tsx src/server/index.ts",
+    "test:e2e": "pnpm build && playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -25,6 +26,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
