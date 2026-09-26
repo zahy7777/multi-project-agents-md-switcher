@@ -9,6 +9,7 @@ import {
   FileCode2,
   FolderOpen,
   FolderPlus,
+  GitCompare,
   GitBranch,
   Plus,
   RefreshCw,
@@ -84,12 +85,15 @@ function App() {
   const [historyContent, setHistoryContent] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [compareOpen, setCompareOpen] = useState(false);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
 
   const target =
     state.targets.find((item) => item.path === selectedPath) ?? null;
   const candidate =
     target?.candidates.find((item) => item.id === selectedCandidateId) ?? null;
+  const lockedCandidate =
+    target?.candidates.find((item) => item.locked) ?? null;
   const workspaceTargets = useMemo(
     () =>
       state.targets
@@ -694,6 +698,16 @@ function App() {
                 <div className="candidate-heading">
                   <span>候选版本</span>
                   <div className="candidate-heading-actions">
+                    {candidate && !candidate.locked && lockedCandidate ? (
+                      <button
+                        aria-label="与正式版对比"
+                        title="将当前编辑器内容与正式生效版本并排查看"
+                        disabled={busy}
+                        onClick={() => setCompareOpen(true)}
+                      >
+                        <GitCompare size={14} />
+                      </button>
+                    ) : null}
                     <button
                       aria-label="查看候选历史"
                       title="查看此候选的已保存版本"
@@ -1048,6 +1062,61 @@ function App() {
               >
                 <Clock3 size={14} />
                 从此版本创建候选
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {compareOpen && candidate && lockedCandidate ? (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) =>
+            event.currentTarget === event.target && setCompareOpen(false)
+          }
+        >
+          <section className="modal-card compare-modal">
+            <div className="modal-title">
+              <div>
+                <p className="eyebrow">只读并排查看</p>
+                <h2>候选版本与正式版</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="关闭版本对比"
+                onClick={() => setCompareOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="modal-description">
+              {dirty
+                ? "左侧包含尚未保存的编辑内容；此窗口不会修改任何文件。"
+                : "此窗口不会修改任何文件。"}
+            </p>
+            <div className="compare-columns">
+              <section className="compare-column">
+                <header>
+                  <strong>{candidate.name}</strong>
+                  <span>{dirty ? "当前草稿" : "候选"}</span>
+                </header>
+                <pre>{content}</pre>
+              </section>
+              <section className="compare-column">
+                <header>
+                  <strong>{lockedCandidate.name}</strong>
+                  <span>正式生效</span>
+                </header>
+                <pre>{lockedCandidate.content}</pre>
+              </section>
+            </div>
+            <div className="modal-actions">
+              <button
+                className="primary-button"
+                onClick={() => setCompareOpen(false)}
+              >
+                返回候选
               </button>
             </div>
           </section>

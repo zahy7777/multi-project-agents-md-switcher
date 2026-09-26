@@ -931,6 +931,65 @@ textarea {
   color: #a9443d;
   font-size: 10px;
 }
+.compare-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(1160px, 100%);
+  max-height: calc(100vh - 40px);
+}
+.compare-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  min-height: 280px;
+  max-height: min(64vh, 640px);
+}
+.compare-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e8eeeb;
+  border-radius: 6px;
+  background: #fafcfb;
+}
+.compare-column header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 11px;
+  border-bottom: 1px solid #e8eeeb;
+  background: #fff;
+}
+.compare-column header strong {
+  overflow: hidden;
+  color: #52636a;
+  font-size: 10px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compare-column header span {
+  flex: none;
+  color: #78a096;
+  font-size: 9px;
+}
+.compare-column pre {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  color: #46585e;
+  font:
+    11px/1.7 "Cascadia Code",
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .modal-title {
   display: flex;
   align-items: flex-start;
@@ -1023,5 +1082,10 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(100px, 0.7fr) minmax(180px, 1.3fr);
     max-height: calc(100vh - 250px);
+  }
+  .compare-columns {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(130px, 1fr) minmax(130px, 1fr);
+    max-height: calc(100vh - 270px);
   }
 }
