@@ -360,6 +360,29 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   if (process.env.PROMPTDOCK_SCREENSHOT_PATH) {
     await page.screenshot({ path: process.env.PROMPTDOCK_SCREENSHOT_PATH });
   }
+  const cancelledRestoreConfirmation = page.waitForEvent("dialog");
+  const cancelledRestoreClick = page
+    .getByRole("button", { name: "从此版本创建候选" })
+    .click();
+  const cancelledRestoreDialog = await cancelledRestoreConfirmation;
+  expect(cancelledRestoreDialog.message()).toContain("有未保存修改");
+  await cancelledRestoreDialog.dismiss();
+  await cancelledRestoreClick;
+  await expect(
+    page.getByRole("heading", { name: "Candidate B 的已保存版本" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("候选内容")).toHaveValue(historyComparisonDraft);
+  const cancelledRestoreStateResponse = await page.request.get("/api/state");
+  const cancelledRestoreState = await cancelledRestoreStateResponse.json();
+  const cancelledRestoreTarget = cancelledRestoreState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    cancelledRestoreTarget.candidates.some(
+      (item: { name: string }) => item.name === "Candidate B（历史恢复）",
+    ),
+  ).toBe(false);
+
   const restoreConfirmation = page.waitForEvent("dialog");
   const restoreClick = page
     .getByRole("button", { name: "从此版本创建候选" })
@@ -389,6 +412,11 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     restoredTarget.candidates.find((item: { locked: boolean }) => item.locked)
       .content,
   ).toBe(mergedRules);
+  expect(
+    restoredTarget.candidates.find(
+      (item: { name: string }) => item.name === "Candidate B",
+    ).content,
+  ).toBe(lockedRules);
   const candidateSearch = page.getByLabel("筛选候选");
   await candidateSearch.fill("Merged");
   await expect(page.locator(".candidate-row")).toHaveCount(1);
