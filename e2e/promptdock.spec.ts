@@ -1657,14 +1657,21 @@ test("帮助诊断链接可打开本机日志，错误添加可重试", async ({
 
 test("刷新页面时保护未保存候选草稿", async ({ page }) => {
   const originalRules = "saved candidate\n";
-  const unsavedRules = "unsaved candidate draft\n";
+  const unsavedRules = `${originalRules}new draft line\n`;
   const workspace = await makeWorkspace("reload-draft", originalRules);
 
   await page.goto("/");
   await addWorkspace(page, workspace);
+  const candidateName = page.getByLabel("候选名称");
+  const originalCandidateName = await candidateName.inputValue();
+  await candidateName.fill(`${originalCandidateName} draft`);
+  await expect(page.getByTestId("formal-sync-impact")).toHaveText(
+    "正文与正式文件一致；本次只改候选名称",
+  );
+  await candidateName.fill(originalCandidateName);
   await page.getByLabel("候选内容").fill(unsavedRules);
   await expect(page.getByTestId("formal-sync-impact")).toHaveText(
-    "保存并同步将新增 1 行、删除 1 行",
+    "保存并同步将新增 1 行、删除 0 行",
   );
   if (process.env.PROMPTDOCK_FORMAL_IMPACT_SCREENSHOT_PATH) {
     await page.screenshot({
