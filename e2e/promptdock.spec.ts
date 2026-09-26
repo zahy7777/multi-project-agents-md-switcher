@@ -1343,4 +1343,13 @@ test("刷新页面时保护未保存候选草稿", async ({ page }) => {
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     originalRules,
   );
+
+  await page.getByRole("button", { name: "保存并同步正式文件" }).click();
+  await expect(page.getByText(/所有更改已保存/)).toBeVisible();
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    unsavedRules,
+  );
+  await page.reload();
+  await page.getByRole("button", { name: "reload-draft", exact: true }).click();
+  await expect(page.getByLabel("候选内容")).toHaveValue(unsavedRules);
 });
