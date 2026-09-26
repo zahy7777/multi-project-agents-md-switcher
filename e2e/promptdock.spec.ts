@@ -1871,3 +1871,69 @@ test("候选归档与恢复保留正文、正式文件和候选历史", async ({
     formalRules,
   );
 });
+
+test("同名候选显示短 ID 并可在列表中准确切换", async ({ page }) => {
+  const formalRules = "formal variant\n";
+  const firstRules = "first variant\n";
+  const secondRules = "second variant\n";
+  const workspace = await makeWorkspace(
+    "duplicate-candidate-name",
+    formalRules,
+  );
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByPlaceholder("例如：更严格的代码审查").fill("Same label");
+  await page.getByRole("button", { name: "创建候选" }).click();
+  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await page
+    .getByRole("textbox", { name: "候选内容", exact: true })
+    .fill(firstRules);
+  await page.getByRole("button", { name: "保存候选" }).click();
+  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByPlaceholder("例如：更严格的代码审查").fill("Same label");
+  await page.getByRole("button", { name: "创建候选" }).click();
+  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await page
+    .getByRole("textbox", { name: "候选内容", exact: true })
+    .fill(secondRules);
+  await page.getByRole("button", { name: "保存候选" }).click();
+  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+
+  const stateResponse = await page.request.get("/api/state");
+  const state = await stateResponse.json();
+  const sameNamedCandidates = state.targets
+    .find((item: { path: string }) => item.path === workspace)
+    .candidates.filter((item: { name: string }) => item.name === "Same label");
+  expect(sameNamedCandidates).toHaveLength(2);
+
+  for (const expected of [
+    { candidate: sameNamedCandidates[0], content: firstRules },
+    { candidate: sameNamedCandidates[1], content: secondRules },
+  ]) {
+    const row = page.getByRole("button", {
+      name: new RegExp(
+        `Same label 候选 · ${expected.candidate.id.slice(0, 7)}`,
+      ),
+    });
+    await expect(row).toBeVisible();
+    await row.click();
+    await expect(
+      page.getByRole("textbox", { name: "候选名称", exact: true }),
+    ).toHaveValue("Same label");
+    await expect(
+      page.getByRole("textbox", { name: "候选内容", exact: true }),
+    ).toHaveValue(expected.content);
+  }
+  if (process.env.PROMPTDOCK_DUPLICATE_CANDIDATE_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_DUPLICATE_CANDIDATE_SCREENSHOT_PATH,
+    });
+  }
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalRules,
+  );
+});

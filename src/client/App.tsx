@@ -236,6 +236,14 @@ function App() {
         item.content.toLowerCase().includes(candidateQuery)
       );
     }) ?? [];
+  const candidateNameCounts = new Map<string, number>();
+  for (const item of target?.candidates ?? []) {
+    const normalizedName = item.name.trim().toLowerCase();
+    candidateNameCounts.set(
+      normalizedName,
+      (candidateNameCounts.get(normalizedName) ?? 0) + 1,
+    );
+  }
   const lockedCandidate =
     target?.candidates.find((item) => item.locked) ?? null;
   const selectedSourceCandidate =
@@ -1426,6 +1434,11 @@ function App() {
                             : item.archived
                               ? "已归档"
                               : "候选"}
+                          {(candidateNameCounts.get(
+                            item.name.trim().toLowerCase(),
+                          ) ?? 0) > 1
+                            ? ` · ${item.id.slice(0, 7)}`
+                            : ""}
                         </small>
                       </span>
                       {item.locked ? (
