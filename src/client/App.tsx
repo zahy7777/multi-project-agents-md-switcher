@@ -1048,6 +1048,46 @@ function App() {
   }, [busy, candidate, content, dirty, name, target?.conflict, target?.path]);
 
   useEffect(() => {
+    function openRuleSearchFromKeyboard(event: KeyboardEvent) {
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        !event.shiftKey ||
+        event.key.toLowerCase() !== "f"
+      )
+        return;
+      event.preventDefault();
+      if (
+        starting ||
+        busy ||
+        ruleSearchOpen ||
+        helpOpen ||
+        showInitializeForm ||
+        switchPreviewOpen ||
+        compareOpen ||
+        historyOpen ||
+        showCandidateForm ||
+        showWorkspaceForm
+      )
+        return;
+      setRuleSearchOpen(true);
+    }
+    window.addEventListener("keydown", openRuleSearchFromKeyboard);
+    return () =>
+      window.removeEventListener("keydown", openRuleSearchFromKeyboard);
+  }, [
+    busy,
+    compareOpen,
+    helpOpen,
+    historyOpen,
+    ruleSearchOpen,
+    showCandidateForm,
+    showInitializeForm,
+    showWorkspaceForm,
+    starting,
+    switchPreviewOpen,
+  ]);
+
+  useEffect(() => {
     function closeTopmostDialog(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       if (ruleSearchOpen) setRuleSearchOpen(false);
@@ -1286,7 +1326,8 @@ function App() {
             <button
               className="secondary-button rule-search-trigger"
               aria-label="搜索全部规则正文"
-              title="搜索所有已扫描路径中的正式文件和候选正文"
+              aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
+              title="搜索所有已扫描路径中的正式文件和候选正文（Ctrl+Shift+F）"
               disabled={starting || busy}
               onClick={() => setRuleSearchOpen(true)}
             >

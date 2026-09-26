@@ -224,7 +224,15 @@ test("跨工作空间搜索结果会切换到规则所属工作空间", async ({
   await addWorkspace(page, firstWorkspace);
   await addWorkspace(page, secondWorkspace);
 
-  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page.keyboard.press("Control+Shift+F");
+  await expect(
+    page.getByRole("dialog", { name: "搜索全部规则正文" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "搜索全部规则正文" }),
+  ).toHaveCount(0);
+  await page.keyboard.press("Control+Shift+F");
   await page
     .getByRole("textbox", { name: "搜索规则正文" })
     .fill("phrase owned by first workspace");
