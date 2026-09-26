@@ -205,6 +205,9 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
       (item: { name: string }) => item.name === "Candidate B",
     ).locked,
   ).toBe(true);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    candidateRules,
+  );
   await expect(
     page.getByRole("button", { name: "切换为正式规则" }),
   ).toHaveCount(0);
