@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
+
+const execute = promisify(execFile);
 
 const testRootValue = process.env.PROMPTDOCK_E2E_ROOT;
 if (!testRootValue) throw new Error("PROMPTDOCK_E2E_ROOT is not configured.");
@@ -2028,4 +2032,47 @@ test("只改候选名称也形成历史版本，并可按历史名称另建候�
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     formalRules,
   );
+});
+
+test("升级前没有名称快照的候选历史仍能在界面查看正文", async ({ page }) => {
+  const workspace = await makeWorkspace(
+    "legacy-candidate-history",
+    "# Legacy rules\n",
+  );
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+
+  const stateResponse = await page.request.get("/api/state");
+  const state = await stateResponse.json();
+  const target = state.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  const candidate = target.candidates[0];
+  const historyDirectory = path.join(testRoot, "data", "library");
+  const snapshotPath = `candidate-revisions/${candidate.id}.json`;
+
+  await execute("git", ["rm", snapshotPath], { cwd: historyDirectory });
+  await execute(
+    "git",
+    [
+      "-c",
+      "user.name=PromptDock E2E",
+      "-c",
+      "user.email=e2e@localhost",
+      "commit",
+      "-m",
+      "legacy history without candidate name",
+    ],
+    { cwd: historyDirectory },
+  );
+
+  await page.getByRole("button", { name: "查看候选历史" }).click();
+  const revisions = page.locator(".history-revision");
+  await expect(revisions.first()).toBeVisible();
+  await revisions.first().click();
+  await expect(
+    page.getByText("历史候选名称：此历史版本未单独记录名称"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "历史全文" }).click();
+  await expect(page.locator(".history-preview")).toHaveText("# Legacy rules\n");
 });
