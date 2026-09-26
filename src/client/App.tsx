@@ -324,7 +324,12 @@ function App() {
       );
       return {
         ...result,
-        excerpt: `${start > 0 ? "…" : ""}${normalizedContent.slice(start, end)}${end < normalizedContent.length ? "…" : ""}`,
+        excerptBefore: `${start > 0 ? "…" : ""}${normalizedContent.slice(start, matchIndex)}`,
+        excerptMatch: normalizedContent.slice(
+          matchIndex,
+          matchIndex + normalizedRuleSearchQuery.length,
+        ),
+        excerptAfter: `${normalizedContent.slice(matchIndex + normalizedRuleSearchQuery.length, end)}${end < normalizedContent.length ? "…" : ""}`,
       };
     });
   }, [normalizedRuleSearchQuery, state.targets, state.workspaces]);
@@ -1991,7 +1996,7 @@ function App() {
                       key={result.key}
                       className="rule-search-result"
                       title={result.targetPath}
-                      aria-label={`${result.label}，${result.targetPath}：${result.excerpt}`}
+                      aria-label={`${result.label}，${result.targetPath}：${result.excerptBefore}${result.excerptMatch}${result.excerptAfter}`}
                       disabled={starting || busy}
                       onClick={() => openRuleSearchResult(result)}
                     >
@@ -2000,7 +2005,9 @@ function App() {
                         <small>{shortPath(result.targetPath, 4)}</small>
                       </span>
                       <span className="rule-search-excerpt">
-                        {result.excerpt}
+                        {result.excerptBefore}
+                        <mark>{result.excerptMatch}</mark>
+                        {result.excerptAfter}
                       </span>
                     </button>
                   ))}

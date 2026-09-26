@@ -1315,6 +1315,13 @@ textarea {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
+.rule-search-excerpt mark {
+  padding: 0 2px;
+  border-radius: 2px;
+  color: #315f55;
+  background: #dff0e8;
+  font-weight: 600;
+}
 .history-modal {
   display: flex;
   flex-direction: column;

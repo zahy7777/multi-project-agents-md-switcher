@@ -241,6 +241,9 @@ test("跨工作空间搜索结果会切换到规则所属工作空间", async ({
   await expect(firstWorkspaceResult.first()).toContainText(
     path.basename(firstWorkspace),
   );
+  await expect(firstWorkspaceResult.locator("mark")).toHaveText(
+    "phrase owned by first workspace",
+  );
   await firstWorkspaceResult.first().click();
 
   await expect(page.locator(".breadcrumbs")).toContainText(
