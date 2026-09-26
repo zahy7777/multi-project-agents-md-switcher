@@ -65,6 +65,10 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
     0,
   );
+  const stateAfterWorkspaceEscape = await page.request.get("/api/state");
+  expect((await stateAfterWorkspaceEscape.json()).workspaces).not.toContain(
+    workspace,
+  );
   await page.getByRole("button", { name: "添加工作空间" }).first().click();
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
@@ -82,6 +86,12 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
   await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
+  const candidatesAfterEscapeResponse = await page.request.get("/api/state");
+  const candidatesAfterEscape = await candidatesAfterEscapeResponse.json();
+  const targetAfterEscape = candidatesAfterEscape.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(targetAfterEscape.candidates).toHaveLength(1);
   await page.getByRole("button", { name: "新建候选" }).click();
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
@@ -1152,6 +1162,16 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   await page.setViewportSize({ width: 1280, height: 720 });
   const pathSwitchDraft = "unsaved path switch resolution\n";
   await page.getByLabel("冲突解决内容").fill(pathSwitchDraft);
+  const beforeUnload = page.waitForEvent("dialog");
+  await page.evaluate(() => {
+    window.setTimeout(() => window.location.reload(), 0);
+  });
+  const unloadDialog = await beforeUnload;
+  expect(unloadDialog.type()).toBe("beforeunload");
+  await unloadDialog.dismiss();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(pathSwitchDraft);
+  expect(await readFile(formalFile, "utf8")).toBe(externalFormal);
+
   const cancelledPathSwitch = page.waitForEvent("dialog");
   const cancelledPathClick = page
     .locator(".rule-row")
@@ -1301,4 +1321,26 @@ test("帮助诊断链接可打开本机日志，错误添加可重试", async ({
   const retryStateResponse = await page.request.get("/api/state");
   const retryState = await retryStateResponse.json();
   expect(retryState.workspaces).toContain(retryWorkspace);
+});
+
+test("刷新页面时保护未保存候选草稿", async ({ page }) => {
+  const originalRules = "saved candidate\n";
+  const unsavedRules = "unsaved candidate draft\n";
+  const workspace = await makeWorkspace("reload-draft", originalRules);
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page.getByLabel("候选内容").fill(unsavedRules);
+
+  const beforeUnload = page.waitForEvent("dialog");
+  await page.evaluate(() => {
+    window.setTimeout(() => window.location.reload(), 0);
+  });
+  const dialog = await beforeUnload;
+  expect(dialog.type()).toBe("beforeunload");
+  await dialog.dismiss();
+  await expect(page.getByLabel("候选内容")).toHaveValue(unsavedRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    originalRules,
+  );
 });

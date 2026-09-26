@@ -753,6 +753,19 @@ function App() {
     showWorkspaceForm,
   ]);
 
+  useEffect(() => {
+    if (!dirty && !resolutionDirty) return;
+
+    function protectUnsavedDraft(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", protectUnsavedDraft);
+    return () =>
+      window.removeEventListener("beforeunload", protectUnsavedDraft);
+  }, [dirty, resolutionDirty]);
+
   const relativePath =
     target && selectedWorkspace
       ? target.path.slice(selectedWorkspace.length).replace(/^[\\/]/, "") ||
