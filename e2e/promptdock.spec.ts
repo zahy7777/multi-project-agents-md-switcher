@@ -61,6 +61,11 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.goto("/");
   await expect(page.getByRole("button", { name: /用户级规则/ })).toBeVisible();
   await page.getByRole("button", { name: "添加工作空间" }).first().click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
+    0,
+  );
+  await page.getByRole("button", { name: "添加工作空间" }).first().click();
   await page.getByRole("button", { name: "取消" }).click();
   await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
     0,
@@ -68,6 +73,10 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await addWorkspace(page, workspace);
   await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
 
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
   await page.getByRole("button", { name: "新建候选" }).click();
   await page.getByRole("button", { name: "取消" }).click();
   await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
@@ -240,6 +249,15 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(
     page.getByText("左侧显示当前编辑器内容（含未保存修改）", { exact: false }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "关闭版本对比" }).click();
+  await expect(page.getByRole("heading", { name: "候选版本对比" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByLabel("候选内容")).toHaveValue(comparisonDraft);
+  await page.getByRole("button", { name: "与其他版本对比" }).click();
+  await page
+    .getByLabel("对比基准版本")
+    .selectOption({ label: "legacy prompt" });
   const comparisonStateResponse = await page.request.get("/api/state");
   const comparisonState = await comparisonStateResponse.json();
   const comparisonTarget = comparisonState.targets.find(
@@ -296,6 +314,22 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   const exportedDraft = `${candidateRules}export-only draft\n`;
   await page.getByLabel("候选名称").fill("Candidate/B*");
   await page.getByLabel("候选内容").fill(exportedDraft);
+  const candidateBeforeCopyResponse = await page.request.get("/api/state");
+  const candidateBeforeCopyState = await candidateBeforeCopyResponse.json();
+  const candidateBeforeCopyTarget = candidateBeforeCopyState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  const candidateBeforeCopy = candidateBeforeCopyTarget.candidates.find(
+    (item: { name: string }) => item.name === "Candidate B",
+  );
+  const historyBeforeCopyResponse = await page.request.get(
+    `/api/candidates/${encodeURIComponent(candidateBeforeCopy.id)}/history?${new URLSearchParams({ path: workspace })}`,
+  );
+  const historyBeforeCopy = await historyBeforeCopyResponse.json();
+  const formalBeforeCopy = await readFile(
+    path.join(workspace, "AGENTS.md"),
+    "utf8",
+  );
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.getByRole("button", { name: "复制内容" }).click();
   await expect(page.getByRole("button", { name: "已复制" })).toBeVisible();
@@ -305,18 +339,70 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
       "\n",
     ),
   ).toBe(exportedDraft);
+  const stateAfterCopyResponse = await page.request.get("/api/state");
+  const stateAfterCopy = await stateAfterCopyResponse.json();
+  const targetAfterCopy = stateAfterCopy.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    targetAfterCopy.candidates.find(
+      (item: { id: string }) => item.id === candidateBeforeCopy.id,
+    ).content,
+  ).toBe(candidateRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalBeforeCopy,
+  );
+  const historyAfterCopyResponse = await page.request.get(
+    `/api/candidates/${encodeURIComponent(candidateBeforeCopy.id)}/history?${new URLSearchParams({ path: workspace })}`,
+  );
+  expect(await historyAfterCopyResponse.json()).toEqual(historyBeforeCopy);
   if (process.env.PROMPTDOCK_COPY_BUTTON_SCREENSHOT_PATH) {
     await page.screenshot({
       path: process.env.PROMPTDOCK_COPY_BUTTON_SCREENSHOT_PATH,
     });
   }
+  await page.evaluate(() => {
+    Object.defineProperty(navigator.clipboard, "writeText", {
+      configurable: true,
+      value: async () => {
+        throw new Error("simulated clipboard denial");
+      },
+    });
+  });
+  await page
+    .locator('.editor-footer button[title^="复制当前编辑器内容"]')
+    .click();
+  await expect(page.locator(".toast-error")).toContainText(
+    "复制到剪贴板失败：simulated clipboard denial",
+  );
+  await expect(page.getByRole("button", { name: "复制内容" })).toBeVisible();
+  const stateAfterCopyFailureResponse = await page.request.get("/api/state");
+  const stateAfterCopyFailure = await stateAfterCopyFailureResponse.json();
+  const targetAfterCopyFailure = stateAfterCopyFailure.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    targetAfterCopyFailure.candidates.find(
+      (item: { id: string }) => item.id === candidateBeforeCopy.id,
+    ).content,
+  ).toBe(candidateRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalBeforeCopy,
+  );
+  const historyAfterCopyFailureResponse = await page.request.get(
+    `/api/candidates/${encodeURIComponent(candidateBeforeCopy.id)}/history?${new URLSearchParams({ path: workspace })}`,
+  );
+  expect(await historyAfterCopyFailureResponse.json()).toEqual(
+    historyBeforeCopy,
+  );
+  await page.getByRole("button", { name: "关闭提示" }).click();
   await page.setViewportSize({ width: 800, height: 720 });
   if (process.env.PROMPTDOCK_COPY_BUTTON_NARROW_SCREENSHOT_PATH) {
     await page.screenshot({
       path: process.env.PROMPTDOCK_COPY_BUTTON_NARROW_SCREENSHOT_PATH,
     });
   }
-  for (const label of ["已复制", "导出 Markdown", "保存候选"]) {
+  for (const label of ["复制内容", "导出 Markdown", "保存候选"]) {
     await expect(page.getByRole("button", { name: label })).toBeInViewport();
   }
   const actionBounds = await page
@@ -544,6 +630,13 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByLabel("候选内容")).toHaveValue(historyComparisonDraft);
   await page.getByRole("button", { name: "查看候选历史" }).click();
   await expect(page.locator(".history-revision")).toHaveCount(3);
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Candidate B 的已保存版本" }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("候选内容")).toHaveValue(historyComparisonDraft);
+  await page.getByRole("button", { name: "查看候选历史" }).click();
+  await expect(page.locator(".history-revision")).toHaveCount(3);
   await page.locator(".history-revision").last().click();
   await expect(
     page
@@ -745,6 +838,13 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   const nestedDirectory = path.join(workspace, "nested");
   await mkdir(nestedDirectory);
   const nestedFormalFile = path.join(nestedDirectory, "AGENTS.md");
+  await page.getByRole("button", { name: "初始化目录" }).click();
+  await page.getByLabel("目录路径").fill(nestedDirectory);
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "初始化目录" })).toHaveCount(
+    0,
+  );
+  await expect(readFile(nestedFormalFile, "utf8")).rejects.toThrow();
   await page.getByRole("button", { name: "初始化目录" }).click();
   await expect(page.getByRole("heading", { name: "初始化目录" })).toBeVisible();
   await page.getByLabel("目录路径").fill(nestedDirectory);
@@ -1009,6 +1109,11 @@ test("帮助诊断链接可打开本机日志，错误添加可重试", async ({
   await expect(popup.locator("body")).toContainText('"event"');
   await popup.close();
   await page.getByRole("button", { name: "知道了" }).click();
+  await page.getByRole("button", { name: "使用说明与诊断" }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "本地运行状态" })).toHaveCount(
+    0,
+  );
 
   await page.getByRole("button", { name: "添加工作空间" }).first().click();
   await page

@@ -163,6 +163,7 @@ function App() {
   const [showConflictDiff, setShowConflictDiff] = useState(true);
   const [copySucceeded, setCopySucceeded] = useState(false);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
+  const copyFeedbackTimeout = useRef<number | null>(null);
   const saveInFlight = useRef(false);
   const candidateFileInput = useRef<HTMLInputElement>(null);
   const resolutionTargetPath = useRef("");
@@ -674,12 +675,24 @@ function App() {
       setError("");
       setNotice("");
       setCopySucceeded(true);
-      window.setTimeout(() => setCopySucceeded(false), 1800);
+      if (copyFeedbackTimeout.current !== null)
+        window.clearTimeout(copyFeedbackTimeout.current);
+      copyFeedbackTimeout.current = window.setTimeout(() => {
+        setCopySucceeded(false);
+        copyFeedbackTimeout.current = null;
+      }, 1800);
     } catch (reason) {
       setCopySucceeded(false);
       setError(`复制到剪贴板失败：${message(reason)}`);
     }
   }
+
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimeout.current !== null)
+        window.clearTimeout(copyFeedbackTimeout.current);
+    };
+  }, []);
 
   useEffect(() => {
     function saveFromEditor(event: KeyboardEvent) {
