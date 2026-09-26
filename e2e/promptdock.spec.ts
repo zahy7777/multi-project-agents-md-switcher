@@ -68,9 +68,24 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByLabel("候选名称")).toHaveValue("Candidate B");
   await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
   await page.getByLabel("候选内容").fill(candidateRules);
-  await expect(page.getByRole("button", { name: "保存候选" })).toBeEnabled();
-  await page.getByRole("button", { name: "保存候选" }).click();
-  await expect(page.getByText("候选已保存并记入历史")).toBeVisible();
+  const shortcutSavePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/candidates") &&
+      response.request().method() === "PUT",
+  );
+  await page.getByLabel("候选内容").press("Control+s");
+  const shortcutSaveResponse = await shortcutSavePromise;
+  expect(shortcutSaveResponse.ok()).toBe(true);
+  await expect(page.getByText(/所有更改已保存/)).toBeVisible();
+  const shortcutSaveState = await shortcutSaveResponse.json();
+  const shortcutSaveTarget = shortcutSaveState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    shortcutSaveTarget.candidates.find(
+      (item: { name: string }) => item.name === "Candidate B",
+    ).content,
+  ).toBe(candidateRules);
 
   const importedSource = path.join(testRoot, "legacy prompt.md");
   const importedRules = "# Imported legacy prompt\n\nDo not modify source.\n";
@@ -83,6 +98,16 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     originalRules,
   );
+  const importedStateResponse = await page.request.get("/api/state");
+  const importedState = await importedStateResponse.json();
+  const importedTarget = importedState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    importedTarget.candidates.find(
+      (item: { name: string }) => item.name === "legacy prompt",
+    ).locked,
+  ).toBe(false);
   await page.getByRole("button", { name: "Candidate B 候选" }).click();
 
   const unsavedDraft = `${candidateRules}do not discard without confirmation\n`;
@@ -163,8 +188,43 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   );
   await page.getByRole("button", { name: "返回候选" }).click();
 
+  const lockCandidatePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/candidates/lock") &&
+      response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "切换为正式规则" }).click();
-  await expect(page.getByText("与锁定候选一致", { exact: true })).toBeVisible();
+  const lockCandidateResponse = await lockCandidatePromise;
+  expect(lockCandidateResponse.ok()).toBe(true);
+  const lockedState = await lockCandidateResponse.json();
+  const lockedTarget = lockedState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    lockedTarget.candidates.find(
+      (item: { name: string }) => item.name === "Candidate B",
+    ).locked,
+  ).toBe(true);
+  await expect(
+    page.getByRole("button", { name: "切换为正式规则" }),
+  ).toHaveCount(0);
+  const lockedRules = `${candidateRules}locked candidate edit\n`;
+  await page.getByLabel("候选内容").fill(lockedRules);
+  await expect(
+    page.getByRole("button", { name: "保存并同步正式文件" }),
+  ).toBeEnabled();
+  const lockedSavePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/candidates") &&
+      response.request().method() === "PUT",
+  );
+  await page.getByRole("button", { name: "保存并同步正式文件" }).click();
+  const lockedSaveResponse = await lockedSavePromise;
+  expect(lockedSaveResponse.ok()).toBe(true);
+  await expect(page.getByText(/所有更改已保存/)).toBeVisible();
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    lockedRules,
+  );
   await writeFile(path.join(workspace, "AGENTS.md"), externalRules, "utf8");
   await page.getByRole("button", { name: "重新扫描当前工作空间" }).click();
   await expect(
@@ -178,7 +238,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.getByRole("button", { name: "把正式文件放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(externalRules);
   await page.getByRole("button", { name: "把锁定候选放入解决稿" }).click();
-  await expect(page.getByLabel("冲突解决内容")).toHaveValue(candidateRules);
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(lockedRules);
   await page.getByLabel("冲突候选名称").fill("Merged rules");
   await page.getByLabel("冲突解决内容").fill(mergedRules);
   await page.getByRole("button", { name: "保存解决结果" }).click();
@@ -199,7 +259,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
 
   await page.getByRole("button", { name: "Candidate B 候选" }).click();
   await page.getByRole("button", { name: "查看候选历史" }).click();
-  await expect(page.locator(".history-revision")).toHaveCount(2);
+  await expect(page.locator(".history-revision")).toHaveCount(3);
   await page.locator(".history-revision").last().click();
   await expect(page.locator(".history-preview")).toHaveText(originalRules);
   await page.getByRole("button", { name: "从此版本创建候选" }).click();
