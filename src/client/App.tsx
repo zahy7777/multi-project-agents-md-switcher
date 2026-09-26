@@ -6,6 +6,7 @@ import {
   ChevronRight,
   CircleHelp,
   Clock3,
+  Eye,
   FileCode2,
   FolderOpen,
   FolderMinus,
@@ -13,6 +14,7 @@ import {
   GitCompare,
   GitBranch,
   Plus,
+  PencilLine,
   RefreshCw,
   Save,
   Search,
@@ -24,6 +26,8 @@ import type {
   CandidateRevision,
   ManagerState,
 } from "../shared/contracts.js";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { api } from "./api.js";
 
 const empty: ManagerState = {
@@ -89,6 +93,7 @@ function App() {
   const [historyError, setHistoryError] = useState("");
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareBaseId, setCompareBaseId] = useState("");
+  const [previewMode, setPreviewMode] = useState(false);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
   const saveInFlight = useRef(false);
 
@@ -887,22 +892,77 @@ function App() {
                   ) : (
                     <span className="draft-tag">候选草稿</span>
                   )}
+                  <div
+                    className="editor-mode-switch"
+                    role="group"
+                    aria-label="编辑视图"
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={!previewMode}
+                      className={!previewMode ? "active" : ""}
+                      onClick={() => setPreviewMode(false)}
+                    >
+                      <PencilLine size={12} />
+                      编辑
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={previewMode}
+                      className={previewMode ? "active" : ""}
+                      onClick={() => setPreviewMode(true)}
+                    >
+                      <Eye size={12} />
+                      预览
+                    </button>
+                  </div>
                 </div>
-                {candidate ? (
-                  <input
-                    className="candidate-name"
-                    aria-label="候选名称"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                ) : null}
-                <textarea
-                  className="markdown-editor"
-                  aria-label="候选内容"
-                  spellCheck={false}
-                  value={content}
-                  onChange={(event) => setContent(event.target.value)}
-                />
+                <div
+                  className="editor-view"
+                  id="candidate-editor-view"
+                  aria-label={previewMode ? "Markdown 预览" : "候选编辑器"}
+                >
+                  {candidate ? (
+                    previewMode ? (
+                      <div className="candidate-name-preview">{name}</div>
+                    ) : (
+                      <input
+                        className="candidate-name"
+                        aria-label="候选名称"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                      />
+                    )
+                  ) : null}
+                  {previewMode ? (
+                    <article
+                      className="markdown-preview"
+                      aria-label="Markdown 预览"
+                    >
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        skipHtml
+                        components={{
+                          img: ({ alt }) => (
+                            <span className="markdown-image-placeholder">
+                              [未加载图片{alt ? `：${alt}` : ""}]
+                            </span>
+                          ),
+                        }}
+                      >
+                        {content}
+                      </ReactMarkdown>
+                    </article>
+                  ) : (
+                    <textarea
+                      className="markdown-editor"
+                      aria-label="候选内容"
+                      spellCheck={false}
+                      value={content}
+                      onChange={(event) => setContent(event.target.value)}
+                    />
+                  )}
+                </div>
                 <div className="editor-footer">
                   <span>
                     {dirty ? "有未保存更改" : "所有更改已保存"} ·{" "}

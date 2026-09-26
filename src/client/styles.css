@@ -675,6 +675,37 @@ textarea {
   align-items: center;
   gap: 14px;
 }
+.editor-mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid #e9eeeb;
+  border-radius: 6px;
+  background: #f7f9f8;
+}
+.editor-mode-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 4px;
+  color: #879398;
+  background: transparent;
+  font-size: 9px;
+}
+.editor-mode-switch button.active {
+  color: #347d70;
+  background: #fff;
+  box-shadow: 0 1px 2px #1c373008;
+}
+.editor-view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
 .file-tab {
   display: inline-flex;
   align-items: center;
@@ -713,6 +744,15 @@ textarea {
 .candidate-name:focus {
   border-color: #9bc9bb;
 }
+.candidate-name-preview {
+  margin: 9px 15px 0;
+  padding: 9px;
+  border: 1px solid #edf0ee;
+  border-radius: 5px;
+  color: #5b6a70;
+  background: #fbfcfb;
+  font-size: 10px;
+}
 .markdown-editor,
 .resolution-editor {
   flex: 1;
@@ -726,6 +766,93 @@ textarea {
   font-size: 11px;
   line-height: 1.75;
   tab-size: 2;
+}
+.markdown-preview {
+  flex: 1;
+  min-height: 350px;
+  margin-top: 9px;
+  padding: 17px;
+  overflow: auto;
+  color: #47575e;
+  background: #fff;
+  font-size: 11px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.markdown-preview > :first-child {
+  margin-top: 0;
+}
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4 {
+  margin: 1.2em 0 0.5em;
+  color: #34484e;
+  line-height: 1.35;
+}
+.markdown-preview h1 {
+  font-size: 1.65em;
+}
+.markdown-preview h2 {
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid #e7ece9;
+  font-size: 1.4em;
+}
+.markdown-preview h3 {
+  font-size: 1.2em;
+}
+.markdown-preview p,
+.markdown-preview ul,
+.markdown-preview ol,
+.markdown-preview blockquote,
+.markdown-preview table,
+.markdown-preview pre {
+  margin: 0.8em 0;
+}
+.markdown-preview ul,
+.markdown-preview ol {
+  padding-left: 1.8em;
+}
+.markdown-preview blockquote {
+  padding: 0.1em 0.9em;
+  border-left: 3px solid #bdd8d0;
+  color: #718087;
+  background: #f8faf9;
+}
+.markdown-preview :not(pre) > code {
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  background: #f0f4f2;
+}
+.markdown-preview pre {
+  padding: 11px;
+  overflow: auto;
+  border: 1px solid #e8eeeb;
+  border-radius: 5px;
+  background: #f8faf9;
+}
+.markdown-preview pre code {
+  font-size: 0.95em;
+}
+.markdown-preview table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.markdown-preview th,
+.markdown-preview td {
+  padding: 6px 8px;
+  border: 1px solid #e3eae6;
+  text-align: left;
+}
+.markdown-preview th {
+  background: #f5f8f6;
+}
+.markdown-preview a {
+  color: #347d70;
+}
+.markdown-image-placeholder {
+  color: #85938f;
+  font-style: italic;
 }
 .editor-footer {
   display: flex;
