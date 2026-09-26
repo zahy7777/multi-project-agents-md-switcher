@@ -1265,7 +1265,7 @@ function App() {
               title={item.path}
             >
               <span
-                className={`rule-dot ${item.conflict ? "conflict" : item.initialized ? "ready" : ""}`}
+                className={`rule-dot ${item.conflict ? "conflict" : "ready"}`}
               />
               <span>
                 {item.path
@@ -1381,34 +1381,6 @@ function App() {
                 保存即记录
               </span>
             </div>
-          </section>
-        ) : !target.initialized ? (
-          <section className="welcome-page init-page">
-            <div className="welcome-symbol">
-              <FileCode2 size={27} />
-            </div>
-            <p className="eyebrow">首次初始化</p>
-            <h1>
-              这个目录还没有<span>正式规则文件</span>
-            </h1>
-            <p>
-              确认后将同时创建正式 AGENTS.md 和首个候选，
-              <br />
-              并建立锁定关系。
-            </p>
-            <button
-              className="primary-button"
-              disabled={busy}
-              onClick={() =>
-                void act(
-                  () => api.initializePath(target.path),
-                  "正式文件和首个候选已建立并锁定",
-                )
-              }
-            >
-              <Check size={16} />
-              初始化此路径
-            </button>
           </section>
         ) : target.conflict ? (
           <section className="page-content">

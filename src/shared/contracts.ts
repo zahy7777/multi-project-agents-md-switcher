@@ -14,7 +14,6 @@ export type CandidateRevision = {
 
 export type RulePath = {
   path: string;
-  initialized: boolean;
   formalContent: string | null;
   lockedCandidateId: string | null;
   candidates: Candidate[];

@@ -21,7 +21,6 @@ type SavedCandidate = {
   archived?: boolean;
 };
 type SavedTarget = {
-  initialized: boolean;
   lockedCandidateId: string | null;
   candidates: SavedCandidate[];
 };
@@ -155,12 +154,11 @@ export class PromptLibrary {
           "该目录已有 AGENTS.md。请先扫描并导入，避免初始化时覆盖现有内容。",
         );
       }
-      if (this.state.targets[targetPath]?.initialized) {
+      if (this.state.targets[targetPath]) {
         throw new Error("该路径已经初始化。");
       }
 
       const target: SavedTarget = {
-        initialized: true,
         lockedCandidateId: null,
         candidates: [],
       };
@@ -207,7 +205,7 @@ export class PromptLibrary {
   async createCandidate(selectedPath: string, name: string, content: string) {
     return this.exclusively(async () => {
       const targetPath = await this.authorizedDirectory(selectedPath);
-      const target = this.requireInitializedTarget(targetPath);
+      const target = this.requireManagedTarget(targetPath);
       this.assertNoConflict(targetPath, target);
       const candidate = await this.createSavedCandidate(target, name, content);
       try {
@@ -232,7 +230,7 @@ export class PromptLibrary {
 
   async candidateHistory(selectedPath: string, candidateId: string) {
     const targetPath = await this.authorizedDirectory(selectedPath);
-    const target = this.requireInitializedTarget(targetPath);
+    const target = this.requireManagedTarget(targetPath);
     const candidate = this.requireCandidate(target, candidateId);
     const revisionFile = this.candidateRevisionSnapshotPath(candidate);
     const contentFile = `candidates/${candidate.file}`;
@@ -257,7 +255,7 @@ export class PromptLibrary {
     commit: string,
   ) {
     const targetPath = await this.authorizedDirectory(selectedPath);
-    const target = this.requireInitializedTarget(targetPath);
+    const target = this.requireManagedTarget(targetPath);
     const candidate = this.requireCandidate(target, candidateId);
     if (!/^[a-f\d]{40,64}$/i.test(commit)) {
       throw new Error("历史版本标识无效。");
@@ -298,7 +296,7 @@ export class PromptLibrary {
   ) {
     return this.exclusively(async () => {
       const targetPath = await this.authorizedDirectory(selectedPath);
-      const target = this.requireInitializedTarget(targetPath);
+      const target = this.requireManagedTarget(targetPath);
       this.assertNoConflict(targetPath, target);
       const candidate = this.requireCandidate(target, candidateId);
       const wasLocked = target.lockedCandidateId === candidate.id;
@@ -372,7 +370,7 @@ export class PromptLibrary {
   async lockCandidate(selectedPath: string, candidateId: string) {
     return this.exclusively(async () => {
       const targetPath = await this.authorizedDirectory(selectedPath);
-      const target = this.requireInitializedTarget(targetPath);
+      const target = this.requireManagedTarget(targetPath);
       this.assertNoConflict(targetPath, target);
       const candidate = this.requireCandidate(target, candidateId);
       if (candidate.archived)
@@ -423,7 +421,7 @@ export class PromptLibrary {
   ) {
     return this.exclusively(async () => {
       const targetPath = await this.authorizedDirectory(selectedPath);
-      const target = this.requireInitializedTarget(targetPath);
+      const target = this.requireManagedTarget(targetPath);
       this.assertNoConflict(targetPath, target);
       const candidate = this.requireCandidate(target, candidateId);
       if (target.lockedCandidateId === candidate.id) {
@@ -454,7 +452,7 @@ export class PromptLibrary {
   async resolveConflict(selectedPath: string, name: string, content: string) {
     return this.exclusively(async () => {
       const targetPath = await this.authorizedDirectory(selectedPath);
-      const target = this.requireInitializedTarget(targetPath);
+      const target = this.requireManagedTarget(targetPath);
       if (!this.isConflict(targetPath, target)) {
         throw new Error("该路径当前没有待解决的冲突。");
       }
@@ -595,7 +593,6 @@ export class PromptLibrary {
         if (!this.state.targets[targetPath]) {
           const content = await fs.readFile(file, "utf8");
           const target: SavedTarget = {
-            initialized: true,
             lockedCandidateId: null,
             candidates: [],
           };
@@ -656,7 +653,6 @@ export class PromptLibrary {
       }
       targets.push({
         path: targetPath,
-        initialized: stored.initialized,
         formalContent: await this.formalContent(targetPath),
         lockedCandidateId: stored.lockedCandidateId,
         candidates,
@@ -674,7 +670,6 @@ export class PromptLibrary {
   }
 
   private isConflict(targetPath: string, target: SavedTarget) {
-    if (!target.initialized) return false;
     const locked = target.candidates.find(
       (item) => item.id === target.lockedCandidateId,
     );
@@ -830,9 +825,9 @@ export class PromptLibrary {
     }
   }
 
-  private requireInitializedTarget(targetPath: string) {
+  private requireManagedTarget(targetPath: string) {
     const target = this.state.targets[targetPath];
-    if (!target?.initialized) throw new Error("该路径尚未初始化。");
+    if (!target) throw new Error("该规则路径尚未纳入管理。");
     return target;
   }
 
