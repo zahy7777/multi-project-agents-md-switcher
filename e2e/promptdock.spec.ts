@@ -176,6 +176,25 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.getByLabel("候选内容").fill(candidateRules);
   await expect(page.getByText(/所有更改已保存/)).toBeVisible();
 
+  await page.getByLabel("候选内容").fill("");
+  await page.getByRole("button", { name: "与其他版本对比" }).click();
+  await page
+    .getByLabel("对比基准版本")
+    .selectOption({ label: "legacy prompt" });
+  await expect(page.locator(".compare-column pre").nth(0)).toHaveText("");
+  await page.getByRole("button", { name: "标记差异" }).click();
+  await expect(
+    page
+      .locator(".candidate-compare-diff .removed code")
+      .getByText("Do not modify source.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".candidate-compare-diff .added code")).toHaveCount(
+    0,
+  );
+  await page.getByRole("button", { name: "返回候选" }).click();
+  await page.getByLabel("候选内容").fill(candidateRules);
+  await expect(page.getByText(/所有更改已保存/)).toBeVisible();
+
   const exportedDraft = `${candidateRules}export-only draft\n`;
   await page.getByLabel("候选名称").fill("Candidate/B*");
   await page.getByLabel("候选内容").fill(exportedDraft);
@@ -217,6 +236,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.getByRole("button", { name: "编辑" }).click();
 
   await page.getByRole("button", { name: "与其他版本对比" }).click();
+  await page.getByRole("button", { name: "并排原文" }).click();
   await expect(page.locator(".compare-column header strong").nth(1)).toHaveText(
     "导入的正式规则",
   );
