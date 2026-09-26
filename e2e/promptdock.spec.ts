@@ -224,6 +224,13 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
       "新候选会从所选已保存版本创建；当前编辑器中的未保存草稿会保留。",
     ),
   ).toBeVisible();
+  await page.getByText("预览已保存来源正文（只读）").click();
+  await expect(page.locator(".candidate-source-preview pre")).toContainText(
+    "# Shared",
+  );
+  await expect(page.locator(".candidate-source-preview pre")).toContainText(
+    "formal only",
+  );
   if (process.env.PROMPTDOCK_BRANCH_MODAL_SCREENSHOT_PATH) {
     await page.screenshot({
       path: process.env.PROMPTDOCK_BRANCH_MODAL_SCREENSHOT_PATH,

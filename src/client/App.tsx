@@ -191,6 +191,8 @@ function App() {
     }) ?? [];
   const lockedCandidate =
     target?.candidates.find((item) => item.locked) ?? null;
+  const selectedSourceCandidate =
+    target?.candidates.find((item) => item.id === candidateSourceId) ?? null;
   const compareBase =
     target?.candidates.find((item) => item.id === compareBaseId) ??
     lockedCandidate;
@@ -1599,6 +1601,12 @@ function App() {
                   ? "新候选会从所选已保存版本创建，并在创建后打开。"
                   : "将编辑器当前内容（包括未保存修改）复制为新版本；创建后可单独编辑和比较。"}
             </p>
+            {selectedSourceCandidate ? (
+              <details className="candidate-source-preview">
+                <summary>预览已保存来源正文（只读）</summary>
+                <pre>{selectedSourceCandidate.content || "（空文档）"}</pre>
+              </details>
+            ) : null}
             <div className="modal-actions">
               <button
                 type="button"
