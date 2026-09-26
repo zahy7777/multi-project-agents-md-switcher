@@ -116,9 +116,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.getByLabel("冲突候选名称").fill("Merged rules");
   await page.getByLabel("冲突解决内容").fill(mergedRules);
   await page.getByRole("button", { name: "保存解决结果" }).click();
-  await expect(
-    page.getByText("冲突已解决，正式文件和新候选已恢复一致"),
-  ).toBeVisible();
+  await expect(page.getByText("与锁定候选一致", { exact: true })).toBeVisible();
 
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     mergedRules,
@@ -136,8 +134,13 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.getByRole("button", { name: "查看候选历史" }).click();
   await expect(page.locator(".history-revision").first()).toBeVisible();
   await page.getByRole("button", { name: "关闭历史版本" }).click();
-  await page.getByLabel("筛选候选").fill("Merged");
+  const candidateSearch = page.getByLabel("筛选候选");
+  await candidateSearch.fill("Merged");
   await expect(page.locator(".candidate-row")).toHaveCount(1);
+  await candidateSearch.fill("review locally");
+  await expect(page.locator(".candidate-row")).toHaveCount(1);
+  await candidateSearch.fill("does not exist");
+  await expect(page.locator(".candidate-row")).toHaveCount(0);
 });
 
 test("空目录初始化后，移除工作空间保留文件并可重新添加", async ({ page }) => {

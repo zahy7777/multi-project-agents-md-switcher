@@ -103,10 +103,14 @@ function App() {
     state.targets.find((item) => item.path === selectedPath) ?? null;
   const candidate =
     target?.candidates.find((item) => item.id === selectedCandidateId) ?? null;
+  const candidateQuery = candidateFilter.trim().toLowerCase();
   const visibleCandidates =
-    target?.candidates.filter((item) =>
-      item.name.toLowerCase().includes(candidateFilter.toLowerCase()),
-    ) ?? [];
+    target?.candidates.filter((item) => {
+      return (
+        item.name.toLowerCase().includes(candidateQuery) ||
+        item.content.toLowerCase().includes(candidateQuery)
+      );
+    }) ?? [];
   const lockedCandidate =
     target?.candidates.find((item) => item.locked) ?? null;
   const compareBase =
@@ -899,7 +903,7 @@ function App() {
                   <Search size={12} />
                   <input
                     aria-label="筛选候选"
-                    placeholder="筛选候选名称"
+                    placeholder="搜索候选名称或内容"
                     value={candidateFilter}
                     onChange={(event) => setCandidateFilter(event.target.value)}
                   />
