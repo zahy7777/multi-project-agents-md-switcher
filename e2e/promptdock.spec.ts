@@ -1119,6 +1119,75 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   );
 });
 
+test("候选来源默认保留未保存草稿，干净时分支会打开且有 Git 历史", async ({
+  page,
+}) => {
+  const formalRules = "# Formal rules\nKeep the approved behavior.\n";
+  const unsavedDraft = `${formalRules}\nExperiment from current draft.\n`;
+  const workspace = await makeWorkspace("candidate-source", formalRules);
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page.getByLabel("候选内容").fill(unsavedDraft);
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await expect(page.getByLabel("候选内容来源")).toHaveValue("");
+  await page.getByLabel("新候选名称").fill("From unsaved draft");
+  await page.getByRole("button", { name: "创建候选" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "候选名称", exact: true }),
+  ).toHaveValue("From unsaved draft");
+  await expect(page.getByLabel("候选内容")).toHaveValue(unsavedDraft);
+  const afterDraftCreateResponse = await page.request.get("/api/state");
+  const afterDraftCreate = await afterDraftCreateResponse.json();
+  const targetAfterDraftCreate = afterDraftCreate.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  const lockedCandidate = targetAfterDraftCreate.candidates.find(
+    (item: { locked: boolean }) => item.locked,
+  );
+  expect(
+    targetAfterDraftCreate.candidates.find(
+      (item: { name: string }) => item.name === "From unsaved draft",
+    ).content,
+  ).toBe(unsavedDraft);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalRules,
+  );
+
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByLabel("候选内容来源").selectOption(lockedCandidate.id);
+  await page.getByLabel("新候选名称").fill("Clean branch from formal");
+  await page.getByRole("button", { name: "创建候选" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "候选名称", exact: true }),
+  ).toHaveValue("Clean branch from formal");
+  await expect(page.getByLabel("候选内容")).toHaveValue(formalRules);
+  const afterCleanBranchResponse = await page.request.get("/api/state");
+  const afterCleanBranch = await afterCleanBranchResponse.json();
+  const targetAfterCleanBranch = afterCleanBranch.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  const cleanBranch = targetAfterCleanBranch.candidates.find(
+    (item: { name: string }) => item.name === "Clean branch from formal",
+  );
+  expect(cleanBranch.content).toBe(formalRules);
+  expect(cleanBranch.locked).toBe(false);
+  const historyResponse = await page.request.get(
+    `/api/candidates/${encodeURIComponent(cleanBranch.id)}/history?${new URLSearchParams({ path: workspace })}`,
+  );
+  expect(historyResponse.ok()).toBe(true);
+  const revisions = await historyResponse.json();
+  expect(revisions.length).toBeGreaterThan(0);
+  const revisionResponse = await page.request.get(
+    `/api/candidates/${encodeURIComponent(cleanBranch.id)}/history/${encodeURIComponent(revisions[0].commit)}?${new URLSearchParams({ path: workspace })}`,
+  );
+  expect(revisionResponse.ok()).toBe(true);
+  expect(await revisionResponse.json()).toEqual({ content: formalRules });
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalRules,
+  );
+});
+
 test("空目录初始化后，移除工作空间保留文件并可重新添加", async ({ page }) => {
   const workspace = await makeWorkspace("empty-project");
   await page.goto("/");
