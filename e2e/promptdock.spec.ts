@@ -1059,6 +1059,25 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   );
   expect(nestedTarget).toBeDefined();
   expect(await readFile(nestedFormalFile, "utf8")).toBe("# AGENTS.md\n");
+
+  const discoveredDirectory = path.join(workspace, "discovered-later");
+  await mkdir(discoveredDirectory);
+  const discoveredRules = "# Discovered on startup\n";
+  await writeFile(
+    path.join(discoveredDirectory, "AGENTS.md"),
+    discoveredRules,
+    "utf8",
+  );
+  await page.reload();
+  await page
+    .getByRole("button", { name: "empty-project", exact: true })
+    .click();
+  await expect(page.locator(".rule-row")).toHaveCount(3);
+  await page.getByRole("button", { name: /discovered-later/ }).click();
+  await expect(page.getByLabel("候选内容")).toHaveValue(discoveredRules);
+  expect(
+    await readFile(path.join(discoveredDirectory, "AGENTS.md"), "utf8"),
+  ).toBe(discoveredRules);
 });
 
 test("未保存冲突解决稿保护规则路径切换、添加和移除操作", async ({ page }) => {
@@ -1349,7 +1368,8 @@ test("刷新页面时保护未保存候选草稿", async ({ page }) => {
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     unsavedRules,
   );
-  await page.reload();
+  const reloadResponse = await page.reload();
+  expect(reloadResponse).not.toBeNull();
   await page.getByRole("button", { name: "reload-draft", exact: true }).click();
   await expect(page.getByLabel("候选内容")).toHaveValue(unsavedRules);
 });
