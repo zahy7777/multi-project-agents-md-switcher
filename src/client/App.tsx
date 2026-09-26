@@ -235,7 +235,9 @@ function App() {
   const dirty =
     !!candidate && (content !== candidate.content || name !== candidate.name);
   const resolutionDirty =
-    !!target?.conflict && resolution !== (target.formalContent ?? "");
+    !!target?.conflict &&
+    (resolution !== (target.formalContent ?? "") ||
+      resolutionName !== "冲突解决结果");
   const userWorkspace = useMemo(() => {
     const file = state.userRulesPath.replace(/\\/g, "/").toLowerCase();
     return state.workspaces.find((workspace) => {
@@ -315,6 +317,7 @@ function App() {
     }
     if (resolutionTargetPath.current !== target.path) {
       setResolution(target.formalContent ?? "");
+      setResolutionName("冲突解决结果");
       resolutionTargetPath.current = target.path;
     }
   }, [target?.path, target?.conflict, target?.formalContent]);

@@ -591,6 +591,32 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     navigationConflictRules,
   );
+  await page.getByLabel("冲突候选名称").fill("Unsaved name only");
+  const nameOnlySwitchConfirmation = page.waitForEvent("dialog");
+  const nameOnlySwitchClick = page
+    .getByRole("button", { name: /用户级规则/ })
+    .click();
+  const nameOnlySwitchDialog = await nameOnlySwitchConfirmation;
+  expect(nameOnlySwitchDialog.message()).toContain("冲突解决稿");
+  await nameOnlySwitchDialog.dismiss();
+  await nameOnlySwitchClick;
+  await expect(page.getByLabel("冲突候选名称")).toHaveValue(
+    "Unsaved name only",
+  );
+  const acceptedNameOnlySwitch = page.waitForEvent("dialog");
+  const acceptedNameOnlyClick = page
+    .getByRole("button", { name: /用户级规则/ })
+    .click();
+  const acceptedNameOnlyDialog = await acceptedNameOnlySwitch;
+  await acceptedNameOnlyDialog.accept();
+  await acceptedNameOnlyClick;
+  await page
+    .getByRole("button", { name: "project-rules", exact: true })
+    .click();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(
+    navigationConflictRules,
+  );
+  await expect(page.getByLabel("冲突候选名称")).toHaveValue("冲突解决结果");
   await page.getByRole("button", { name: "把正式文件放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     navigationConflictRules,
