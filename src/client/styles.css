@@ -1051,6 +1051,15 @@ textarea {
   border-radius: 7px;
   background: #fff;
 }
+.resolution-save-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.resolution-save-info small {
+  color: #7f8e8a;
+  font-size: 9px;
+}
 .app-footer {
   display: flex;
   justify-content: space-between;

@@ -67,6 +67,14 @@ function shortPath(value: string, levels = 3) {
   return parts.length > levels ? `…/${parts.slice(-levels).join("/")}` : value;
 }
 
+function measureMarkdown(content: string) {
+  return {
+    lines: content.split(/\r\n|\r|\n/).length,
+    characters: Array.from(content).length,
+    utf8Bytes: new TextEncoder().encode(content).byteLength,
+  };
+}
+
 function LineDiffView({
   changes,
   ariaLabel,
@@ -238,9 +246,11 @@ function App() {
     !!target?.conflict &&
     (resolution !== (target.formalContent ?? "") ||
       resolutionName !== "冲突解决结果");
-  const contentLineCount = content.split(/\r\n|\r|\n/).length;
-  const contentCharacterCount = Array.from(content).length;
-  const contentUtf8Bytes = new TextEncoder().encode(content).byteLength;
+  const contentMetrics = useMemo(() => measureMarkdown(content), [content]);
+  const resolutionMetrics = useMemo(
+    () => measureMarkdown(resolution),
+    [resolution],
+  );
   const userWorkspace = useMemo(() => {
     const file = state.userRulesPath.replace(/\\/g, "/").toLowerCase();
     return state.workspaces.find((workspace) => {
@@ -1013,7 +1023,16 @@ function App() {
               onChange={(event) => setResolution(event.target.value)}
             />
             <div className="editor-footer">
-              <span>确认后会生成新候选，并同步正式文件与锁定候选。</span>
+              <span className="resolution-save-info">
+                <span>确认后会生成新候选，并同步正式文件与锁定候选。</span>
+                <small
+                  data-testid="resolution-content-stats"
+                  title="行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。"
+                >
+                  {resolutionMetrics.lines} 行 · {resolutionMetrics.characters}{" "}
+                  字符 · {resolutionMetrics.utf8Bytes} UTF-8 字节
+                </small>
+              </span>
               <button
                 className="primary-button"
                 disabled={busy}
@@ -1236,8 +1255,8 @@ function App() {
                     title="行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。"
                   >
                     {dirty ? "有未保存更改" : "所有更改已保存"} ·{" "}
-                    {contentLineCount} 行 · {contentCharacterCount} 字符 ·{" "}
-                    {contentUtf8Bytes} UTF-8 字节
+                    {contentMetrics.lines} 行 · {contentMetrics.characters} 字符
+                    · {contentMetrics.utf8Bytes} UTF-8 字节
                   </span>
                   <div className="heading-actions">
                     <button

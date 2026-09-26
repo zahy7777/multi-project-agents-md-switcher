@@ -785,6 +785,20 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
     page.getByRole("heading", { name: "规则文件冲突" }),
   ).toBeVisible();
 
+  await page.getByLabel("冲突解决内容").fill("");
+  await expect(page.getByTestId("resolution-content-stats")).toHaveText(
+    "1 行 · 0 字符 · 0 UTF-8 字节",
+  );
+  await page.getByLabel("冲突解决内容").fill("first\n中文🌍\n");
+  await expect(page.getByTestId("resolution-content-stats")).toHaveText(
+    "3 行 · 10 字符 · 17 UTF-8 字节",
+  );
+  if (process.env.PROMPTDOCK_RESOLUTION_STATS_SCREENSHOT_PATH) {
+    await page.getByTestId("resolution-content-stats").scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_RESOLUTION_STATS_SCREENSHOT_PATH,
+    });
+  }
   const pathSwitchDraft = "unsaved path switch resolution\n";
   await page.getByLabel("冲突解决内容").fill(pathSwitchDraft);
   const cancelledPathSwitch = page.waitForEvent("dialog");
