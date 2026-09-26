@@ -741,12 +741,36 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   );
   await page.getByRole("button", { name: "返回候选" }).click();
 
+  await page.getByRole("button", { name: "切换为正式规则" }).click();
+  await expect(
+    page.getByRole("heading", { name: "确认切换为正式规则" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("正式文件切换差异")).toContainText(
+    "candidate only",
+  );
+  if (process.env.PROMPTDOCK_SWITCH_PREVIEW_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_SWITCH_PREVIEW_SCREENSHOT_PATH,
+    });
+  }
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    originalRules,
+  );
+  await page.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "确认切换为正式规则" }),
+  ).toHaveCount(0);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    originalRules,
+  );
+
+  await page.getByRole("button", { name: "切换为正式规则" }).click();
   const lockCandidatePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/candidates/lock") &&
       response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "切换为正式规则" }).click();
+  await page.getByRole("button", { name: "确认切换正式规则" }).click();
   const lockCandidateResponse = await lockCandidatePromise;
   expect(lockCandidateResponse.ok()).toBe(true);
   const lockedState = await lockCandidateResponse.json();

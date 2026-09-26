@@ -167,6 +167,7 @@ function App() {
   const [historyError, setHistoryError] = useState("");
   const [showHistoryDiff, setShowHistoryDiff] = useState(true);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [switchPreviewOpen, setSwitchPreviewOpen] = useState(false);
   const [compareBaseId, setCompareBaseId] = useState("");
   const [showCompareDiff, setShowCompareDiff] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
@@ -250,6 +251,22 @@ function App() {
     [compareBase?.content, content],
   );
   const compareLineCounts = compareChanges.reduce(
+    (counts, change) => ({
+      added: counts.added + (change.added ? change.count : 0),
+      removed: counts.removed + (change.removed ? change.count : 0),
+    }),
+    { added: 0, removed: 0 },
+  );
+  const switchChanges = useMemo(
+    () =>
+      target && candidate && !candidate.locked
+        ? diffLines(target.formalContent ?? "", candidate.content, {
+            stripTrailingCr: true,
+          })
+        : [],
+    [target?.formalContent, candidate?.content, candidate?.locked],
+  );
+  const switchLineCounts = switchChanges.reduce(
     (counts, change) => ({
       added: counts.added + (change.added ? change.count : 0),
       removed: counts.removed + (change.removed ? change.count : 0),
@@ -564,6 +581,23 @@ function App() {
     if (next) setShowArchivedCandidates(false);
   }
 
+  async function confirmCandidateSwitch() {
+    if (
+      !target ||
+      !candidate ||
+      candidate.locked ||
+      candidate.archived ||
+      dirty ||
+      target.conflict
+    )
+      return;
+    const next = await act(
+      () => api.lockCandidate(target.path, candidate.id),
+      `已锁定「${candidate.name}」，正式文件已同步`,
+    );
+    if (next) setSwitchPreviewOpen(false);
+  }
+
   async function createCandidate(event: FormEvent) {
     event.preventDefault();
     if (!target) return;
@@ -853,6 +887,7 @@ function App() {
       if (event.key !== "Escape") return;
       if (helpOpen) setHelpOpen(false);
       else if (showInitializeForm) setShowInitializeForm(false);
+      else if (switchPreviewOpen) setSwitchPreviewOpen(false);
       else if (compareOpen) setCompareOpen(false);
       else if (historyOpen) setHistoryOpen(false);
       else if (showCandidateForm) setShowCandidateForm(false);
@@ -867,6 +902,7 @@ function App() {
     compareOpen,
     helpOpen,
     historyOpen,
+    switchPreviewOpen,
     showCandidateForm,
     showInitializeForm,
     showWorkspaceForm,
@@ -1416,13 +1452,8 @@ function App() {
                   <div className="candidate-actions">
                     <button
                       className="switch-button"
-                      disabled={busy || dirty}
-                      onClick={() =>
-                        void act(
-                          () => api.lockCandidate(target.path, candidate.id),
-                          `已锁定「${candidate.name}」，正式文件已同步`,
-                        )
-                      }
+                      disabled={busy || dirty || target.conflict}
+                      onClick={() => setSwitchPreviewOpen(true)}
                     >
                       <ArrowDownUp size={14} />
                       切换为正式规则
@@ -1937,6 +1968,68 @@ function App() {
               >
                 <Clock3 size={14} />
                 从此版本创建候选
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {switchPreviewOpen && target && candidate && !candidate.locked ? (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) =>
+            event.currentTarget === event.target && setSwitchPreviewOpen(false)
+          }
+        >
+          <section className="modal-card switch-preview-modal">
+            <div className="modal-title">
+              <div>
+                <p className="eyebrow">正式文件写入预览</p>
+                <h2>确认切换为正式规则</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="关闭切换预览"
+                onClick={() => setSwitchPreviewOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="modal-description">
+              将用已保存候选「{candidate.name}」覆盖正式文件
+              <code>{formalFilePath(target.path)}</code>
+              ，并把它设为锁定候选。此操作保留其他候选和版本历史。
+            </p>
+            <div className="switch-preview-summary">
+              <span>正式文件 → {candidate.name}</span>
+              <span>
+                新增 {switchLineCounts.added} 行 · 删除{" "}
+                {switchLineCounts.removed} 行
+              </span>
+            </div>
+            <LineDiffView
+              changes={switchChanges}
+              ariaLabel="正式文件切换差异"
+              emptyMessage="候选正文与正式文件完全一致；切换只会更新锁定标记。"
+              className="conflict-diff switch-preview-diff"
+            />
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setSwitchPreviewOpen(false)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={busy || dirty || target.conflict}
+                onClick={() => void confirmCandidateSwitch()}
+              >
+                <ArrowDownUp size={14} />
+                确认切换正式规则
               </button>
             </div>
           </section>
