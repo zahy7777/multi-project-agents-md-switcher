@@ -360,8 +360,14 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   if (process.env.PROMPTDOCK_SCREENSHOT_PATH) {
     await page.screenshot({ path: process.env.PROMPTDOCK_SCREENSHOT_PATH });
   }
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "从此版本创建候选" }).click();
+  const restoreConfirmation = page.waitForEvent("dialog");
+  const restoreClick = page
+    .getByRole("button", { name: "从此版本创建候选" })
+    .click();
+  const restoreDialog = await restoreConfirmation;
+  expect(restoreDialog.message()).toContain("有未保存修改");
+  await restoreDialog.accept();
+  await restoreClick;
   await expect(page.getByLabel("候选名称")).toHaveValue(
     "Candidate B（历史恢复）",
   );
