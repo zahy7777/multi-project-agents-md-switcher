@@ -1299,6 +1299,68 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   ).toBe(discoveredRules);
 });
 
+test("同名工作空间按父路径区分且移除确认指向正确路径", async ({ page }) => {
+  const firstWorkspace = await makeWorkspace(
+    path.join("parent-one", "shared-project"),
+    "first workspace rules\n",
+  );
+  const secondWorkspace = await makeWorkspace(
+    path.join("parent-two", "shared-project"),
+    "second workspace rules\n",
+  );
+
+  await page.goto("/");
+  await addWorkspace(page, firstWorkspace);
+  await page.getByRole("button", { name: "添加工作空间" }).first().click();
+  await page.getByPlaceholder(/例如 C:/).fill(secondWorkspace);
+  await page.getByRole("button", { name: "添加并扫描" }).click();
+  await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
+    0,
+  );
+  const firstWorkspaceButton = page.locator(
+    '.workspace-row[aria-label*="parent-one"]',
+  );
+  const secondWorkspaceButton = page.locator(
+    '.workspace-row[aria-label*="parent-two"]',
+  );
+  await expect(firstWorkspaceButton).toBeVisible();
+  await expect(secondWorkspaceButton).toBeVisible();
+  if (process.env.PROMPTDOCK_DUPLICATE_WORKSPACE_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_DUPLICATE_WORKSPACE_SCREENSHOT_PATH,
+    });
+  }
+  await firstWorkspaceButton.click();
+  await expect(firstWorkspaceButton).toHaveClass(/active/);
+  await expect(page.getByLabel("候选内容")).toHaveValue(
+    "first workspace rules\n",
+  );
+
+  const removeSecondWorkspace = page.locator(
+    '.workspace-remove[aria-label*="parent-two"]',
+  );
+  const removalDialogPromise = page.waitForEvent("dialog");
+  const removeClickPromise = removeSecondWorkspace.click();
+  const removalDialog = await removalDialogPromise;
+  expect(removalDialog.message()).toContain("parent-two");
+  expect(removalDialog.message()).not.toContain("parent-one");
+  await removalDialog.accept();
+  await removeClickPromise;
+
+  const stateResponse = await page.request.get("/api/state");
+  const state = await stateResponse.json();
+  expect(state.workspaces).toContain(firstWorkspace);
+  expect(state.workspaces).not.toContain(secondWorkspace);
+  await expect(firstWorkspaceButton).toBeVisible();
+  await expect(secondWorkspaceButton).toHaveCount(0);
+  await expect(page.getByLabel("候选内容")).toHaveValue(
+    "first workspace rules\n",
+  );
+  expect(await readFile(path.join(secondWorkspace, "AGENTS.md"), "utf8")).toBe(
+    "second workspace rules\n",
+  );
+});
+
 test("未保存冲突解决稿保护规则路径切换、添加和移除操作", async ({ page }) => {
   const workspace = await makeWorkspace("navigation-rules", "initial formal\n");
   const childDirectory = path.join(workspace, "nested");

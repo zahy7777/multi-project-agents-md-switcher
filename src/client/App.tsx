@@ -176,6 +176,48 @@ function App() {
   const saveInFlight = useRef(false);
   const candidateFileInput = useRef<HTMLInputElement>(null);
   const resolutionTargetPath = useRef("");
+  const workspaceNameCounts = new Map<string, number>();
+  for (const workspace of state.workspaces) {
+    const name = pathLeaf(workspace).toLowerCase();
+    workspaceNameCounts.set(name, (workspaceNameCounts.get(name) ?? 0) + 1);
+  }
+  const duplicateWorkspaceNames = new Set(
+    [...workspaceNameCounts]
+      .filter(([, count]) => count > 1)
+      .map(([name]) => name),
+  );
+
+  function workspaceParentContext(workspace: string) {
+    const parentsOf = (value: string) =>
+      value.replace(/\\/g, "/").split("/").filter(Boolean).slice(0, -1);
+    const parents = parentsOf(workspace);
+    const peers = state.workspaces.filter(
+      (item) =>
+        item !== workspace &&
+        pathLeaf(item).toLowerCase() === pathLeaf(workspace).toLowerCase(),
+    );
+    for (let depth = 1; depth <= parents.length; depth += 1) {
+      const suffix = parents.slice(-depth).join("/");
+      const collides = peers.some((peer) => {
+        const peerParents = parentsOf(peer);
+        return (
+          peerParents.slice(-depth).join("/").toLowerCase() ===
+          suffix.toLowerCase()
+        );
+      });
+      if (!collides) {
+        return parents.length > depth ? `…/${suffix}` : suffix;
+      }
+    }
+    return parents.join("/");
+  }
+
+  function workspaceLabel(workspace: string) {
+    const name = pathLeaf(workspace);
+    return duplicateWorkspaceNames.has(name.toLowerCase())
+      ? `${name}（${workspaceParentContext(workspace)}）`
+      : name;
+  }
 
   const target =
     state.targets.find((item) => item.path === selectedPath) ?? null;
@@ -434,7 +476,7 @@ function App() {
       return;
     if (
       !window.confirm(
-        `从列表移除「${pathLeaf(workspace)}」？正式文件、候选和历史都会保留；以后重新添加该路径即可继续管理。`,
+        `从列表移除「${workspaceLabel(workspace)}」？正式文件、候选和历史都会保留；以后重新添加该路径即可继续管理。`,
       )
     )
       return;
@@ -833,37 +875,51 @@ function App() {
           </button>
         </div>
         <div className="workspace-list">
-          {state.workspaces.map((workspace) => (
-            <div className="workspace-item" key={workspace}>
-              <button
-                className={`workspace-row ${workspace === selectedWorkspace ? "active" : ""}`}
-                onClick={() => chooseWorkspace(workspace)}
-                title={workspace}
-              >
-                <FolderOpen size={15} />
-                <span>
-                  {pathLeaf(workspace)}
-                  {samePath(workspace, userWorkspace ?? "") ? (
-                    <em>用户级规则</em>
-                  ) : null}
-                </span>
-                {samePath(workspace, selectedWorkspace) ? (
-                  <ChevronRight size={14} />
-                ) : null}
-              </button>
-              {!samePath(workspace, userWorkspace ?? "") ? (
+          {state.workspaces.map((workspace) => {
+            const name = pathLeaf(workspace);
+            const disambiguated = duplicateWorkspaceNames.has(
+              name.toLowerCase(),
+            );
+            return (
+              <div className="workspace-item" key={workspace}>
                 <button
-                  className="workspace-remove"
-                  aria-label={`从列表移除工作空间 ${pathLeaf(workspace)}`}
-                  title="从列表移除（保留文件、候选和历史）"
-                  disabled={busy}
-                  onClick={() => void removeWorkspace(workspace)}
+                  className={`workspace-row ${workspace === selectedWorkspace ? "active" : ""} ${disambiguated ? "has-path-context" : ""}`}
+                  onClick={() => chooseWorkspace(workspace)}
+                  title={workspace}
+                  aria-label={
+                    disambiguated ? workspaceLabel(workspace) : undefined
+                  }
                 >
-                  <FolderMinus size={14} />
+                  <FolderOpen size={15} />
+                  <span className="workspace-label">
+                    <span className="workspace-name-line">
+                      {name}
+                      {samePath(workspace, userWorkspace ?? "") ? (
+                        <em>用户级规则</em>
+                      ) : null}
+                    </span>
+                    {disambiguated ? (
+                      <small>{workspaceParentContext(workspace)}</small>
+                    ) : null}
+                  </span>
+                  {samePath(workspace, selectedWorkspace) ? (
+                    <ChevronRight size={14} />
+                  ) : null}
                 </button>
-              ) : null}
-            </div>
-          ))}
+                {!samePath(workspace, userWorkspace ?? "") ? (
+                  <button
+                    className="workspace-remove"
+                    aria-label={`从列表移除工作空间 ${workspaceLabel(workspace)}`}
+                    title={`从列表移除${workspaceLabel(workspace)}（保留文件、候选和历史）`}
+                    disabled={busy}
+                    onClick={() => void removeWorkspace(workspace)}
+                  >
+                    <FolderMinus size={14} />
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
           {state.workspaces.length === 0 && (
             <div className="empty-note">还没有工作空间</div>
           )}

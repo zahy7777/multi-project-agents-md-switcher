@@ -136,6 +136,9 @@ textarea {
   text-align: left;
   font-size: 11px;
 }
+.workspace-row.has-path-context {
+  min-height: 43px;
+}
 .workspace-remove {
   display: grid;
   flex: 0 0 26px;
@@ -152,12 +155,26 @@ textarea {
   color: var(--danger);
   background: #fff8f7;
 }
-.workspace-row > span {
-  display: flex;
+.workspace-row > .workspace-label {
+  display: grid;
   flex: 1;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+.workspace-name-line {
+  display: flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
   overflow: hidden;
+  white-space: nowrap;
+}
+.workspace-label > small {
+  overflow: hidden;
+  color: #98a3a3;
+  font-size: 8px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .workspace-row.active {
