@@ -234,6 +234,8 @@ function App() {
   );
   const dirty =
     !!candidate && (content !== candidate.content || name !== candidate.name);
+  const resolutionDirty =
+    !!target?.conflict && resolution !== (target.formalContent ?? "");
   const userWorkspace = useMemo(() => {
     const file = state.userRulesPath.replace(/\\/g, "/").toLowerCase();
     return state.workspaces.find((workspace) => {
@@ -344,8 +346,20 @@ function App() {
     }
   }
 
+  function confirmLeavingCurrentDraft(action: string) {
+    const drafts = [
+      dirty ? "候选内容" : "",
+      resolutionDirty ? "冲突解决稿" : "",
+    ].filter(Boolean);
+    if (drafts.length === 0) return true;
+    return window.confirm(
+      `${drafts.join("和")}有未保存修改；${action}后会丢失。确定继续吗？`,
+    );
+  }
+
   async function addWorkspace(event: FormEvent) {
     event.preventDefault();
+    if (!confirmLeavingCurrentDraft("添加并切换工作空间")) return;
     const next = await act(
       () => api.addWorkspace(workspaceInput),
       "工作空间已添加并完成扫描",
@@ -361,11 +375,7 @@ function App() {
   }
 
   function chooseWorkspace(workspace: string) {
-    if (
-      dirty &&
-      !window.confirm("当前候选有未保存修改，确定放弃并切换工作空间吗？")
-    )
-      return;
+    if (!confirmLeavingCurrentDraft("切换工作空间")) return;
     setSelectedWorkspace(workspace);
   }
 
@@ -373,10 +383,7 @@ function App() {
     if (samePath(workspace, userWorkspace ?? "")) return;
     if (
       samePath(workspace, selectedWorkspace) &&
-      dirty &&
-      !window.confirm(
-        "当前候选有未保存修改，移除后将放弃这些修改。确定继续吗？",
-      )
+      !confirmLeavingCurrentDraft("移除当前工作空间")
     )
       return;
     if (
@@ -395,13 +402,11 @@ function App() {
   }
 
   function rescanSelectedWorkspace() {
-    const hasUncommittedResolution =
-      target?.conflict && resolution !== (target.formalContent ?? "");
     const warnings = [
       dirty
         ? "当前候选有未保存修改；如果扫描发现冲突，可从冲突页把草稿放入解决稿。"
         : "",
-      hasUncommittedResolution
+      resolutionDirty
         ? "当前冲突解决稿有未保存修改；重扫会更新冲突两侧并保留解决稿，请核对后按需重新载入正式文件。"
         : "",
       dirty ? "建议先保存或导出候选。" : "",
@@ -418,8 +423,7 @@ function App() {
   }
 
   function chooseTarget(path: string) {
-    if (dirty && !window.confirm("当前候选有未保存修改，确定放弃并切换吗？"))
-      return;
+    if (!confirmLeavingCurrentDraft("切换规则路径")) return;
     setSelectedPath(path);
   }
 

@@ -49,6 +49,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   const conflictDraft = `${candidateRules}locked candidate edit\nunsaved merge idea\n`;
   const mergedRules =
     "# Merged\n\ncommon line\nexternal only\nexternal second edit\ncandidate only\nunsaved merge idea\n";
+  const navigationConflictRules = `${mergedRules}navigation conflict\n`;
   const workspace = await makeWorkspace("project-rules", originalRules);
   const unexpectedImageRequests: string[] = [];
   page.on("request", (request) => {
@@ -547,6 +548,59 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.locator(".candidate-row")).toHaveCount(1);
   await candidateSearch.fill("does not exist");
   await expect(page.locator(".candidate-row")).toHaveCount(0);
+
+  await writeFile(
+    path.join(workspace, "AGENTS.md"),
+    navigationConflictRules,
+    "utf8",
+  );
+  await page.getByRole("button", { name: "重新扫描当前工作空间" }).click();
+  await expect(
+    page.getByRole("heading", { name: "规则文件冲突" }),
+  ).toBeVisible();
+  const resolutionNavigationDraft = `${navigationConflictRules}unsaved resolution navigation\n`;
+  await page.getByLabel("冲突解决内容").fill(resolutionNavigationDraft);
+  const workspaceSwitchConfirmation = page.waitForEvent("dialog");
+  const workspaceSwitchClick = page
+    .getByRole("button", { name: /用户级规则/ })
+    .click();
+  const workspaceSwitchDialog = await workspaceSwitchConfirmation;
+  expect(workspaceSwitchDialog.message()).toContain("冲突解决稿");
+  await workspaceSwitchDialog.dismiss();
+  await workspaceSwitchClick;
+  await expect(
+    page.getByRole("heading", { name: "规则文件冲突" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(
+    resolutionNavigationDraft,
+  );
+  const acceptedWorkspaceSwitch = page.waitForEvent("dialog");
+  const acceptedWorkspaceClick = page
+    .getByRole("button", { name: /用户级规则/ })
+    .click();
+  const acceptedWorkspaceDialog = await acceptedWorkspaceSwitch;
+  expect(acceptedWorkspaceDialog.message()).toContain("冲突解决稿");
+  await acceptedWorkspaceDialog.accept();
+  await acceptedWorkspaceClick;
+  await page
+    .getByRole("button", { name: "project-rules", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "规则文件冲突" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(
+    navigationConflictRules,
+  );
+  await page.getByRole("button", { name: "把正式文件放入解决稿" }).click();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(
+    navigationConflictRules,
+  );
+  await page.getByLabel("冲突候选名称").fill("Navigation conflict fix");
+  await page.getByRole("button", { name: "保存解决结果" }).click();
+  await expect(page.getByText("与锁定候选一致", { exact: true })).toBeVisible();
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    navigationConflictRules,
+  );
 });
 
 test("空目录初始化后，移除工作空间保留文件并可重新添加", async ({ page }) => {
