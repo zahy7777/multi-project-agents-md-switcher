@@ -40,6 +40,177 @@ async function addWorkspace(
   ).toBeEnabled();
 }
 
+test("跨路径规则搜索能跳转候选并保护未保存草稿", async ({ page }) => {
+  const workspace = await makeWorkspace(
+    "global-rule-search",
+    "root-only search phrase\n",
+  );
+  const nestedDirectory = path.join(workspace, "nested", "rules");
+  const nestedRules = "nested-only search phrase\nsecond line\n";
+  await mkdir(nestedDirectory, { recursive: true });
+  await writeFile(path.join(nestedDirectory, "AGENTS.md"), nestedRules, "utf8");
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page
+    .getByRole("button", { name: path.join("nested", "rules") })
+    .click();
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await page
+    .getByRole("textbox", { name: "新候选名称" })
+    .fill("Archived search test");
+  await page.getByRole("button", { name: "创建候选" }).click();
+  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await page
+    .getByRole("textbox", { name: "候选内容", exact: true })
+    .fill("archived-only search phrase\n");
+  await page.getByRole("button", { name: "保存候选" }).click();
+  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+  await page.getByRole("button", { name: "归档当前候选" }).click();
+  await expect(
+    page.getByText("已归档「Archived search test」，正文和版本历史仍保留"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "AGENTS.md", exact: true }).click();
+
+  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page
+    .getByRole("textbox", { name: "搜索规则正文" })
+    .fill("archived-only search phrase");
+  const archivedResult = page.locator(".rule-search-result");
+  await expect(archivedResult).toHaveCount(1);
+  await expect(archivedResult.first()).toContainText(
+    "Archived search test · 已归档",
+  );
+  if (process.env.PROMPTDOCK_SCREENSHOT_PATH) {
+    await page.screenshot({ path: process.env.PROMPTDOCK_SCREENSHOT_PATH });
+  }
+  await archivedResult.first().click();
+  await expect(
+    page.getByRole("textbox", { name: "候选内容", exact: true }),
+  ).toHaveValue("archived-only search phrase\n");
+  await expect(
+    page.getByRole("textbox", { name: "候选内容", exact: true }),
+  ).toHaveAttribute("readonly", "");
+  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page
+    .getByRole("textbox", { name: "搜索规则正文" })
+    .fill("nested-only search phrase");
+
+  const nestedResult = page.locator(".rule-search-result");
+  await expect(nestedResult).toHaveCount(1);
+  await expect(nestedResult.first()).toContainText("nested-only search phrase");
+  await nestedResult.first().click();
+  await expect(page.getByLabel("候选内容")).toHaveValue(nestedRules);
+
+  const unsavedDraft = `${nestedRules}unsaved search navigation draft\n`;
+  await page.getByLabel("候选内容").fill(unsavedDraft);
+  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page
+    .getByRole("textbox", { name: "搜索规则正文" })
+    .fill("root-only search phrase");
+  const rootResult = page.locator(".rule-search-result").first();
+
+  const cancelledNavigation = page.waitForEvent("dialog");
+  const cancelledResultClick = rootResult.click();
+  const cancelDialog = await cancelledNavigation;
+  expect(cancelDialog.message()).toContain("候选内容有未保存修改");
+  await cancelDialog.dismiss();
+  await cancelledResultClick;
+  await expect(page.getByLabel("候选内容")).toHaveValue(unsavedDraft);
+  await expect(
+    page.getByRole("dialog", { name: "搜索全部规则正文" }),
+  ).toBeVisible();
+
+  const confirmedNavigation = page.waitForEvent("dialog");
+  const confirmedResultClick = rootResult.click();
+  const confirmDialog = await confirmedNavigation;
+  await confirmDialog.accept();
+  await confirmedResultClick;
+  await expect(page.getByLabel("候选内容")).toHaveValue(
+    "root-only search phrase\n",
+  );
+  await expect(
+    page.getByRole("dialog", { name: "搜索全部规则正文" }),
+  ).toHaveCount(0);
+  const externalRules = "external-only conflict phrase\n";
+  await writeFile(
+    path.join(nestedDirectory, "AGENTS.md"),
+    externalRules,
+    "utf8",
+  );
+  await page.getByRole("button", { name: "重新扫描当前工作空间" }).click();
+  await expect(page.getByText("扫描完成，已导入新发现的规则")).toBeVisible();
+  await page
+    .getByRole("button", { name: path.join("nested", "rules") })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "规则文件冲突" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page
+    .getByRole("textbox", { name: "搜索规则正文" })
+    .fill("external-only conflict phrase");
+  await expect(page.locator(".rule-search-result")).toHaveCount(1);
+  await expect(page.locator(".rule-search-result").first()).toContainText(
+    "正式文件 · 冲突版本",
+  );
+  await page
+    .getByRole("textbox", { name: "搜索规则正文" })
+    .fill("nested-only search phrase");
+  await expect(page.locator(".rule-search-result")).toHaveCount(1);
+  await expect(page.locator(".rule-search-result").first()).toContainText(
+    "候选 · 导入的正式规则 · 当前生效",
+  );
+  await page.getByRole("button", { name: "关闭规则搜索" }).click();
+  const unsavedResolution = `${externalRules}unsaved conflict search draft\n`;
+  await page.getByLabel("冲突解决内容").fill(unsavedResolution);
+  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page
+    .getByRole("textbox", { name: "搜索规则正文" })
+    .fill("root-only search phrase");
+  const rootSearchResult = page.locator(".rule-search-result").first();
+  const cancelledConflictNavigation = page.waitForEvent("dialog");
+  const cancelledConflictClick = rootSearchResult.click();
+  const conflictDialog = await cancelledConflictNavigation;
+  expect(conflictDialog.message()).toContain("冲突解决稿有未保存修改");
+  await conflictDialog.dismiss();
+  await cancelledConflictClick;
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(unsavedResolution);
+});
+
+test("移除工作空间后搜索不再显示保留的历史目标", async ({ page }) => {
+  const workspace = await makeWorkspace(
+    "removed-search-workspace",
+    "retained but unregistered phrase\n",
+  );
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+
+  const removeConfirmation = page.waitForEvent("dialog");
+  const removeClick = page
+    .getByRole("button", {
+      name: `从列表移除工作空间 ${path.basename(workspace)}`,
+    })
+    .click();
+  const dialog = await removeConfirmation;
+  await dialog.accept();
+  await removeClick;
+  await expect(
+    page.getByRole("button", { name: path.basename(workspace), exact: true }),
+  ).toHaveCount(0);
+
+  const state = await (await page.request.get("/api/state")).json();
+  expect(
+    state.targets.some((item: { path: string }) => item.path === workspace),
+  ).toBe(true);
+
+  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page
+    .getByRole("textbox", { name: "搜索规则正文" })
+    .fill("retained but unregistered phrase");
+  await expect(page.getByText("没有匹配的规则正文。")).toBeVisible();
+});
+
 test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地文件", async ({
   page,
 }) => {

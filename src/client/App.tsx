@@ -139,6 +139,8 @@ function App() {
   const [content, setContent] = useState("");
   const [name, setName] = useState("");
   const [filter, setFilter] = useState("");
+  const [ruleSearchOpen, setRuleSearchOpen] = useState(false);
+  const [ruleSearchQuery, setRuleSearchQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -249,6 +251,83 @@ function App() {
   }
   const lockedCandidate =
     target?.candidates.find((item) => item.locked) ?? null;
+  const normalizedRuleSearchQuery = ruleSearchQuery
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase();
+  const ruleSearchResults = useMemo(() => {
+    if (!normalizedRuleSearchQuery) return [];
+    const results: {
+      key: string;
+      targetPath: string;
+      label: string;
+      candidateId: string | null;
+      content: string;
+      archived: boolean;
+    }[] = [];
+    for (const item of state.targets) {
+      if (
+        !state.workspaces.some((workspace) =>
+          isWithinWorkspace(item.path, workspace),
+        )
+      )
+        continue;
+      const locked = item.candidates.find((saved) => saved.locked);
+      const normalizedFormal = item.formalContent?.replace(/\s+/g, " ").trim();
+      const formalMatches = normalizedFormal
+        ?.toLocaleLowerCase()
+        .includes(normalizedRuleSearchQuery);
+      const formalRepresentedByLockedCandidate =
+        formalMatches && locked?.content === item.formalContent;
+      if (formalMatches && !formalRepresentedByLockedCandidate) {
+        results.push({
+          key: `${item.path}:formal`,
+          targetPath: item.path,
+          label: item.conflict ? "正式文件 · 冲突版本" : "正式文件",
+          candidateId: item.lockedCandidateId,
+          content: item.formalContent ?? "",
+          archived: false,
+        });
+      }
+      for (const saved of item.candidates) {
+        if (
+          !saved.content
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLocaleLowerCase()
+            .includes(normalizedRuleSearchQuery)
+        )
+          continue;
+        results.push({
+          key: `${item.path}:candidate:${saved.id}`,
+          targetPath: item.path,
+          label: saved.archived
+            ? `候选 · ${saved.name} · 已归档`
+            : saved.locked
+              ? `候选 · ${saved.name} · 当前生效`
+              : `候选 · ${saved.name}`,
+          candidateId: saved.id,
+          content: saved.content,
+          archived: saved.archived,
+        });
+      }
+    }
+    return results.map((result) => {
+      const normalizedContent = result.content.replace(/\s+/g, " ").trim();
+      const matchIndex = normalizedContent
+        .toLocaleLowerCase()
+        .indexOf(normalizedRuleSearchQuery);
+      const start = Math.max(0, matchIndex - 56);
+      const end = Math.min(
+        normalizedContent.length,
+        matchIndex + normalizedRuleSearchQuery.length + 96,
+      );
+      return {
+        ...result,
+        excerpt: `${start > 0 ? "…" : ""}${normalizedContent.slice(start, end)}${end < normalizedContent.length ? "…" : ""}`,
+      };
+    });
+  }, [normalizedRuleSearchQuery, state.targets, state.workspaces]);
   const selectedSourceCandidate =
     target?.candidates.find((item) => item.id === candidateSourceId) ?? null;
   const compareBase =
@@ -555,6 +634,34 @@ function App() {
     setSelectedCandidateId(item.id);
     setContent(item.content);
     setName(item.name);
+  }
+
+  function openRuleSearchResult(result: (typeof ruleSearchResults)[number]) {
+    const destination = state.targets.find(
+      (item) => item.path === result.targetPath,
+    );
+    if (!destination) return;
+    const nextCandidate = result.candidateId
+      ? destination.candidates.find((item) => item.id === result.candidateId)
+      : null;
+    const nextCandidateId = nextCandidate?.id ?? "";
+    if (
+      selectedPath !== destination.path ||
+      selectedCandidateId !== nextCandidateId
+    ) {
+      if (!confirmLeavingCurrentDraft("打开搜索结果")) return;
+      const workspace = state.workspaces
+        .filter((item) => isWithinWorkspace(destination.path, item))
+        .sort((left, right) => right.length - left.length)[0];
+      if (workspace) setSelectedWorkspace(workspace);
+      setSelectedPath(destination.path);
+      setSelectedCandidateId(nextCandidateId);
+      setContent(nextCandidate?.content ?? "");
+      setName(nextCandidate?.name ?? "");
+      setShowArchivedCandidates(nextCandidate?.archived ?? false);
+      setPreviewMode(false);
+    }
+    setRuleSearchOpen(false);
   }
 
   async function archiveCurrentCandidate() {
@@ -943,7 +1050,8 @@ function App() {
   useEffect(() => {
     function closeTopmostDialog(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
-      if (helpOpen) setHelpOpen(false);
+      if (ruleSearchOpen) setRuleSearchOpen(false);
+      else if (helpOpen) setHelpOpen(false);
       else if (showInitializeForm) setShowInitializeForm(false);
       else if (switchPreviewOpen) setSwitchPreviewOpen(false);
       else if (compareOpen) setCompareOpen(false);
@@ -959,6 +1067,7 @@ function App() {
   }, [
     compareOpen,
     helpOpen,
+    ruleSearchOpen,
     historyOpen,
     switchPreviewOpen,
     showCandidateForm,
@@ -1173,9 +1282,21 @@ function App() {
               </>
             ) : null}
           </div>
-          <div className="topbar-status">
-            <span className="live-dot" />
-            {starting ? "正在扫描已登记路径" : "仅本机运行"}
+          <div className="topbar-tools">
+            <button
+              className="secondary-button rule-search-trigger"
+              aria-label="搜索全部规则正文"
+              title="搜索所有已扫描路径中的正式文件和候选正文"
+              disabled={starting || busy}
+              onClick={() => setRuleSearchOpen(true)}
+            >
+              <Search size={14} />
+              搜索全部规则
+            </button>
+            <div className="topbar-status">
+              <span className="live-dot" />
+              {starting ? "正在扫描已登记路径" : "仅本机运行"}
+            </div>
           </div>
         </header>
 
@@ -1771,6 +1892,90 @@ function App() {
           >
             <X size={14} />
           </button>
+        </div>
+      ) : null}
+
+      {ruleSearchOpen ? (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) =>
+            event.currentTarget === event.target && setRuleSearchOpen(false)
+          }
+        >
+          <section
+            className="modal-card rule-search-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rule-search-title"
+          >
+            <div className="modal-title">
+              <div>
+                <p className="eyebrow">只读搜索 · 不修改文件</p>
+                <h2 id="rule-search-title">搜索全部规则正文</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="关闭规则搜索"
+                onClick={() => setRuleSearchOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <label className="rule-search-input">
+              <Search size={15} />
+              <input
+                autoFocus
+                aria-label="搜索规则正文"
+                placeholder="输入要查找的规则文字"
+                value={ruleSearchQuery}
+                onChange={(event) => setRuleSearchQuery(event.target.value)}
+              />
+            </label>
+            <p className="modal-description">
+              搜索所有已扫描路径中的正式文件和候选正文，包含已归档候选。相同的正式版与锁定候选只显示一次；冲突两侧会分别显示。
+            </p>
+            <div className="rule-search-results" aria-live="polite">
+              {!normalizedRuleSearchQuery ? (
+                <p className="history-empty">输入文字开始搜索。</p>
+              ) : ruleSearchResults.length === 0 ? (
+                <p className="history-empty">没有匹配的规则正文。</p>
+              ) : (
+                <>
+                  <p className="rule-search-count">
+                    找到 {ruleSearchResults.length} 个匹配项
+                  </p>
+                  {ruleSearchResults.map((result) => (
+                    <button
+                      key={result.key}
+                      className="rule-search-result"
+                      title={result.targetPath}
+                      aria-label={`${result.label}，${result.targetPath}：${result.excerpt}`}
+                      disabled={starting || busy}
+                      onClick={() => openRuleSearchResult(result)}
+                    >
+                      <span className="rule-search-result-heading">
+                        <strong>{result.label}</strong>
+                        <small>{shortPath(result.targetPath, 4)}</small>
+                      </span>
+                      <span className="rule-search-excerpt">
+                        {result.excerpt}
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setRuleSearchOpen(false)}
+              >
+                关闭
+              </button>
+            </div>
+          </section>
         </div>
       ) : null}
 
