@@ -2312,6 +2312,9 @@ test("候选查找替换只改草稿，保存锁定候选后才同步正式文�
   await page.getByRole("button", { name: "下一个匹配" }).click();
   await page.getByRole("button", { name: "下一个匹配" }).click();
   await page.getByRole("button", { name: "下一个匹配" }).click();
+  await page.getByRole("button", { name: "上一个匹配" }).click();
+  await expect(page.getByText("第 2 / 3 处")).toBeVisible();
+  await page.getByRole("button", { name: "下一个匹配" }).click();
   await expect(page.getByText("第 3 / 3 处")).toBeVisible();
   await page.getByRole("button", { name: "替换当前" }).click();
   await expect(
@@ -2325,6 +2328,10 @@ test("候选查找替换只改草稿，保存锁定候选后才同步正式文�
   await expect(
     page.getByRole("textbox", { name: "候选内容", exact: true }),
   ).toHaveValue(replacedDraft);
+  await page.getByRole("button", { name: "关闭查找替换" }).click();
+  await expect(
+    page.getByRole("group", { name: "查找替换候选内容" }),
+  ).toHaveCount(0);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     originalRules,
   );
