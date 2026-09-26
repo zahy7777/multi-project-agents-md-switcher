@@ -799,6 +799,58 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
       path: process.env.PROMPTDOCK_RESOLUTION_STATS_SCREENSHOT_PATH,
     });
   }
+  await page.getByRole("button", { name: "关闭提示" }).click();
+  await page.setViewportSize({ width: 800, height: 720 });
+  const resolutionSaveButton = page.getByRole("button", {
+    name: "保存解决结果",
+  });
+  await resolutionSaveButton.scrollIntoViewIfNeeded();
+  await expect(resolutionSaveButton).toBeInViewport();
+  const resolutionFooterGeometry = await page.evaluate(() => {
+    const stats = document.querySelector(
+      '[data-testid="resolution-content-stats"]',
+    );
+    const saveButton = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("保存解决结果"),
+    );
+    if (
+      !(stats instanceof HTMLElement) ||
+      !(saveButton instanceof HTMLElement)
+    ) {
+      throw new Error("冲突统计或保存操作不可见");
+    }
+    const statsBounds = stats.getBoundingClientRect();
+    const buttonBounds = saveButton.getBoundingClientRect();
+    const centerX = buttonBounds.left + buttonBounds.width / 2;
+    const centerY = buttonBounds.top + buttonBounds.height / 2;
+    const hitTarget = document.elementFromPoint(centerX, centerY);
+    return {
+      statsBottom: statsBounds.bottom,
+      buttonTop: buttonBounds.top,
+      buttonRight: buttonBounds.right,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      buttonReceivesPointer:
+        hitTarget === saveButton || saveButton.contains(hitTarget),
+    };
+  });
+  expect(resolutionFooterGeometry.statsBottom).toBeLessThanOrEqual(
+    resolutionFooterGeometry.buttonTop,
+  );
+  expect(resolutionFooterGeometry.buttonRight).toBeLessThanOrEqual(
+    resolutionFooterGeometry.viewportWidth,
+  );
+  expect(resolutionFooterGeometry.buttonTop).toBeGreaterThanOrEqual(0);
+  expect(resolutionFooterGeometry.buttonTop).toBeLessThan(
+    resolutionFooterGeometry.viewportHeight,
+  );
+  expect(resolutionFooterGeometry.buttonReceivesPointer).toBe(true);
+  if (process.env.PROMPTDOCK_RESOLUTION_STATS_NARROW_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_RESOLUTION_STATS_NARROW_SCREENSHOT_PATH,
+    });
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
   const pathSwitchDraft = "unsaved path switch resolution\n";
   await page.getByLabel("冲突解决内容").fill(pathSwitchDraft);
   const cancelledPathSwitch = page.waitForEvent("dialog");
