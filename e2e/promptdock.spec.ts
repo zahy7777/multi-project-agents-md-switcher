@@ -321,6 +321,8 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   ).toBe(mergedRules);
 
   await page.getByRole("button", { name: "Candidate B 候选" }).click();
+  const historyComparisonDraft = `${lockedRules}unsaved history draft\n`;
+  await page.getByLabel("候选内容").fill(historyComparisonDraft);
   await page.getByRole("button", { name: "查看候选历史" }).click();
   await expect(page.locator(".history-revision")).toHaveCount(3);
   await page.locator(".history-revision").last().click();
@@ -333,6 +335,11 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     page
       .locator(".history-version-view .added code")
       .getByText("locked candidate edit", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".history-version-view .added code")
+      .getByText("unsaved history draft", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "历史全文" }).click();
   await expect(page.locator(".history-preview")).toHaveText(originalRules);
@@ -353,6 +360,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   if (process.env.PROMPTDOCK_SCREENSHOT_PATH) {
     await page.screenshot({ path: process.env.PROMPTDOCK_SCREENSHOT_PATH });
   }
+  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "从此版本创建候选" }).click();
   await expect(page.getByLabel("候选名称")).toHaveValue(
     "Candidate B（历史恢复）",
