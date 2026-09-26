@@ -13,6 +13,7 @@ import {
   ChevronRight,
   CircleHelp,
   Clock3,
+  Download,
   Eye,
   FileCode2,
   FolderOpen,
@@ -510,6 +511,27 @@ function App() {
     } finally {
       saveInFlight.current = false;
     }
+  }
+
+  function exportCurrentCandidate() {
+    if (!candidate) return;
+    const safeName = (name || candidate.name)
+      .trim()
+      .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
+      .replace(/[. ]+$/g, "");
+    const portableName = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(safeName)
+      ? `_${safeName}`
+      : safeName || "candidate";
+    const downloadUrl = URL.createObjectURL(
+      new Blob([content], { type: "text/markdown;charset=utf-8" }),
+    );
+    const downloadLink = document.createElement("a");
+    downloadLink.href = downloadUrl;
+    downloadLink.download = `${portableName}.md`;
+    document.body.append(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000);
   }
 
   useEffect(() => {
@@ -1111,16 +1133,27 @@ function App() {
                     {dirty ? "有未保存更改" : "所有更改已保存"} ·{" "}
                     {content.length} 字符
                   </span>
-                  <button
-                    className="primary-button"
-                    disabled={busy || !candidate || !dirty}
-                    title={`保存候选（${navigator.platform.toLowerCase().includes("mac") ? "⌘S" : "Ctrl+S"}）`}
-                    aria-keyshortcuts="Control+S Meta+S"
-                    onClick={() => void saveCurrentCandidate()}
-                  >
-                    <Save size={15} />
-                    {candidate?.locked ? "保存并同步正式文件" : "保存候选"}
-                  </button>
+                  <div className="heading-actions">
+                    <button
+                      className="secondary-button"
+                      disabled={!candidate}
+                      title="导出当前编辑器内容，包括未保存修改"
+                      onClick={exportCurrentCandidate}
+                    >
+                      <Download size={14} />
+                      导出 Markdown
+                    </button>
+                    <button
+                      className="primary-button"
+                      disabled={busy || !candidate || !dirty}
+                      title={`保存候选（${navigator.platform.toLowerCase().includes("mac") ? "⌘S" : "Ctrl+S"}）`}
+                      aria-keyshortcuts="Control+S Meta+S"
+                      onClick={() => void saveCurrentCandidate()}
+                    >
+                      <Save size={15} />
+                      {candidate?.locked ? "保存并同步正式文件" : "保存候选"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

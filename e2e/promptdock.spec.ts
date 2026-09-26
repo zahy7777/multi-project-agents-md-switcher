@@ -85,6 +85,33 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   );
   await page.getByRole("button", { name: "Candidate B 候选" }).click();
 
+  const exportedDraft = `${candidateRules}export-only draft\n`;
+  await page.getByLabel("候选名称").fill("Candidate/B*");
+  await page.getByLabel("候选内容").fill(exportedDraft);
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出 Markdown" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("Candidate_B_.md");
+  const exportedFile = path.join(testRoot, "exported candidate.md");
+  await download.saveAs(exportedFile);
+  expect(await readFile(exportedFile, "utf8")).toBe(exportedDraft);
+  await expect(page.getByText(/有未保存更改/)).toBeVisible();
+  const exportStateResponse = await page.request.get("/api/state");
+  const exportState = await exportStateResponse.json();
+  const exportTarget = exportState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  const savedCandidate = exportTarget.candidates.find(
+    (item: { name: string }) => item.name === "Candidate B",
+  );
+  expect(savedCandidate.content).toBe(candidateRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    originalRules,
+  );
+  await page.getByLabel("候选名称").fill("Candidate B");
+  await page.getByLabel("候选内容").fill(candidateRules);
+  await expect(page.getByText(/所有更改已保存/)).toBeVisible();
+
   await page.getByRole("button", { name: "预览" }).click();
   await expect(page.locator(".markdown-preview h1")).toHaveText("Shared");
   await expect(page.locator(".markdown-preview table")).toHaveCount(1);
