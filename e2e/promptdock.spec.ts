@@ -331,7 +331,13 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     "utf8",
   );
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.clock.install();
   await page.getByRole("button", { name: "复制内容" }).click();
+  await expect(page.getByRole("button", { name: "已复制" })).toBeVisible();
+  await page.clock.fastForward(1_000);
+  await page
+    .locator('.editor-footer button[title^="复制当前编辑器内容"]')
+    .click();
   await expect(page.getByRole("button", { name: "已复制" })).toBeVisible();
   expect(
     (await page.evaluate(() => navigator.clipboard.readText())).replace(
@@ -339,6 +345,12 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
       "\n",
     ),
   ).toBe(exportedDraft);
+  await page.clock.fastForward(1_000);
+  await expect(page.getByRole("button", { name: "已复制" })).toBeVisible();
+  await page.clock.fastForward(800);
+  await expect(page.getByRole("button", { name: "复制内容" })).toBeVisible();
+  await page.getByRole("button", { name: "复制内容" }).click();
+  await expect(page.getByRole("button", { name: "已复制" })).toBeVisible();
   const stateAfterCopyResponse = await page.request.get("/api/state");
   const stateAfterCopy = await stateAfterCopyResponse.json();
   const targetAfterCopy = stateAfterCopy.targets.find(
