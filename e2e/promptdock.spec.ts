@@ -296,6 +296,52 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   const exportedDraft = `${candidateRules}export-only draft\n`;
   await page.getByLabel("候选名称").fill("Candidate/B*");
   await page.getByLabel("候选内容").fill(exportedDraft);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByRole("button", { name: "复制内容" }).click();
+  await expect(page.getByRole("button", { name: "已复制" })).toBeVisible();
+  expect(
+    (await page.evaluate(() => navigator.clipboard.readText())).replace(
+      /\r\n/g,
+      "\n",
+    ),
+  ).toBe(exportedDraft);
+  if (process.env.PROMPTDOCK_COPY_BUTTON_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_COPY_BUTTON_SCREENSHOT_PATH,
+    });
+  }
+  await page.setViewportSize({ width: 800, height: 720 });
+  if (process.env.PROMPTDOCK_COPY_BUTTON_NARROW_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_COPY_BUTTON_NARROW_SCREENSHOT_PATH,
+    });
+  }
+  for (const label of ["已复制", "导出 Markdown", "保存候选"]) {
+    await expect(page.getByRole("button", { name: label })).toBeInViewport();
+  }
+  const actionBounds = await page
+    .locator(".editor-footer .heading-actions button")
+    .evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      }),
+    );
+  expect(actionBounds).toHaveLength(3);
+  for (const [index, button] of actionBounds.entries()) {
+    expect(button.left).toBeGreaterThanOrEqual(0);
+    expect(button.right).toBeLessThanOrEqual(800);
+    expect(button.top).toBeGreaterThanOrEqual(0);
+    expect(button.bottom).toBeLessThanOrEqual(720);
+    if (index > 0)
+      expect(actionBounds[index - 1].right).toBeLessThanOrEqual(button.left);
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "导出 Markdown" }).click();
   const download = await downloadPromise;

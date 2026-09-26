@@ -13,6 +13,7 @@ import {
   ChevronRight,
   CircleHelp,
   Clock3,
+  Copy,
   Download,
   Eye,
   FileCode2,
@@ -160,6 +161,7 @@ function App() {
   const [showCompareDiff, setShowCompareDiff] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [showConflictDiff, setShowConflictDiff] = useState(true);
+  const [copySucceeded, setCopySucceeded] = useState(false);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
   const saveInFlight = useRef(false);
   const candidateFileInput = useRef<HTMLInputElement>(null);
@@ -664,6 +666,19 @@ function App() {
     downloadLink.click();
     downloadLink.remove();
     window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000);
+  }
+
+  async function copyCurrentContent() {
+    try {
+      await navigator.clipboard.writeText(content);
+      setError("");
+      setNotice("");
+      setCopySucceeded(true);
+      window.setTimeout(() => setCopySucceeded(false), 1800);
+    } catch (reason) {
+      setCopySucceeded(false);
+      setError(`复制到剪贴板失败：${message(reason)}`);
+    }
   }
 
   useEffect(() => {
@@ -1259,6 +1274,15 @@ function App() {
                     · {contentMetrics.utf8Bytes} UTF-8 字节
                   </span>
                   <div className="heading-actions">
+                    <button
+                      className="secondary-button"
+                      disabled={!candidate}
+                      title="复制当前编辑器内容，包括未保存修改"
+                      onClick={() => void copyCurrentContent()}
+                    >
+                      {copySucceeded ? <Check size={14} /> : <Copy size={14} />}
+                      {copySucceeded ? "已复制" : "复制内容"}
+                    </button>
                     <button
                       className="secondary-button"
                       disabled={!candidate}
