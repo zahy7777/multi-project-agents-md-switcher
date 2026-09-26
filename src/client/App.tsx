@@ -57,6 +57,7 @@ function App() {
   const [selectedWorkspace, setSelectedWorkspace] = useState("");
   const [selectedPath, setSelectedPath] = useState("");
   const [selectedCandidateId, setSelectedCandidateId] = useState("");
+  const [candidateFilter, setCandidateFilter] = useState("");
   const [content, setContent] = useState("");
   const [name, setName] = useState("");
   const [filter, setFilter] = useState("");
@@ -92,6 +93,10 @@ function App() {
     state.targets.find((item) => item.path === selectedPath) ?? null;
   const candidate =
     target?.candidates.find((item) => item.id === selectedCandidateId) ?? null;
+  const visibleCandidates =
+    target?.candidates.filter((item) =>
+      item.name.toLowerCase().includes(candidateFilter.toLowerCase()),
+    ) ?? [];
   const lockedCandidate =
     target?.candidates.find((item) => item.locked) ?? null;
   const workspaceTargets = useMemo(
@@ -726,8 +731,17 @@ function App() {
                     </button>
                   </div>
                 </div>
+                <label className="candidate-filter">
+                  <Search size={12} />
+                  <input
+                    aria-label="筛选候选"
+                    placeholder="筛选候选名称"
+                    value={candidateFilter}
+                    onChange={(event) => setCandidateFilter(event.target.value)}
+                  />
+                </label>
                 <div className="candidate-list">
-                  {target.candidates.map((item) => (
+                  {visibleCandidates.map((item) => (
                     <button
                       key={item.id}
                       className={`candidate-row ${item.id === selectedCandidateId ? "active" : ""}`}
@@ -745,6 +759,9 @@ function App() {
                       ) : null}
                     </button>
                   ))}
+                  {visibleCandidates.length === 0 ? (
+                    <p className="candidate-list-empty">没有匹配的候选。</p>
+                  ) : null}
                 </div>
                 {candidate && !candidate.locked ? (
                   <button

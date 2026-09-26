@@ -531,9 +531,38 @@ textarea {
   color: #548c80;
   background: #f9fbfa;
 }
+.candidate-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  margin: 0 1px 9px;
+  padding: 0 7px;
+  border: 1px solid #e8eeeb;
+  border-radius: 5px;
+  color: #91a09f;
+  background: #fbfcfc;
+}
+.candidate-filter input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #596a70;
+  background: transparent;
+  font-size: 9px;
+}
+.candidate-filter input::placeholder {
+  color: #a1acaa;
+}
 .candidate-list {
   display: grid;
   gap: 4px;
+}
+.candidate-list-empty {
+  padding: 8px 7px;
+  color: #9aa5a4;
+  font-size: 9px;
 }
 .candidate-row {
   display: flex;
