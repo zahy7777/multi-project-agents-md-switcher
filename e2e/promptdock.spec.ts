@@ -211,6 +211,38 @@ test("移除工作空间后搜索不再显示保留的历史目标", async ({ pa
   await expect(page.getByText("没有匹配的规则正文。")).toBeVisible();
 });
 
+test("跨工作空间搜索结果会切换到规则所属工作空间", async ({ page }) => {
+  const firstWorkspace = await makeWorkspace(
+    "search-workspace-first",
+    "phrase owned by first workspace\n",
+  );
+  const secondWorkspace = await makeWorkspace(
+    "search-workspace-second",
+    "phrase owned by second workspace\n",
+  );
+  await page.goto("/");
+  await addWorkspace(page, firstWorkspace);
+  await addWorkspace(page, secondWorkspace);
+
+  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page
+    .getByRole("textbox", { name: "搜索规则正文" })
+    .fill("phrase owned by first workspace");
+  const firstWorkspaceResult = page.locator(".rule-search-result");
+  await expect(firstWorkspaceResult).toHaveCount(1);
+  await expect(firstWorkspaceResult.first()).toContainText(
+    path.basename(firstWorkspace),
+  );
+  await firstWorkspaceResult.first().click();
+
+  await expect(page.locator(".breadcrumbs")).toContainText(
+    path.basename(firstWorkspace),
+  );
+  await expect(page.getByLabel("候选内容")).toHaveValue(
+    "phrase owned by first workspace\n",
+  );
+});
+
 test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地文件", async ({
   page,
 }) => {
