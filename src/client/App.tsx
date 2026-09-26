@@ -144,6 +144,7 @@ function App() {
   const [workspaceInput, setWorkspaceInput] = useState("");
   const [showCandidateForm, setShowCandidateForm] = useState(false);
   const [candidateName, setCandidateName] = useState("");
+  const [candidateSourceId, setCandidateSourceId] = useState("");
   const [showInitializeForm, setShowInitializeForm] = useState(false);
   const [initializeInput, setInitializeInput] = useState("");
   const [resolution, setResolution] = useState("");
@@ -465,15 +466,26 @@ function App() {
   async function createCandidate(event: FormEvent) {
     event.preventDefault();
     if (!target) return;
+    const sourceCandidate = candidateSourceId
+      ? target.candidates.find((item) => item.id === candidateSourceId)
+      : null;
+    if (candidateSourceId && !sourceCandidate) {
+      setError("所选候选已不存在，请重新选择内容来源。");
+      return;
+    }
+    const sourceContent = sourceCandidate?.content ?? content;
+    const preserveCurrentDraft = !!sourceCandidate && dirty;
     const knownIds = new Set(target.candidates.map((item) => item.id));
     const next = await act(
-      () => api.createCandidate(target.path, candidateName, content),
-      "候选已创建并记录到本地 Git",
+      () => api.createCandidate(target.path, candidateName, sourceContent),
+      preserveCurrentDraft
+        ? "新候选已创建；当前未保存草稿仍保留在编辑器"
+        : "候选已创建并记录到本地 Git",
     );
     const created = next?.targets
       .find((item) => item.path === target.path)
       ?.candidates.find((item) => !knownIds.has(item.id));
-    if (created) {
+    if (created && !preserveCurrentDraft) {
       setSelectedCandidateId(created.id);
       setContent(created.content);
       setName(created.name);
@@ -481,6 +493,7 @@ function App() {
     if (created) {
       setShowCandidateForm(false);
       setCandidateName("");
+      setCandidateSourceId("");
     }
   }
 
@@ -1188,7 +1201,10 @@ function App() {
                       aria-label="新建候选"
                       title="新建候选"
                       disabled={busy}
-                      onClick={() => setShowCandidateForm(true)}
+                      onClick={() => {
+                        setCandidateSourceId("");
+                        setShowCandidateForm(true);
+                      }}
                     >
                       <Plus size={15} />
                     </button>
@@ -1555,12 +1571,33 @@ function App() {
                 autoFocus
                 required
                 placeholder="例如：更严格的代码审查"
+                aria-label="新候选名称"
                 value={candidateName}
                 onChange={(event) => setCandidateName(event.target.value)}
               />
             </label>
+            <label className="field-label">
+              候选内容来源
+              <select
+                aria-label="候选内容来源"
+                value={candidateSourceId}
+                onChange={(event) => setCandidateSourceId(event.target.value)}
+              >
+                <option value="">当前编辑器（含未保存修改）</option>
+                {target?.candidates.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} · {item.id.slice(0, 7)}
+                    {item.locked ? "（正式生效）" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
             <p className="modal-description">
-              将编辑器当前内容（包括未保存修改）复制为新版本；创建后可单独编辑和比较。
+              {candidateSourceId && dirty
+                ? "新候选会从所选已保存版本创建；当前编辑器中的未保存草稿会保留。"
+                : candidateSourceId
+                  ? "新候选会从所选已保存版本创建，并在创建后打开。"
+                  : "将编辑器当前内容（包括未保存修改）复制为新版本；创建后可单独编辑和比较。"}
             </p>
             <div className="modal-actions">
               <button

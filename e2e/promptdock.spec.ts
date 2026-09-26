@@ -214,6 +214,54 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     historyBeforeDiscard,
   );
 
+  const branchDraft = `${candidateRules}keep this unsaved draft while branching\n`;
+  await page.getByLabel("候选内容").fill(branchDraft);
+  await page.getByRole("button", { name: "新建候选" }).click();
+  await expect(page.getByLabel("候选内容来源")).toHaveValue("");
+  await page.getByLabel("候选内容来源").selectOption({ index: 1 });
+  await expect(
+    page.getByText(
+      "新候选会从所选已保存版本创建；当前编辑器中的未保存草稿会保留。",
+    ),
+  ).toBeVisible();
+  if (process.env.PROMPTDOCK_BRANCH_MODAL_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_BRANCH_MODAL_SCREENSHOT_PATH,
+    });
+  }
+  await page.getByLabel("新候选名称").fill("Branch from formal");
+  await page.getByRole("button", { name: "创建候选" }).click();
+  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await expect(page.getByLabel("候选名称")).toHaveValue("Candidate B");
+  await expect(page.getByLabel("候选内容")).toHaveValue(branchDraft);
+  await expect(page.getByText(/当前未保存草稿仍保留在编辑器/)).toBeVisible();
+  const branchStateResponse = await page.request.get("/api/state");
+  const branchState = await branchStateResponse.json();
+  const branchTarget = branchState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  const branchedCandidate = branchTarget.candidates.find(
+    (item: { name: string }) => item.name === "Branch from formal",
+  );
+  expect(branchedCandidate.content).toBe(originalRules);
+  expect(branchedCandidate.locked).toBe(false);
+  expect(
+    branchTarget.candidates.find(
+      (item: { name: string }) => item.name === "Candidate B",
+    ).content,
+  ).toBe(candidateRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalBeforeDiscard,
+  );
+  const discardBranchDraft = page.waitForEvent("dialog");
+  const discardBranchClick = page
+    .getByRole("button", { name: "还原已保存版本" })
+    .click();
+  const discardBranchDialog = await discardBranchDraft;
+  expect(discardBranchDialog.message()).toContain("放弃当前未保存修改");
+  await discardBranchDialog.accept();
+  await discardBranchClick;
+
   const scanRequests: string[] = [];
   const observeWorkspaceScan = (
     request: import("@playwright/test").Request,
