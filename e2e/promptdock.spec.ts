@@ -38,6 +38,17 @@ async function addWorkspace(
   await expect(
     page.getByRole("button", { name: "重新扫描当前工作空间" }),
   ).toBeEnabled();
+  await expectVisibleButtonsHaveNames(page);
+}
+
+async function expectVisibleButtonsHaveNames(
+  page: import("@playwright/test").Page,
+) {
+  for (const button of await page.getByRole("button").all()) {
+    if (await button.isVisible()) {
+      await expect(button).toHaveAccessibleName(/\S+/);
+    }
+  }
 }
 
 test("跨路径规则搜索能跳转候选并保护未保存草稿", async ({ page }) => {
