@@ -101,7 +101,16 @@ pnpm install
 pnpm dev
 ```
 
-开发页面位于 `http://127.0.0.1:5173`，本地 API 位于 `http://127.0.0.1:4317`。日常单进程模式：
+默认开发页面位于 `http://127.0.0.1:5173`，本地 API 位于 `http://127.0.0.1:4317`。
+
+若开发端口 `5173` 已被占用，可在 PowerShell 中设置 `PROMPTDOCK_VITE_PORT` 后再运行 `pnpm dev`；前端会监听该端口，API 会同步允许这个明确配置的本机来源调用写入接口：
+
+```powershell
+$env:PROMPTDOCK_VITE_PORT = "5174"
+pnpm dev
+```
+
+日常单进程模式：
 
 ```powershell
 pnpm build

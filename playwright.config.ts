@@ -42,6 +42,7 @@ export default defineConfig({
     env: {
       ...process.env,
       PORT: String(port),
+      PROMPTDOCK_VITE_PORT: "5174",
       PROMPTDOCK_DATA_DIR: applicationData,
       CODEX_HOME: codexHome,
     },

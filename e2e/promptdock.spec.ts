@@ -58,6 +58,43 @@ async function expectVisibleButtonsHaveNames(
   expect(unnamedButtons).toEqual([]);
 }
 
+test("状态接口接受明确配置的开发端口并拒绝其他来源", async ({ request }) => {
+  const configuredOrigin = await request.get("/api/health", {
+    headers: { Origin: "http://127.0.0.1:5174" },
+  });
+  expect(configuredOrigin.status()).toBe(200);
+
+  const unconfiguredOrigin = await request.get("/api/health", {
+    headers: { Origin: "http://127.0.0.1:5175" },
+  });
+  expect(unconfiguredOrigin.status()).toBe(403);
+});
+
+test("不完整的管理状态显示服务错误且界面不白屏", async ({ page }) => {
+  await page.route("**/api/state", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        workspaces: [],
+        targets: [],
+        historyPath: "",
+        diagnosticsPath: "",
+        userRulesPath: "",
+      }),
+    }),
+  );
+
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("button", { name: "添加工作空间" }).first(),
+  ).toBeVisible();
+  await expect(page.getByRole("status")).toContainText(
+    "本地服务返回的管理状态格式无效，请重启本地服务。",
+  );
+});
+
 test("跨路径规则搜索能跳转缓存方案并保护未保存草稿", async ({ page }) => {
   const workspace = await makeWorkspace(
     "global-rule-search",

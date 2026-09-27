@@ -31,42 +31,74 @@ async function request<T>(url: string, options?: RequestInit) {
   return result as T;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isManagerState(value: unknown): value is ManagerState {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.workspaces) &&
+    value.workspaces.every((workspace) => typeof workspace === "string") &&
+    isRecord(value.workspaceIgnoreRules) &&
+    Object.values(value.workspaceIgnoreRules).every(
+      (rules) => typeof rules === "string",
+    ) &&
+    Array.isArray(value.targets) &&
+    typeof value.historyPath === "string" &&
+    typeof value.diagnosticsPath === "string" &&
+    typeof value.userRulesPath === "string"
+  );
+}
+
+async function requestManagerState(url: string, options?: RequestInit) {
+  const result = await request<unknown>(url, options);
+  if (!isManagerState(result)) {
+    throw new ApiError(
+      "本地服务返回的管理状态格式无效，请重启本地服务。",
+      502,
+      "INVALID_MANAGER_STATE",
+    );
+  }
+  return result;
+}
+
 const post = (body: unknown): RequestInit => ({
   method: "POST",
   body: JSON.stringify(body),
 });
 
 export const api = {
-  state: () => request<ManagerState>("/api/state"),
+  state: () => requestManagerState("/api/state"),
   formalStatus: (path: string) =>
     request<FormalStatus | null>(
       `/api/formal-status?${new URLSearchParams({ path })}`,
     ),
   addWorkspace: (path: string) =>
-    request<ManagerState>("/api/workspaces", post({ path })),
+    requestManagerState("/api/workspaces", post({ path })),
   chooseWorkspaceDirectory: () =>
     request<{ path: string | null }>(
       "/api/workspaces/choose-directory",
       post({}),
     ),
   removeWorkspace: (path: string) =>
-    request<ManagerState>("/api/workspaces", {
+    requestManagerState("/api/workspaces", {
       method: "DELETE",
       body: JSON.stringify({ path }),
     }),
   scanWorkspace: (path: string) =>
-    request<ManagerState>("/api/workspaces/scan", post({ path })),
+    requestManagerState("/api/workspaces/scan", post({ path })),
   updateWorkspaceIgnore: (path: string, rules: string) =>
-    request<ManagerState>("/api/workspaces/ignore", {
+    requestManagerState("/api/workspaces/ignore", {
       method: "PUT",
       body: JSON.stringify({ path, rules }),
     }),
   scanAllWorkspaces: () =>
-    request<ManagerState>("/api/workspaces/scan-all", post({})),
+    requestManagerState("/api/workspaces/scan-all", post({})),
   initializePath: (path: string) =>
-    request<ManagerState>("/api/paths/initialize", post({ path })),
+    requestManagerState("/api/paths/initialize", post({ path })),
   createCandidate: (path: string, name: string, content: string) =>
-    request<ManagerState>("/api/candidates", post({ path, name, content })),
+    requestManagerState("/api/candidates", post({ path, name, content })),
   candidateHistory: (path: string, candidateId: string) =>
     request<CandidateRevision[]>(
       `/api/candidates/${encodeURIComponent(candidateId)}/history?${new URLSearchParams({ path })}`,
@@ -83,7 +115,7 @@ export const api = {
     expectedName: string,
     expectedContent: string,
   ) =>
-    request<ManagerState>("/api/candidates", {
+    requestManagerState("/api/candidates", {
       method: "PUT",
       body: JSON.stringify({
         path,
@@ -95,7 +127,7 @@ export const api = {
       }),
     }),
   saveDiskFile: (path: string, content: string, expectedContent: string) =>
-    request<ManagerState>("/api/disk-file", {
+    requestManagerState("/api/disk-file", {
       method: "PUT",
       body: JSON.stringify({ path, content, expectedContent }),
     }),
@@ -105,23 +137,20 @@ export const api = {
     name: string,
     expectedName: string,
   ) =>
-    request<ManagerState>(
+    requestManagerState(
       "/api/candidates/rename",
       post({ path, candidateId, name, expectedName }),
     ),
   deleteCandidate: (path: string, candidateId: string) =>
-    request<ManagerState>(
-      "/api/candidates/delete",
-      post({ path, candidateId }),
-    ),
+    requestManagerState("/api/candidates/delete", post({ path, candidateId })),
   lockCandidate: (path: string, candidateId: string) =>
-    request<ManagerState>("/api/candidates/lock", post({ path, candidateId })),
+    requestManagerState("/api/candidates/lock", post({ path, candidateId })),
   setCandidateArchived: (
     path: string,
     candidateId: string,
     archived: boolean,
   ) =>
-    request<ManagerState>(
+    requestManagerState(
       "/api/candidates/archive",
       post({ path, candidateId, archived }),
     ),
@@ -131,7 +160,7 @@ export const api = {
     content: string,
     strategy: "new-candidate" | "current-revision",
   ) =>
-    request<ManagerState>(
+    requestManagerState(
       "/api/conflicts/resolve",
       post({ path, name, content, strategy }),
     ),

@@ -8,15 +8,22 @@ import { CandidateChangedError, type PromptLibrary } from "./prompt-library.js";
 import { chooseLocalDirectory } from "./choose-directory.js";
 import { PORT } from "./settings.js";
 
-const uiOrigins = new Set([
-  "http://127.0.0.1:5173",
-  "http://localhost:5173",
-  `http://127.0.0.1:${PORT}`,
-  `http://localhost:${PORT}`,
-]);
+function allowedUiOrigins() {
+  const devPort = Number(process.env.PROMPTDOCK_VITE_PORT ?? 5173);
+  if (!Number.isInteger(devPort) || devPort < 1 || devPort > 65535) {
+    throw new Error("PROMPTDOCK_VITE_PORT 必须是有效端口号。");
+  }
+  return new Set([
+    `http://127.0.0.1:${devPort}`,
+    `http://localhost:${devPort}`,
+    `http://127.0.0.1:${PORT}`,
+    `http://localhost:${PORT}`,
+  ]);
+}
 
 export function createHttpApp(library: PromptLibrary) {
   const app = express();
+  const uiOrigins = allowedUiOrigins();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "2mb" }));
 
