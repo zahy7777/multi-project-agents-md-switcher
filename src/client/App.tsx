@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import {
   AlertTriangle,
   Archive,
@@ -28,6 +35,7 @@ import {
   Search,
   ShieldCheck,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import type {
@@ -217,6 +225,7 @@ function App() {
   const copyFeedbackTimeout = useRef<number | null>(null);
   const saveInFlight = useRef(false);
   const candidateEditor = useRef<HTMLTextAreaElement>(null);
+  const markdownImportInput = useRef<HTMLInputElement>(null);
   const resolutionTargetPath = useRef("");
   const workspaceNameCounts = new Map<string, number>();
   for (const workspace of state.workspaces) {
@@ -970,6 +979,31 @@ function App() {
       setCandidateName("");
       setCandidateSourceId("");
     }
+  }
+
+  async function importMarkdownCandidate(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file || !target) return;
+    if (!/\.(?:md|markdown)$/i.test(file.name)) {
+      setError(t("只能导入 .md 或 .markdown 文件", locale));
+      setNotice("");
+      return;
+    }
+    if (!confirmLeavingCurrentDraft("导入 Markdown 文件")) return;
+    const candidateName = file.name.replace(/\.(?:md|markdown)$/i, "");
+    const knownIds = new Set(target.candidates.map((item) => item.id));
+    const next = await act(
+      async () => api.createCandidate(target.path, candidateName, await file.text()),
+      "缓存方案已创建；历史版本已记录到本地 Git",
+    );
+    const created = next?.targets
+      .find((item) => samePath(item.path, target.path))
+      ?.candidates.find((item) => !knownIds.has(item.id));
+    if (!created) return;
+    setSelectedCandidateId(created.id);
+    setContent(created.content);
+    setName(created.name);
   }
 
   async function forkSelectedCandidate() {
@@ -2106,6 +2140,22 @@ function App() {
                     >
                       <GitFork size={14} />
                     </button>
+                    <button
+                      aria-label={t("从 Markdown Fork 缓存方案", locale)}
+                      title={t("从 Markdown Fork 缓存方案", locale)}
+                      disabled={busy || target.conflict}
+                      onClick={() => markdownImportInput.current?.click()}
+                    >
+                      <Upload size={14} />
+                    </button>
+                    <input
+                      ref={markdownImportInput}
+                      hidden
+                      type="file"
+                      accept=".md,.markdown"
+                      aria-label={t("选择 Markdown 文件以 Fork 缓存方案", locale)}
+                      onChange={(event) => void importMarkdownCandidate(event)}
+                    />
                   </div>
                 </div>
                 {candidate ? (

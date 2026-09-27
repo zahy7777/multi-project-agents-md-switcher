@@ -44,11 +44,18 @@ async function addWorkspace(
 async function expectVisibleButtonsHaveNames(
   page: import("@playwright/test").Page,
 ) {
-  for (const button of await page.getByRole("button").all()) {
-    if (await button.isVisible()) {
-      await expect(button).toHaveAccessibleName(/\S+/);
-    }
-  }
+  const unnamedButtons = await page.locator("button:visible").evaluateAll((buttons) =>
+    buttons
+      .filter((button) =>
+        !(
+          button.getAttribute("aria-label") ||
+          button.getAttribute("title") ||
+          button.textContent?.trim()
+        ),
+      )
+      .map((button) => button.outerHTML),
+  );
+  expect(unnamedButtons).toEqual([]);
 }
 
 test("跨路径规则搜索能跳转缓存方案并保护未保存草稿", async ({ page }) => {
@@ -79,13 +86,13 @@ test("跨路径规则搜索能跳转缓存方案并保护未保存草稿", async
   await expect(page.getByText(/历史版本已保存/)).toBeVisible();
   await page.getByRole("button", { name: "归档当前方案" }).click();
   await expect(
-    page.getByText("已归档「Archived search test」，正文和版本历史仍保留"),
+    page.getByText("已归档「Archived search test」，方案正文和历史版本仍保留"),
   ).toBeVisible();
   await page.getByRole("button", { name: "AGENTS.md", exact: true }).click();
 
-  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page.getByRole("button", { name: "搜索全部文件" }).click();
   await page
-    .getByRole("textbox", { name: "搜索规则正文" })
+    .getByRole("textbox", { name: "搜索文件正文" })
     .fill("archived-only search phrase");
   const archivedResult = page.locator(".rule-search-result");
   await expect(archivedResult).toHaveCount(1);
@@ -102,9 +109,9 @@ test("跨路径规则搜索能跳转缓存方案并保护未保存草稿", async
   await expect(
     page.getByRole("textbox", { name: "方案内容", exact: true }),
   ).toHaveAttribute("readonly", "");
-  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page.getByRole("button", { name: "搜索全部文件" }).click();
   await page
-    .getByRole("textbox", { name: "搜索规则正文" })
+    .getByRole("textbox", { name: "搜索文件正文" })
     .fill("nested-only search phrase");
 
   const nestedResult = page.locator(".rule-search-result");
@@ -115,9 +122,9 @@ test("跨路径规则搜索能跳转缓存方案并保护未保存草稿", async
 
   const unsavedDraft = `${nestedRules}unsaved search navigation draft\n`;
   await page.getByLabel("方案内容").fill(unsavedDraft);
-  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page.getByRole("button", { name: "搜索全部文件" }).click();
   await page
-    .getByRole("textbox", { name: "搜索规则正文" })
+    .getByRole("textbox", { name: "搜索文件正文" })
     .fill("root-only search phrase");
   const rootResult = page.locator(".rule-search-result").first();
 
@@ -129,7 +136,7 @@ test("跨路径规则搜索能跳转缓存方案并保护未保存草稿", async
   await cancelledResultClick;
   await expect(page.getByLabel("方案内容")).toHaveValue(unsavedDraft);
   await expect(
-    page.getByRole("dialog", { name: "搜索全部规则正文" }),
+    page.getByRole("dialog", { name: "搜索全部文件" }),
   ).toBeVisible();
 
   const confirmedNavigation = page.waitForEvent("dialog");
@@ -141,7 +148,7 @@ test("跨路径规则搜索能跳转缓存方案并保护未保存草稿", async
     "root-only search phrase\n",
   );
   await expect(
-    page.getByRole("dialog", { name: "搜索全部规则正文" }),
+    page.getByRole("dialog", { name: "搜索全部文件" }),
   ).toHaveCount(0);
   const externalRules = "external-only conflict phrase\n";
   await writeFile(
@@ -150,34 +157,34 @@ test("跨路径规则搜索能跳转缓存方案并保护未保存草稿", async
     "utf8",
   );
   await page.getByRole("button", { name: "重新扫描当前工作空间" }).click();
-  await expect(page.getByText("扫描完成，已导入新发现的规则")).toBeVisible();
+  await expect(page.getByText("扫描完成，已发现并载入新文件")).toBeVisible();
   await page
     .getByRole("button", { name: path.join("nested", "rules") })
     .click();
   await expect(
-    page.getByRole("heading", { name: "规则文件冲突" }),
+    page.getByRole("heading", { name: "检测到磁盘文件与当前方案不一致" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page.getByRole("button", { name: "搜索全部文件" }).click();
   await page
-    .getByRole("textbox", { name: "搜索规则正文" })
+    .getByRole("textbox", { name: "搜索文件正文" })
     .fill("external-only conflict phrase");
   await expect(page.locator(".rule-search-result")).toHaveCount(1);
   await expect(page.locator(".rule-search-result").first()).toContainText(
     "磁盘文件 · 不一致",
   );
   await page
-    .getByRole("textbox", { name: "搜索规则正文" })
+    .getByRole("textbox", { name: "搜索文件正文" })
     .fill("nested-only search phrase");
   await expect(page.locator(".rule-search-result")).toHaveCount(1);
   await expect(page.locator(".rule-search-result").first()).toContainText(
-    "缓存方案 · 导入的正式规则 · 当前生效",
+    "缓存方案 · 初始缓存方案 · 当前方案",
   );
-  await page.getByRole("button", { name: "关闭规则搜索" }).click();
+  await page.getByRole("button", { name: "关闭文件搜索" }).click();
   const unsavedResolution = `${externalRules}unsaved conflict search draft\n`;
   await page.getByLabel("冲突解决内容").fill(unsavedResolution);
-  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page.getByRole("button", { name: "搜索全部文件" }).click();
   await page
-    .getByRole("textbox", { name: "搜索规则正文" })
+    .getByRole("textbox", { name: "搜索文件正文" })
     .fill("root-only search phrase");
   const rootSearchResult = page.locator(".rule-search-result").first();
   const cancelledConflictNavigation = page.waitForEvent("dialog");
@@ -266,11 +273,11 @@ test("移除工作空间后搜索不再显示保留的历史目标", async ({ pa
     state.targets.some((item: { path: string }) => item.path === workspace),
   ).toBe(true);
 
-  await page.getByRole("button", { name: "搜索全部规则正文" }).click();
+  await page.getByRole("button", { name: "搜索全部文件" }).click();
   await page
-    .getByRole("textbox", { name: "搜索规则正文" })
+    .getByRole("textbox", { name: "搜索文件正文" })
     .fill("retained but unregistered phrase");
-  await expect(page.getByText("没有匹配的规则正文。")).toBeVisible();
+  await expect(page.getByText("没有匹配的文件正文。")).toBeVisible();
 });
 
 test("跨工作空间搜索结果会切换到规则所属工作空间", async ({ page }) => {
@@ -288,15 +295,15 @@ test("跨工作空间搜索结果会切换到规则所属工作空间", async ({
 
   await page.keyboard.press("Control+Shift+F");
   await expect(
-    page.getByRole("dialog", { name: "搜索全部规则正文" }),
+    page.getByRole("dialog", { name: "搜索全部文件" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("dialog", { name: "搜索全部规则正文" }),
+    page.getByRole("dialog", { name: "搜索全部文件" }),
   ).toHaveCount(0);
   await page.keyboard.press("Control+Shift+F");
   await page
-    .getByRole("textbox", { name: "搜索规则正文" })
+    .getByRole("textbox", { name: "搜索文件正文" })
     .fill("phrase owned by first workspace");
   const firstWorkspaceResult = page.locator(".rule-search-result");
   await expect(firstWorkspaceResult).toHaveCount(1);
@@ -339,7 +346,7 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   });
 
   await page.goto("/");
-  await expect(page.getByRole("button", { name: /用户级规则/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /用户文件/ })).toBeVisible();
   await page.getByRole("button", { name: "添加工作空间" }).first().click();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
@@ -523,7 +530,6 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
   await expect(page.getByLabel("方案名称")).toHaveValue("Candidate B");
   await expect(page.getByLabel("方案内容")).toHaveValue(branchDraft);
-  await expect(page.getByText(/当前未保存草稿仍保留在编辑器/)).toBeVisible();
   const branchStateResponse = await page.request.get("/api/state");
   const branchState = await branchStateResponse.json();
   const branchTarget = branchState.targets.find(
@@ -667,36 +673,29 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
 
   const comparisonDraft = `${candidateRules}comparison draft only\n`;
   await page.getByLabel("方案内容").fill(comparisonDraft);
-  await page.getByRole("button", { name: "与其他缓存方案对比" }).click();
+  await page.getByRole("button", { name: "并排编辑文件" }).click();
   await page
-    .getByLabel("对比基准版本")
+    .getByLabel("对比基准", { exact: true })
     .selectOption({ label: "legacy prompt" });
   await expect(page.locator(".compare-column header strong").nth(1)).toHaveText(
     "legacy prompt",
   );
-  await expect(page.locator(".compare-column pre").nth(1)).toHaveText(
-    importedRules,
-  );
-  await expect(page.locator(".compare-column pre").nth(0)).toHaveText(
-    comparisonDraft,
-  );
-  await expect(
-    page.getByText("左侧显示当前编辑器内容（含未保存修改）", { exact: false }),
-  ).toBeVisible();
+  await expect(page.getByLabel("编辑右侧文件")).toHaveValue(importedRules);
+  await expect(page.getByLabel("编辑左侧文件")).toHaveValue(comparisonDraft);
   await page.getByRole("button", { name: "关闭方案对比" }).click();
   await expect(page.getByRole("heading", { name: "缓存方案对比" })).toHaveCount(
     0,
   );
   await expect(page.getByLabel("方案内容")).toHaveValue(comparisonDraft);
-  await page.getByRole("button", { name: "与其他缓存方案对比" }).click();
+  await page.getByRole("button", { name: "并排编辑文件" }).click();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "缓存方案对比" })).toHaveCount(
     0,
   );
   await expect(page.getByLabel("方案内容")).toHaveValue(comparisonDraft);
-  await page.getByRole("button", { name: "与其他缓存方案对比" }).click();
+  await page.getByRole("button", { name: "并排编辑文件" }).click();
   await page
-    .getByLabel("对比基准版本")
+    .getByLabel("对比基准", { exact: true })
     .selectOption({ label: "legacy prompt" });
   const comparisonStateResponse = await page.request.get("/api/state");
   const comparisonState = await comparisonStateResponse.json();
@@ -728,16 +727,16 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   ).toBeVisible();
   await page.getByRole("button", { name: "并排原文" }).click();
   await expect(page.locator(".compare-column")).toHaveCount(2);
-  await page.getByRole("button", { name: "返回方案" }).click();
+  await page.getByRole("button", { name: "返回缓存方案" }).click();
   await page.getByLabel("方案内容").fill(candidateRules);
   await expect(page.getByText(/所有更改已保存/)).toBeVisible();
 
   await page.getByLabel("方案内容").fill("");
-  await page.getByRole("button", { name: "与其他缓存方案对比" }).click();
+  await page.getByRole("button", { name: "并排编辑文件" }).click();
   await page
-    .getByLabel("对比基准版本")
+    .getByLabel("对比基准", { exact: true })
     .selectOption({ label: "legacy prompt" });
-  await expect(page.locator(".compare-column pre").nth(0)).toHaveText("");
+  await expect(page.getByLabel("编辑左侧文件")).toHaveValue("");
   await page.getByRole("button", { name: "标记差异" }).click();
   await expect(
     page
@@ -747,7 +746,7 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   await expect(page.locator(".candidate-compare-diff .added code")).toHaveCount(
     0,
   );
-  await page.getByRole("button", { name: "返回方案" }).click();
+  await page.getByRole("button", { name: "返回缓存方案" }).click();
   await page.getByLabel("方案内容").fill(candidateRules);
   await expect(page.getByText(/所有更改已保存/)).toBeVisible();
 
@@ -1006,24 +1005,23 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
     "test marker",
   );
   expect(unexpectedImageRequests).toEqual([]);
-  await page.getByRole("button", { name: "编辑" }).click();
+  await page.getByRole("button", { name: "编辑", exact: true }).click();
 
-  await page.getByRole("button", { name: "与其他缓存方案对比" }).click();
+  await page.getByRole("button", { name: "并排编辑文件" }).click();
+  await page
+    .getByLabel("对比基准", { exact: true })
+    .selectOption({ label: "初始缓存方案（与磁盘同步）" });
   await page.getByRole("button", { name: "并排原文" }).click();
   await expect(page.locator(".compare-column header strong").nth(1)).toHaveText(
-    "导入的正式规则",
+    "初始缓存方案",
   );
-  await expect(page.locator(".compare-column pre").nth(0)).toHaveText(
-    candidateRules,
-  );
-  await expect(page.locator(".compare-column pre").nth(1)).toHaveText(
-    originalRules,
-  );
-  await page.getByRole("button", { name: "返回方案" }).click();
+  await expect(page.getByLabel("编辑左侧文件")).toHaveValue(candidateRules);
+  await expect(page.getByLabel("编辑右侧文件")).toHaveValue(originalRules);
+  await page.getByRole("button", { name: "返回缓存方案" }).click();
 
-  await page.getByRole("button", { name: "切换为正式规则" }).click();
+  await page.getByRole("button", { name: "切换当前方案并同步磁盘文件" }).click();
   await expect(
-    page.getByRole("heading", { name: "确认切换为正式规则" }),
+    page.getByRole("heading", { name: "确认切换当前方案并同步磁盘文件" }),
   ).toBeVisible();
   await expect(page.getByLabel("磁盘文件切换差异")).toContainText(
     "candidate only",
@@ -1038,16 +1036,16 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   );
   await page.getByRole("button", { name: "取消", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "确认切换为正式规则" }),
+    page.getByRole("heading", { name: "确认切换当前方案并同步磁盘文件" }),
   ).toHaveCount(0);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     originalRules,
   );
 
-  await page.getByRole("button", { name: "切换为正式规则" }).click();
+  await page.getByRole("button", { name: "切换当前方案并同步磁盘文件" }).click();
   await page.getByRole("button", { name: "关闭切换预览" }).click();
   await expect(
-    page.getByRole("heading", { name: "确认切换为正式规则" }),
+    page.getByRole("heading", { name: "确认切换当前方案并同步磁盘文件" }),
   ).toHaveCount(0);
   const stateAfterClosingPreview = await page.request.get("/api/state");
   const targetAfterClosingPreview = (
@@ -1062,13 +1060,15 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
     originalRules,
   );
 
-  await page.getByRole("button", { name: "切换为正式规则" }).click();
+  await page.getByRole("button", { name: "切换当前方案并同步磁盘文件" }).click();
   const lockCandidatePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/candidates/lock") &&
       response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "确认切换正式规则" }).click();
+  await page
+    .getByRole("button", { name: "确认切换当前方案并同步磁盘文件" })
+    .click();
   const lockCandidateResponse = await lockCandidatePromise;
   expect(lockCandidateResponse.ok()).toBe(true);
   const lockedState = await lockCandidateResponse.json();
@@ -1084,7 +1084,7 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
     candidateRules,
   );
   await expect(
-    page.getByRole("button", { name: "切换为正式规则" }),
+    page.getByRole("button", { name: "切换当前方案并同步磁盘文件" }),
   ).toHaveCount(0);
   const lockedHistoryUrl = `/api/candidates/${encodeURIComponent(candidateB.id)}/history?${new URLSearchParams({ path: workspace })}`;
   const lockedHistoryBeforeRestoreResponse =
@@ -1144,7 +1144,7 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   await conflictScanDialog.accept();
   await conflictScanClick;
   await expect(
-    page.getByRole("heading", { name: "规则文件冲突" }),
+    page.getByRole("heading", { name: "检测到磁盘文件与当前方案不一致" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "还原已保存内容" }),
@@ -1377,27 +1377,27 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   );
   await page.getByRole("button", { name: "重新扫描当前工作空间" }).click();
   await expect(
-    page.getByRole("heading", { name: "规则文件冲突" }),
+    page.getByRole("heading", { name: "检测到磁盘文件与当前方案不一致" }),
   ).toBeVisible();
   const resolutionNavigationDraft = `${navigationConflictRules}unsaved resolution navigation\n`;
   await page.getByLabel("冲突解决内容").fill(resolutionNavigationDraft);
   const workspaceSwitchConfirmation = page.waitForEvent("dialog");
   const workspaceSwitchClick = page
-    .getByRole("button", { name: /用户级规则/ })
+    .getByRole("button", { name: /用户文件/ })
     .click();
   const workspaceSwitchDialog = await workspaceSwitchConfirmation;
   expect(workspaceSwitchDialog.message()).toContain("冲突解决稿");
   await workspaceSwitchDialog.dismiss();
   await workspaceSwitchClick;
   await expect(
-    page.getByRole("heading", { name: "规则文件冲突" }),
+    page.getByRole("heading", { name: "检测到磁盘文件与当前方案不一致" }),
   ).toBeVisible();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     resolutionNavigationDraft,
   );
   const acceptedWorkspaceSwitch = page.waitForEvent("dialog");
   const acceptedWorkspaceClick = page
-    .getByRole("button", { name: /用户级规则/ })
+    .getByRole("button", { name: /用户文件/ })
     .click();
   const acceptedWorkspaceDialog = await acceptedWorkspaceSwitch;
   expect(acceptedWorkspaceDialog.message()).toContain("冲突解决稿");
@@ -1407,7 +1407,7 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
     .getByRole("button", { name: "project-rules", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "规则文件冲突" }),
+    page.getByRole("heading", { name: "检测到磁盘文件与当前方案不一致" }),
   ).toBeVisible();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     navigationConflictRules,
@@ -1415,7 +1415,7 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   await page.getByLabel("新缓存方案名称（仅新建方案时使用）").fill("Unsaved name only");
   const nameOnlySwitchConfirmation = page.waitForEvent("dialog");
   const nameOnlySwitchClick = page
-    .getByRole("button", { name: /用户级规则/ })
+    .getByRole("button", { name: /用户文件/ })
     .click();
   const nameOnlySwitchDialog = await nameOnlySwitchConfirmation;
   expect(nameOnlySwitchDialog.message()).toContain("冲突解决稿");
@@ -1426,7 +1426,7 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   );
   const acceptedNameOnlySwitch = page.waitForEvent("dialog");
   const acceptedNameOnlyClick = page
-    .getByRole("button", { name: /用户级规则/ })
+    .getByRole("button", { name: /用户文件/ })
     .click();
   const acceptedNameOnlyDialog = await acceptedNameOnlySwitch;
   await acceptedNameOnlyDialog.accept();
@@ -1529,7 +1529,7 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   await page.goto("/");
   await addWorkspace(page, workspace);
   await expect(
-    page.getByRole("heading", { name: "把规则版本，清楚地管起来。" }),
+    page.getByText("没有发现磁盘文件 AGENTS.md"),
   ).toBeVisible();
   await page.getByRole("button", { name: "添加工作空间" }).last().click();
   await expect(
@@ -1539,8 +1539,8 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
     0,
   );
-  await expect(page.getByText("没有发现 AGENTS.md")).toBeVisible();
-  await page.getByRole("button", { name: "初始化 AGENTS.md" }).click();
+  await expect(page.getByText("没有发现磁盘文件 AGENTS.md")).toBeVisible();
+  await page.getByRole("button", { name: "初始化磁盘文件 AGENTS.md" }).click();
   await expect(page.getByLabel("方案内容")).toHaveValue("# AGENTS.md\n");
   const formalFile = path.join(workspace, "AGENTS.md");
   expect(await readFile(formalFile, "utf8")).toBe("# AGENTS.md\n");
@@ -1716,7 +1716,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
 
   await page.goto("/");
   await addWorkspace(page, workspace);
-  const ruleFilter = page.getByLabel("筛选规则路径");
+  const ruleFilter = page.getByLabel("筛选文件路径");
   await expect(page.locator(".rule-row")).toHaveCount(2);
   await ruleFilter.fill("nested");
   await expect(page.locator(".rule-row")).toHaveCount(1);
@@ -1731,7 +1731,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   await writeFile(formalFile, externalFormal, "utf8");
   await page.getByRole("button", { name: "重新扫描当前工作空间" }).click();
   await expect(
-    page.getByRole("heading", { name: "规则文件冲突" }),
+    page.getByRole("heading", { name: "检测到磁盘文件与当前方案不一致" }),
   ).toBeVisible();
 
   await page.getByLabel("冲突解决内容").fill("");
@@ -1916,7 +1916,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   await cancelledPathDialog.dismiss();
   await cancelledPathClick;
   await expect(
-    page.getByRole("heading", { name: "规则文件冲突" }),
+    page.getByRole("heading", { name: "检测到磁盘文件与当前方案不一致" }),
   ).toBeVisible();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(pathSwitchDraft);
 
@@ -1931,7 +1931,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   await expect(page.getByLabel("方案内容")).toHaveValue("nested rules\n");
   await rootRule.click();
   await expect(
-    page.getByRole("heading", { name: "规则文件冲突" }),
+    page.getByRole("heading", { name: "检测到磁盘文件与当前方案不一致" }),
   ).toBeVisible();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(externalFormal);
 
@@ -2126,8 +2126,13 @@ test("缓存方案归档与恢复保留正文、磁盘文件和历史版本", as
     page.getByRole("textbox", { name: "方案内容", exact: true }),
   ).toHaveValue(candidateRules);
   await expect(page.getByRole("button", { name: "保存方案" })).toBeEnabled();
+  const saveResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/candidates") &&
+      response.request().method() === "PUT",
+  );
   await page.getByRole("button", { name: "保存方案" }).click();
-  await expect(page.getByText(/历史版本已保存/)).toBeVisible();
+  expect((await saveResponsePromise).ok()).toBe(true);
 
   const beforeArchiveResponse = await page.request.get("/api/state");
   const beforeArchive = await beforeArchiveResponse.json();
@@ -2137,7 +2142,11 @@ test("缓存方案归档与恢复保留正文、磁盘文件和历史版本", as
   const savedCandidate = beforeTarget.candidates.find(
     (item: { name: string }) => item.name === "Archive me",
   );
-  expect(savedCandidate).toMatchObject({ archived: false, locked: false });
+  expect(savedCandidate).toMatchObject({
+    archived: false,
+    locked: false,
+    content: candidateRules,
+  });
 
   await page.getByRole("button", { name: "归档当前方案" }).click();
   await expect(page.getByLabel("方案内容")).toHaveValue(formalRules);
@@ -2280,11 +2289,11 @@ test("打开切换预览前发现外部磁盘文件修改并阻止过期预览",
   const freshStateResponse = page.waitForResponse((response) =>
     response.url().endsWith("/api/state"),
   );
-  await page.getByRole("button", { name: "切换为正式规则" }).click();
+  await page.getByRole("button", { name: "切换当前方案并同步磁盘文件" }).click();
   const freshState = await freshStateResponse;
   expect(freshState.ok()).toBe(true);
   await expect(
-    page.getByRole("heading", { name: "规则文件冲突" }),
+    page.getByRole("heading", { name: "检测到磁盘文件与当前方案不一致" }),
   ).toBeVisible();
   await expect(
     page.getByText("磁盘文件已发生变化，已刷新冲突状态。请先处理冲突再切换。"),
@@ -2484,11 +2493,11 @@ test("当前方案保存前可预览待同步差异且不提前改文件", async
     page.getByRole("heading", { name: "方案修改同步预览" }),
   ).toBeVisible();
   await page
-    .getByLabel("对比基准版本")
-    .selectOption({ label: "导入的正式规则（当前方案的已保存内容）" });
+    .getByLabel("对比基准", { exact: true })
+    .selectOption({ label: "初始缓存方案（当前方案的已保存内容）" });
   await expect(
-    page.getByLabel("对比基准版本").locator("option:checked"),
-  ).toHaveText("导入的正式规则（当前方案的已保存内容）");
+    page.getByLabel("对比基准").locator("option:checked"),
+  ).toHaveText("初始缓存方案（当前方案的已保存内容）");
   await expect(page.getByText(/新增 1 行 · 删除 0 行/)).toBeVisible();
   await page.getByRole("button", { name: "标记差异" }).click();
   await expect(page.locator(".candidate-compare-diff")).toContainText(
@@ -2560,7 +2569,7 @@ test("当前方案草稿预览发现外部磁盘文件变更时阻止过期预�
   await confirmation.accept();
   await scanClick;
   await expect(
-    page.getByRole("heading", { name: "规则文件冲突" }),
+    page.getByRole("heading", { name: "检测到磁盘文件与当前方案不一致" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "把未保存草稿放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(draft);
@@ -2634,7 +2643,7 @@ test("并发窗口的过期缓存方案保存被拒绝且草稿可另存为新�
   await secondPage.getByLabel("新方案名称").fill("Second window draft");
   await secondPage.getByRole("button", { name: "创建缓存方案" }).click();
   await expect(
-    secondPage.getByText("缓存方案已创建并记录到本地 Git"),
+    secondPage.getByText("缓存方案已创建；历史版本已记录到本地 Git"),
   ).toBeVisible();
   await expect(secondPage.getByLabel("方案名称", { exact: true })).toHaveValue(
     "Second window draft",

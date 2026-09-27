@@ -9,6 +9,24 @@ export const localeNames: Record<Locale, string> = {
 };
 
 const entries: Array<[string, string, string, string]> = [
+  [
+    "从 Markdown Fork 缓存方案",
+    "Fork a cache plan from Markdown",
+    "Markdown からキャッシュプランを Fork",
+    "Markdown에서 캐시 플랜 Fork",
+  ],
+  [
+    "选择 Markdown 文件以 Fork 缓存方案",
+    "Choose a Markdown file to fork as a cache plan",
+    "キャッシュプランに Fork する Markdown ファイルを選択",
+    "캐시 플랜으로 Fork할 Markdown 파일 선택",
+  ],
+  [
+    "只能导入 .md 或 .markdown 文件",
+    "Only .md or .markdown files can be imported",
+    ".md または .markdown ファイルのみインポートできます",
+    ".md 또는 .markdown 파일만 가져올 수 있습니다",
+  ],
   ["Ignore 规则", "Ignore rules", "Ignore ルール", "Ignore 규칙"],
   [
     "忽略磁盘文件",
