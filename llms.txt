@@ -14,6 +14,7 @@
 - Each cache plan has its own read-only history snapshots, stored locally in Git.
 - Switching the current plan previews the diff, then writes the selected plan to the disk file after confirmation. This keeps the workflow fast while preventing an unseen overwrite.
 - External programs can read and write the disk file normally. If a rescan finds a mismatch, PromptDock shows the diff and pauses switching within PromptDock until the user resolves it; external editing is unaffected.
+- After merging, save as a new cache plan to preserve the current plan and history while creating and activating another plan, or append a new history version to the current plan to update its content without creating another plan. Either choice writes the resolution to the disk file and restores consistency.
 - File contents and history stay on the user's device. The app's Node service binds to `127.0.0.1`; it is not a hosted sync service.
 - Supports Windows, macOS, and Linux with Node.js 20+, pnpm, and Git.
 
@@ -26,6 +27,7 @@
 - 每个缓存方案都有独立的只读历史版本；历史由本机 Git 保存。
 - 切换当前方案前会预览差异；确认后才会将方案写入磁盘文件，避免无提示覆盖。
 - 外部程序可以照常读写磁盘文件。重扫发现它与当前方案不一致时，PromptDock 会提示差异并提供合并处理；仅 PromptDock 内的方案切换会暂缓，外部编辑不受影响。
+- 冲突合并后有两种明确保存方式：保存为新缓存方案会保留当前方案及其历史，创建新方案并设为当前；保存为当前方案的新历史版本会更新当前方案正文并追加历史，不创建新方案。两种方式都会将解决稿写入磁盘文件并恢复一致。
 - 文件正文和历史仅保存在用户设备上；Node 服务只监听 `127.0.0.1`，不是云端同步服务。
 - 支持 Windows、macOS 和 Linux，需要 Node.js 20+、pnpm 与 Git。
 

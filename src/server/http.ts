@@ -170,6 +170,7 @@ export function createHttpApp(library: PromptLibrary) {
         readString(request.body?.path, "path"),
         readString(request.body?.name, "name"),
         readString(request.body?.content, "content", true),
+        readConflictResolutionStrategy(request.body?.strategy),
       ),
     );
   });
@@ -230,4 +231,9 @@ function readString(value: unknown, name: string, allowEmpty = false) {
 function readBoolean(value: unknown, name: string) {
   if (typeof value !== "boolean") throw new Error(`请求字段 ${name} 无效。`);
   return value;
+}
+
+function readConflictResolutionStrategy(value: unknown) {
+  if (value === "new-candidate" || value === "current-revision") return value;
+  throw new Error("请选择将解决稿保存为新缓存方案，或追加到当前方案历史。");
 }

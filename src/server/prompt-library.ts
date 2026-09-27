@@ -335,8 +335,7 @@ export class PromptLibrary {
       ) {
         throw new CandidateChangedError();
       }
-      const revisionSnapshotFile =
-        this.candidateRevisionSnapshotPath(candidate);
+      const revisionSnapshotFile = this.candidateRevisionSnapshotPath(candidate);
       const previousRevisionSnapshot = await this.readFileOrNull(
         path.join(this.historyDirectory, revisionSnapshotFile),
       );
@@ -462,7 +461,8 @@ export class PromptLibrary {
       }
 
       const content = await this.readCandidate(candidate);
-      const revisionSnapshotFile = this.candidateRevisionSnapshotPath(candidate);
+      const revisionSnapshotFile =
+        this.candidateRevisionSnapshotPath(candidate);
       const previousRevisionSnapshot = await this.readFileOrNull(
         path.join(this.historyDirectory, revisionSnapshotFile),
       );
@@ -575,7 +575,12 @@ export class PromptLibrary {
     });
   }
 
-  async resolveConflict(selectedPath: string, name: string, content: string) {
+  async resolveConflict(
+    selectedPath: string,
+    name: string,
+    content: string,
+    strategy: "new-candidate" | "current-revision",
+  ) {
     return this.exclusively(async () => {
       const targetPath = await this.authorizedDirectory(selectedPath);
       const target = this.requireManagedTarget(targetPath);
@@ -584,32 +589,62 @@ export class PromptLibrary {
       }
       const formalBefore = await this.formalContent(targetPath);
       const previousLockedId = target.lockedCandidateId;
-      const targetCandidate = await this.createSavedCandidate(
-        target,
-        name,
-        content,
+      const currentCandidate = target.candidates.find(
+        (item) => item.id === previousLockedId,
       );
-      if (!this.isConflict(targetPath, target)) {
-        target.candidates = target.candidates.filter(
-          (item) => item.id !== targetCandidate.id,
-        );
-        await this.removeCandidateFiles(targetCandidate);
-        throw new Error("磁盘文件在合并期间发生变化。请重新载入不一致内容。");
+      if (strategy === "current-revision" && !currentCandidate) {
+        throw new Error("当前缓存方案不存在，无法追加历史版本。");
       }
+      const isNewCandidate = strategy === "new-candidate";
+      const targetCandidate = isNewCandidate
+        ? await this.createSavedCandidate(target, name, content)
+        : currentCandidate!;
+      const previousContent = isNewCandidate
+        ? null
+        : await this.readCandidate(targetCandidate);
+      const revisionSnapshotFile =
+        this.candidateRevisionSnapshotPath(targetCandidate);
+      const previousRevisionSnapshot = isNewCandidate
+        ? null
+        : await this.readFileOrNull(
+            path.join(this.historyDirectory, revisionSnapshotFile),
+          );
       try {
+        if (!isNewCandidate) {
+          await this.writeCandidate(targetCandidate, content);
+          await this.writeCandidateRevisionSnapshot(targetCandidate);
+        }
         if ((await this.formalContent(targetPath)) !== formalBefore) {
-          throw new Error("磁盘文件在合并期间再次变化，请重新扫描。");
+          throw new Error("磁盘文件在合并期间发生变化，请重新载入不一致内容。");
         }
         await this.writeFormal(targetPath, content);
         target.lockedCandidateId = targetCandidate.id;
         await this.persist();
         await this.record("解决磁盘文件与缓存方案不一致");
       } catch (error) {
-        target.candidates = target.candidates.filter(
-          (item) => item.id !== targetCandidate.id,
-        );
+        if (isNewCandidate) {
+          target.candidates = target.candidates.filter(
+            (item) => item.id !== targetCandidate.id,
+          );
+        } else if (previousContent !== null) {
+          await this.writeCandidate(targetCandidate, previousContent).catch(
+            () => undefined,
+          );
+          if (previousRevisionSnapshot === null) {
+            await fs
+              .rm(path.join(this.historyDirectory, revisionSnapshotFile), {
+                force: true,
+              })
+              .catch(() => undefined);
+          } else {
+            await this.writeAtomic(
+              path.join(this.historyDirectory, revisionSnapshotFile),
+              previousRevisionSnapshot,
+            ).catch(() => undefined);
+          }
+        }
         target.lockedCandidateId = previousLockedId;
-        await this.removeCandidateFiles(targetCandidate);
+        if (isNewCandidate) await this.removeCandidateFiles(targetCandidate);
         if ((await this.formalContent(targetPath)) === content) {
           if (formalBefore === null) {
             await fs.rm(path.join(targetPath, "AGENTS.md"), { force: true });
@@ -625,7 +660,7 @@ export class PromptLibrary {
       await this.log(
         "conflict.resolve",
         "ok",
-        `path=${targetPath} candidate=${targetCandidate.id}`,
+        `path=${targetPath} candidate=${targetCandidate.id} strategy=${strategy}`,
       );
       return this.view();
     });

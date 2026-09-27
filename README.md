@@ -52,6 +52,11 @@ pnpm start
 
 agent 和其他编辑器可以照常改动磁盘文件。PromptDock 检测到磁盘文件与当前方案不一致时，会提示差异并提供解决方式；你可以对照两边内容形成合并稿。解决前，PromptDock 只会暂缓通过它切换缓存方案，不会限制外部程序读写磁盘文件。
 
+合并后有两种保存方式：**保存为新缓存方案**会保留当前方案及其全部历史，另建一个方案并将它设为当前方案；**保存为当前方案的新历史版本**会更新当前方案正文并增加一条历史记录，不会新建方案。两种方式都会把解决稿写入磁盘文件，使磁盘文件与当前方案重新一致。
+
+- 外部修改只是临时参考，或你想保留原方案作对照：选“保存为新缓存方案”，例如命名为“合并外部修改”。原当前方案和它的历史都保留。
+- 外部修改确认要纳入当前方案：选“保存为当前方案的新历史版本”。当前方案名称不变，正文更新，历史中新增本次合并前的时间线记录；不会多出一个方案。
+
 ![PromptDock 的磁盘文件冲突处理界面](docs/screenshots/zh-conflict.png)
 
 ## 中文使用指南
@@ -96,13 +101,13 @@ pnpm exec playwright install chromium
 3. 发现磁盘文件时，会将其内容导入为首个缓存方案并设为当前方案。没有磁盘文件的目录不会自动创建缓存方案；使用“初始化 AGENTS.md”明确创建磁盘文件和首个缓存方案，并设为当前方案。
 4. 新建缓存方案可复制编辑器当前内容（包括未保存修改），也可从此路径的任一已保存方案 Fork 一份；弹窗可展开只读预览来源正文。若当前编辑器有未保存修改，从已保存方案 Fork 会保留原编辑器和草稿，新方案加入列表但不抢占编辑位置。也可以从本机 `.md`／`.markdown` 文件 Fork 一个缓存方案（未设为当前方案）。Fork 不会修改来源文件或磁盘文件。缓存方案可单独编辑和保存；每次保存都会为该方案生成一个历史版本并记入本地 Git。保存时服务端会核对页面打开时的方案名称和正文；如果另一个窗口已经保存了新内容，过期保存会被拒绝，当前草稿保留，可用“新建缓存方案”另存。保存当前方案时同时更新工作空间中的磁盘文件；当前方案有未保存修改时，编辑器会显示本次同步对磁盘文件新增和删除的行数。
    切换当前方案前会先检查最新磁盘文件状态，再显示所选缓存方案与磁盘文件的逐行差异及增删行数；发现外部修改会先进入冲突处理。只有确认后才写入磁盘文件，服务端也会在确认时再次检查。取消预览不改动文件或当前方案。
-5. 磁盘文件与当前方案不一致时显示冲突，并阻止切换。冲突页默认标出从当前方案到磁盘文件的逐行新增和删除，也可并排查看原文。可将磁盘文件、当前方案或未保存草稿放入解决稿再手动合并；保存解决稿会创建新缓存方案，同时同步磁盘文件并将新方案设为当前方案。
+5. 磁盘文件与当前方案不一致时显示冲突，并阻止在 PromptDock 内切换；外部程序仍可照常改磁盘文件。冲突页默认标出从当前方案到磁盘文件的逐行新增和删除，也可并排查看原文。可将磁盘文件、当前方案或未保存草稿放入解决稿再手动合并。合并后有两种保存方式：**保存为新缓存方案**会保留当前方案及其历史，另建方案并将它设为当前方案；**保存为当前方案的新历史版本**会更新当前方案正文并增加历史记录，不新建方案。两种方式都会将解决稿写入磁盘文件，并恢复当前方案与磁盘文件的一致。
 6. 每次保存方案都会为该方案生成一个历史版本，包括只改方案名称的保存。历史版本可逐行比较正文，也能查看当时的方案名称。历史版本视图只读，不会改写缓存方案或磁盘文件。可直接导出选中的历史版本为 Markdown；也可从历史版本 Fork 一个新缓存方案，不会回滚历史或直接覆盖磁盘文件。
 7. 其他缓存方案可与磁盘文件或其他缓存方案比较；对比基准下拉框按“磁盘”“缓存方案”“已归档”分组。左侧使用当前编辑器内容（包括未保存草稿），右侧显示所选基准。当前方案正文有未保存修改时，可直接预览草稿与磁盘文件的差异。支持逐行标记差异或并排原文；该预览只读，编辑当前方案的正文只会在保存时同步磁盘文件。
 8. 编辑器可在编辑和 Markdown 预览间切换；预览随当前草稿即时更新，支持 GFM 表格和任务列表，不会保存内容。原始 HTML 不渲染，图片链接显示占位文字而不发起网络请求。方案编辑区和冲突解决稿都会实时显示当前草稿的行数、Unicode 码点数和 UTF-8 字节数；空内容计一行，末尾换行后的空行也计入，帮助发现文件体量变化。
 9. 缓存方案列表可按名称或正文搜索；搜索只隐藏暂时不匹配的方案，不会切换或删除方案。列表上方可重命名或删除选中的缓存方案；重命名会记入本机历史，不更改正文，当前方案不可删除。删除会将方案从列表和搜索结果中移除，旧的历史版本仍保留在本机 Git 中。同一路径存在同名方案时，列表会附加各自 ID 前 7 位，方便区分并选择准确方案。
 10. “复制内容”会将当前编辑器正文（包括未保存修改）复制到系统剪贴板，方便直接粘贴到其他工具；复制成功后按钮短暂显示“已复制”。冲突页的“复制解决稿”会复制未保存的合并文本。磁盘文件信息卡片中的“复制路径”会复制完整 `AGENTS.md` 绝对路径。“导出 Markdown”会下载当前编辑器内容。这些操作都不会改变缓存方案、历史版本或磁盘文件。
-11. 在方案名称或正文编辑框按 `Ctrl+S`（macOS 为 `⌘S`）保存当前方案，并生成历史版本；冲突解决稿仍通过“保存解决结果”明确提交。方案有未保存修改时可“还原已保存内容”，经确认后恢复此方案最近保存的名称和正文，不改磁盘或历史。任一弹窗都可按 `Esc` 关闭，效果等同于关闭按钮，不会保存或提交内容。刷新或关闭页面时，浏览器会对未保存方案或冲突解决稿显示离开确认；取消离开会保留当前草稿。
+11. 在方案名称或正文编辑框按 `Ctrl+S`（macOS 为 `⌘S`）保存当前方案，并生成历史版本；冲突解决稿须明确选择“保存为新缓存方案”或“保存为当前方案的新历史版本”，二者都会同步磁盘文件，但只前者新建方案。方案有未保存修改时可“还原已保存内容”，经确认后恢复此方案最近保存的名称和正文，不改磁盘或历史。任一弹窗都可按 `Esc` 关闭，效果等同于关闭按钮，不会保存或提交内容。刷新或关闭页面时，浏览器会对未保存方案或冲突解决稿显示离开确认；取消离开会保留当前草稿。
 12. 非当前方案可归档以收起试验方案；归档只改变方案的本地管理状态并记入历史，不删除正文、历史版本或磁盘文件。可在“已归档”列表查看只读方案并恢复；当前方案不能归档，冲突时不能归档或恢复。
 13. 顶部“搜索全部文件”或 `Ctrl+Shift+F`（macOS 为 `⌘⇧F`）会搜索当前登记工作空间下所有已扫描路径的磁盘文件和缓存方案正文，包括已归档方案；磁盘文件与当前方案内容相同时只显示一次，发生冲突时两侧分别显示。移除工作空间后，保留的方案和历史版本不再出现在搜索中；重新添加路径后可再次搜索。点击结果可打开对应路径和方案；若当前有未保存草稿，需要确认后才会离开。
 14. 编辑方案时可查找当前正文中的原文并逐处或全部替换；匹配区分大小写。替换只改变当前草稿，保存前不会写入缓存方案或磁盘文件；保存当前方案时仍会同步磁盘文件。
@@ -125,6 +130,11 @@ PromptDock is a local-first **AGENTS.md prompt variant manager and switcher**. K
 For example, you want to experiment with the tone and constraints in `my-app/AGENTS.md`. Keep the current “Stable” version, then Fork an “Experimental concise wording” cache plan and edit it. Compare the two, switch to the one you want, and keep the other as-is. Each plan has its own history. You do not need to manually copy the old prompt, overwrite the file, or rename files to switch back. Open a plan's history to compare or Fork an earlier snapshot; history browsing never rewrites the disk file.
 
 Other programs can keep editing the disk file normally. If PromptDock detects that it no longer matches the current plan, it shows the differences and offers a merge flow. Only switching through PromptDock is paused until you resolve the mismatch.
+
+After merging, choose one of two explicit save actions. **Save as a new cache plan** preserves the current plan and all its history, creates another plan, and makes it current. **Save as a new history version of the current plan** updates the current plan's content and appends a history entry without creating another plan. Both actions write the resolution to the disk file so the disk file and current plan match again.
+
+- If the external edit is temporary or you want to keep the old plan for comparison, choose **Save as a new cache plan** (for example, “Merged external edits”). The old plan and its history remain intact.
+- If the external edit should become the current plan, choose **Save as a new history version of the current plan**. Its name stays the same, its content is updated, and its history records the new saved state; no extra plan is created.
 
 | Term            | Meaning                                                                  |
 | --------------- | ------------------------------------------------------------------------ |

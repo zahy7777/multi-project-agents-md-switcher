@@ -1167,9 +1167,9 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   );
   await page.getByRole("button", { name: "把未保存草稿放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(conflictDraft);
-  await page.getByLabel("冲突方案名称").fill("Merged rules");
+  await page.getByLabel("新缓存方案名称（仅新建方案时使用）").fill("Merged rules");
   await page.getByLabel("冲突解决内容").fill(mergedRules);
-  await page.getByRole("button", { name: "保存解决结果" }).click();
+  await page.getByRole("button", { name: "保存为新缓存方案" }).click();
   await expect(page.getByText("磁盘与当前方案一致", { exact: true })).toBeVisible();
 
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
@@ -1361,7 +1361,7 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     navigationConflictRules,
   );
-  await page.getByLabel("冲突方案名称").fill("Unsaved name only");
+  await page.getByLabel("新缓存方案名称（仅新建方案时使用）").fill("Unsaved name only");
   const nameOnlySwitchConfirmation = page.waitForEvent("dialog");
   const nameOnlySwitchClick = page
     .getByRole("button", { name: /用户级规则/ })
@@ -1370,7 +1370,7 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   expect(nameOnlySwitchDialog.message()).toContain("冲突解决稿");
   await nameOnlySwitchDialog.dismiss();
   await nameOnlySwitchClick;
-  await expect(page.getByLabel("冲突方案名称")).toHaveValue(
+  await expect(page.getByLabel("新缓存方案名称（仅新建方案时使用）")).toHaveValue(
     "Unsaved name only",
   );
   const acceptedNameOnlySwitch = page.waitForEvent("dialog");
@@ -1386,13 +1386,13 @@ test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和�
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     navigationConflictRules,
   );
-  await expect(page.getByLabel("冲突方案名称")).toHaveValue("冲突解决结果");
+  await expect(page.getByLabel("新缓存方案名称（仅新建方案时使用）")).toHaveValue("冲突解决结果");
   await page.getByRole("button", { name: "把磁盘文件放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     navigationConflictRules,
   );
-  await page.getByLabel("冲突方案名称").fill("Navigation conflict fix");
-  await page.getByRole("button", { name: "保存解决结果" }).click();
+  await page.getByLabel("新缓存方案名称（仅新建方案时使用）").fill("Navigation conflict fix");
+  await page.getByRole("button", { name: "保存为新缓存方案" }).click();
   await expect(page.getByText("磁盘与当前方案一致", { exact: true })).toBeVisible();
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     navigationConflictRules,
@@ -1700,7 +1700,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   await page.getByRole("button", { name: "关闭提示" }).click();
   await page.setViewportSize({ width: 800, height: 720 });
   const resolutionSaveButton = page.getByRole("button", {
-    name: "保存解决结果",
+    name: "保存为新缓存方案",
   });
   await resolutionSaveButton.scrollIntoViewIfNeeded();
   await expect(resolutionSaveButton).toBeInViewport();
@@ -1735,7 +1735,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
       '[data-testid="resolution-content-stats"]',
     );
     const saveButton = Array.from(document.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("保存解决结果"),
+      (button) => button.textContent?.includes("保存为新缓存方案"),
     );
     if (
       !(stats instanceof HTMLElement) ||
@@ -1923,7 +1923,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(externalFormal);
 
   const removalDraftName = "Unsaved removal draft";
-  await page.getByLabel("冲突方案名称").fill(removalDraftName);
+  await page.getByLabel("新缓存方案名称（仅新建方案时使用）").fill(removalDraftName);
   const cancelledRemoval = page.waitForEvent("dialog");
   const cancelledRemovalClick = page
     .getByRole("button", { name: "从列表移除工作空间 navigation-rules" })
@@ -1932,7 +1932,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   expect(cancelledRemovalDialog.message()).toContain("冲突解决稿");
   await cancelledRemovalDialog.dismiss();
   await cancelledRemovalClick;
-  await expect(page.getByLabel("冲突方案名称")).toHaveValue(removalDraftName);
+  await expect(page.getByLabel("新缓存方案名称（仅新建方案时使用）")).toHaveValue(removalDraftName);
   await expect(
     page.getByRole("button", { name: "navigation-rules", exact: true }),
   ).toBeVisible();

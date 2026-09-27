@@ -1271,6 +1271,14 @@ textarea {
   outline-color: #79b4a4;
   font-size: 12px;
 }
+.resolution-name-label {
+  margin-left: auto;
+  color: #73827e;
+  font-size: 12px;
+}
+.resolution-toolbar .resolution-name-label + input {
+  margin-left: 0;
+}
 .resolution-editor {
   display: block;
   width: 100%;
@@ -1281,18 +1289,28 @@ textarea {
 }
 .resolution-editor + .editor-footer {
   margin-top: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
   border: 1px solid #e5eae8;
   border-radius: 7px;
   background: #fff;
 }
 .resolution-save-info {
   display: flex;
+  flex: 1 1 100%;
   flex-direction: column;
   gap: 4px;
 }
 .resolution-save-info small {
   color: #7f8e8a;
   font-size: 12px;
+  line-height: 1.6;
+}
+.resolution-editor + .editor-footer > button {
+  min-height: 34px;
+  height: auto;
+  white-space: normal;
 }
 .app-footer {
   display: flex;

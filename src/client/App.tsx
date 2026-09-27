@@ -988,12 +988,17 @@ function App() {
     setName(created.name);
   }
 
-  async function resolveActiveConflict() {
+  async function resolveActiveConflict(
+    strategy: "new-candidate" | "current-revision",
+  ) {
     if (!target) return;
     const targetPath = target.path;
     const next = await act(
-      () => api.resolveConflict(targetPath, resolutionName, resolution),
-      "冲突已解决，磁盘文件已与新缓存方案同步",
+      () =>
+        api.resolveConflict(targetPath, resolutionName, resolution, strategy),
+      strategy === "new-candidate"
+        ? "解决稿已保存为新缓存方案，并与磁盘文件同步"
+        : "解决稿已记为当前缓存方案的新历史版本，并与磁盘文件同步",
     );
     const resolved = next?.targets.find((item) =>
       samePath(item.path, targetPath),
@@ -1723,8 +1728,16 @@ function App() {
                   把未保存草稿放入解决稿
                 </button>
               ) : null}
+              <label
+                className="resolution-name-label"
+                htmlFor="conflict-candidate-name"
+              >
+                新缓存方案名称（仅新建时使用）
+              </label>
               <input
-                aria-label="冲突方案名称"
+                id="conflict-candidate-name"
+                aria-label="新缓存方案名称（仅新建方案时使用）"
+                title="仅选择“保存为新缓存方案”时使用此名称"
                 value={resolutionName}
                 onChange={(event) => setResolutionName(event.target.value)}
               />
@@ -1738,8 +1751,12 @@ function App() {
             <div className="editor-footer">
               <span className="resolution-save-info">
                 <span>
-                  确认后会生成新缓存方案，将它设为当前方案并写入磁盘文件。
+                  选择一种保存方式。两种方式都会将解决稿写入磁盘并结束冲突。
                 </span>
+                <small>
+                  新缓存方案：保留当前方案及其历史，另建方案并将它设为当前方案。
+                  当前方案新历史：更新当前方案正文并新增历史版本，不新建方案。
+                </small>
                 <small
                   data-testid="resolution-content-stats"
                   title="行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。"
@@ -1761,12 +1778,20 @@ function App() {
                 {copiedItem === "resolution" ? "已复制解决稿" : "复制解决稿"}
               </button>
               <button
-                className="primary-button"
+                className="secondary-button"
                 disabled={busy}
-                onClick={() => void resolveActiveConflict()}
+                onClick={() => void resolveActiveConflict("current-revision")}
               >
                 <Check size={15} />
-                保存解决结果
+                保存为当前方案的新历史版本
+              </button>
+              <button
+                className="primary-button"
+                disabled={busy}
+                onClick={() => void resolveActiveConflict("new-candidate")}
+              >
+                <Check size={15} />
+                保存为新缓存方案
               </button>
             </div>
           </section>

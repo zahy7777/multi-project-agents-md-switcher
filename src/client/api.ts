@@ -115,9 +115,14 @@ export const api = {
       "/api/candidates/archive",
       post({ path, candidateId, archived }),
     ),
-  resolveConflict: (path: string, name: string, content: string) =>
+  resolveConflict: (
+    path: string,
+    name: string,
+    content: string,
+    strategy: "new-candidate" | "current-revision",
+  ) =>
     request<ManagerState>(
       "/api/conflicts/resolve",
-      post({ path, name, content }),
+      post({ path, name, content, strategy }),
     ),
 };
