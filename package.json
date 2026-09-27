@@ -1,6 +1,6 @@
 {
-  "name": "agents-md-switcher",
-  "version": "0.2.3",
+  "name": "multi-project-agents-md-switcher",
+  "version": "0.2.4",
   "private": true,
   "type": "module",
   "engines": {
