@@ -82,7 +82,7 @@ textarea {
 .brand small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .section-heading {
   display: flex;
@@ -90,7 +90,7 @@ textarea {
   justify-content: space-between;
   padding: 0 7px 9px;
   color: #87939a;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -134,7 +134,7 @@ textarea {
   color: #627078;
   background: transparent;
   text-align: left;
-  font-size: 11px;
+  font-size: 13px;
 }
 .workspace-row.has-path-context {
   min-height: 43px;
@@ -173,7 +173,7 @@ textarea {
 .workspace-label > small {
   overflow: hidden;
   color: #98a3a3;
-  font-size: 8px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -188,7 +188,7 @@ textarea {
   border-radius: 4px;
   color: #388275;
   background: #e9f4f0;
-  font-size: 8px;
+  font-size: 10px;
   font-style: normal;
 }
 .workspace-row svg:last-child {
@@ -198,7 +198,7 @@ textarea {
 .empty-note {
   padding: 8px;
   color: #a0aaad;
-  font-size: 10px;
+  font-size: 12px;
 }
 .rule-heading {
   padding-bottom: 7px;
@@ -216,7 +216,7 @@ textarea {
   border-radius: 9px;
   color: #7c8c91;
   background: #edf0ee;
-  font-size: 9px;
+  font-size: 11px;
 }
 .search-box {
   display: flex;
@@ -236,7 +236,7 @@ textarea {
   outline: 0;
   color: #3c4d54;
   background: transparent;
-  font-size: 10px;
+  font-size: 12px;
 }
 .search-box input::placeholder {
   color: #a5afb1;
@@ -260,7 +260,7 @@ textarea {
   color: #79868d;
   background: transparent;
   text-align: left;
-  font-size: 10px;
+  font-size: 12px;
 }
 .rule-row > span:nth-child(2) {
   flex: 1;
@@ -298,12 +298,12 @@ textarea {
   border: 1px dashed #dce5e1;
   border-radius: 7px;
   color: #819096;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .empty-rules strong {
   color: #58676d;
-  font-size: 10px;
+  font-size: 12px;
 }
 .empty-rules button {
   justify-self: start;
@@ -313,7 +313,7 @@ textarea {
   border-radius: 5px;
   color: #387d71;
   background: #eef7f4;
-  font-size: 9px;
+  font-size: 11px;
 }
 .sidebar-bottom {
   display: grid;
@@ -337,11 +337,11 @@ textarea {
 }
 .history-card small {
   color: #99a3a4;
-  font-size: 9px;
+  font-size: 11px;
 }
 .history-card strong {
   color: #56686c;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 .history-card i,
@@ -361,7 +361,7 @@ textarea {
   color: #7e8c91;
   background: transparent;
   text-align: left;
-  font-size: 10px;
+  font-size: 12px;
 }
 .help-link:hover {
   color: var(--teal);
@@ -389,7 +389,7 @@ textarea {
   gap: 8px;
   min-width: 0;
   color: #9aa4a5;
-  font-size: 10px;
+  font-size: 12px;
 }
 .breadcrumbs strong {
   overflow: hidden;
@@ -403,7 +403,7 @@ textarea {
   align-items: center;
   gap: 8px;
   color: #84918f;
-  font-size: 10px;
+  font-size: 12px;
 }
 .topbar-tools {
   display: flex;
@@ -413,7 +413,7 @@ textarea {
 .rule-search-trigger {
   min-height: 30px;
   padding: 0 10px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .topbar-status .live-dot {
   width: 6px;
@@ -461,7 +461,7 @@ textarea {
 .eyebrow {
   margin: 0 0 9px;
   color: #89a49c;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -479,7 +479,7 @@ textarea {
 .welcome-page > p:not(.eyebrow) {
   margin: 15px 0 24px;
   color: #899599;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.9;
 }
 .primary-button,
@@ -495,7 +495,7 @@ textarea {
   color: #fff;
   background: #368579;
   box-shadow: 0 2px 4px #2e766c24;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 .primary-button:hover:not(:disabled) {
@@ -506,7 +506,7 @@ textarea {
   gap: 23px;
   margin-top: 27px;
   color: #8c999b;
-  font-size: 9px;
+  font-size: 11px;
 }
 .feature-list span {
   display: flex;
@@ -520,6 +520,12 @@ textarea {
   width: min(1120px, calc(100% - 64px));
   margin: 0 auto;
   padding: 31px 0 25px;
+}
+.workspace-editor-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 .page-title {
   display: flex;
@@ -537,7 +543,7 @@ textarea {
 .page-title > div > p:last-child {
   margin: 7px 0 0;
   color: #8a9699;
-  font-size: 10px;
+  font-size: 12px;
 }
 .status {
   display: inline-flex;
@@ -549,7 +555,7 @@ textarea {
   border-radius: 20px;
   color: #528579;
   background: #f6faf8;
-  font-size: 9px;
+  font-size: 11px;
 }
 .status .live-dot {
   width: 6px;
@@ -562,8 +568,9 @@ textarea {
 }
 .editor-layout {
   display: grid;
+  flex: 1;
   grid-template-columns: 235px minmax(0, 1fr);
-  min-height: 490px;
+  min-height: 0;
   border: 1px solid #e4e9e7;
   border-radius: 9px;
   background: #fff;
@@ -581,7 +588,7 @@ textarea {
   justify-content: space-between;
   padding: 0 5px 11px;
   color: #718085;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 .candidate-heading-actions {
@@ -617,7 +624,7 @@ textarea {
   outline: 0;
   color: #596a70;
   background: transparent;
-  font-size: 9px;
+  font-size: 11px;
 }
 .candidate-filter input::placeholder {
   color: #a1acaa;
@@ -629,7 +636,7 @@ textarea {
 .candidate-list-empty {
   padding: 8px 7px;
   color: #9aa5a4;
-  font-size: 9px;
+  font-size: 11px;
 }
 .archive-filter-button {
   display: inline-flex;
@@ -642,7 +649,7 @@ textarea {
   border-radius: 5px;
   color: #758783;
   background: #fbfcfc;
-  font-size: 9px;
+  font-size: 11px;
 }
 .candidate-row {
   display: flex;
@@ -670,14 +677,14 @@ textarea {
 .candidate-row strong {
   overflow: hidden;
   color: #536269;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .candidate-row small {
   color: #a0aaaa;
-  font-size: 8px;
+  font-size: 10px;
 }
 .lock-mark {
   display: grid;
@@ -699,7 +706,7 @@ textarea {
   border-radius: 5px;
   color: #4f857a;
   background: #f7fbf9;
-  font-size: 9px;
+  font-size: 11px;
 }
 .candidate-actions {
   display: grid;
@@ -721,7 +728,7 @@ textarea {
   border-radius: 5px;
   color: #85847b;
   background: #fbfbf9;
-  font-size: 9px;
+  font-size: 11px;
 }
 .candidate-foot {
   display: flex;
@@ -731,7 +738,7 @@ textarea {
   padding: 11px 5px 2px;
   border-top: 1px solid #eef0ef;
   color: #9aa4a4;
-  font-size: 8px;
+  font-size: 10px;
 }
 .candidate-foot .live-dot {
   width: 5px;
@@ -773,7 +780,7 @@ textarea {
   border-radius: 4px;
   color: #879398;
   background: transparent;
-  font-size: 9px;
+  font-size: 11px;
 }
 .editor-mode-switch button.active {
   color: #347d70;
@@ -785,7 +792,7 @@ textarea {
   align-items: center;
   gap: 5px;
   padding: 5px 8px;
-  font-size: 9px;
+  font-size: 11px;
 }
 .editor-find-replace {
   display: flex;
@@ -807,7 +814,7 @@ textarea {
   color: #405258;
   background: #fff;
   font: inherit;
-  font-size: 9px;
+  font-size: 11px;
 }
 .editor-find-replace input:focus {
   border-color: #83b5a8;
@@ -816,7 +823,7 @@ textarea {
 .editor-find-replace > span {
   min-width: 62px;
   color: #7f8d90;
-  font-size: 9px;
+  font-size: 11px;
 }
 .editor-find-replace > button:not(.secondary-button):not(.icon-button) {
   display: grid;
@@ -833,7 +840,7 @@ textarea {
 }
 .editor-find-replace .secondary-button {
   padding: 6px 8px;
-  font-size: 9px;
+  font-size: 11px;
 }
 .editor-find-replace .icon-button {
   display: grid;
@@ -857,7 +864,7 @@ textarea {
   height: 43px;
   border-bottom: 2px solid #529587;
   color: #526269;
-  font-size: 9px;
+  font-size: 11px;
 }
 .file-tab svg {
   color: #62998e;
@@ -865,14 +872,14 @@ textarea {
 .editor-encoding,
 .draft-tag {
   color: #9ba5a5;
-  font-size: 8px;
+  font-size: 10px;
 }
 .locked-tag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: #479080;
-  font-size: 8px;
+  font-size: 10px;
 }
 .candidate-name {
   height: 34px;
@@ -883,7 +890,7 @@ textarea {
   outline: none;
   color: #5b6a70;
   background: #fbfcfb;
-  font-size: 10px;
+  font-size: 12px;
 }
 .candidate-name:focus {
   border-color: #9bc9bb;
@@ -895,7 +902,7 @@ textarea {
   border-radius: 5px;
   color: #5b6a70;
   background: #fbfcfb;
-  font-size: 10px;
+  font-size: 12px;
 }
 .markdown-editor,
 .resolution-editor {
@@ -907,8 +914,8 @@ textarea {
   outline: 0;
   color: #47575e;
   background: #fff;
-  font-size: 11px;
-  line-height: 1.75;
+  font-size: 14px;
+  line-height: 1.65;
   tab-size: 2;
 }
 .markdown-preview {
@@ -919,7 +926,7 @@ textarea {
   overflow: auto;
   color: #47575e;
   background: #fff;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.75;
   overflow-wrap: anywhere;
 }
@@ -1006,7 +1013,7 @@ textarea {
   padding: 7px 14px;
   border-top: 1px solid #edf0ee;
   color: #98a2a3;
-  font-size: 8px;
+  font-size: 10px;
 }
 .editor-footer-message {
   display: grid;
@@ -1043,7 +1050,7 @@ textarea {
 }
 .formal-card small {
   color: #9ba5a5;
-  font-size: 8px;
+  font-size: 10px;
 }
 .formal-card strong {
   overflow: hidden;
@@ -1051,7 +1058,7 @@ textarea {
   white-space: nowrap;
   color: #637279;
   font-family: "Cascadia Mono", Consolas, monospace;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 400;
 }
 .formal-path-copy {
@@ -1064,7 +1071,7 @@ textarea {
   border-radius: 5px;
   color: #548c80;
   background: #f9fbfa;
-  font-size: 9px;
+  font-size: 11px;
   white-space: nowrap;
 }
 .formal-path-copy:hover {
@@ -1076,7 +1083,7 @@ textarea {
   align-items: center;
   gap: 5px;
   color: #558579;
-  font-size: 8px;
+  font-size: 10px;
 }
 .conflict-grid {
   display: grid;
@@ -1091,7 +1098,7 @@ textarea {
   gap: 12px;
   margin: 11px 0 8px;
   color: #75838a;
-  font-size: 9px;
+  font-size: 11px;
 }
 .conflict-view-switch {
   display: flex;
@@ -1109,7 +1116,7 @@ textarea {
   border-radius: 4px;
   color: #78868a;
   background: transparent;
-  font-size: 9px;
+  font-size: 11px;
 }
 .conflict-view-switch button.active {
   color: #347d70;
@@ -1129,7 +1136,7 @@ textarea {
   grid-template-columns: 22px minmax(0, 1fr);
   min-height: 21px;
   color: #5e6a6e;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.6;
 }
 .conflict-diff-line > span {
@@ -1163,7 +1170,7 @@ textarea {
   margin: 0;
   padding: 14px;
   color: #879396;
-  font-size: 9px;
+  font-size: 11px;
 }
 .compare-panel {
   overflow: hidden;
@@ -1176,7 +1183,7 @@ textarea {
   padding: 9px 11px;
   border-bottom: 1px solid #edf0ee;
   color: #879396;
-  font-size: 9px;
+  font-size: 11px;
 }
 .compare-panel pre {
   min-height: 150px;
@@ -1185,7 +1192,7 @@ textarea {
   margin: 0;
   padding: 10px;
   color: #5e6a6e;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -1202,7 +1209,7 @@ textarea {
   border-radius: 5px;
   color: #65877f;
   background: #fff;
-  font-size: 8px;
+  font-size: 10px;
 }
 .resolution-toolbar input {
   width: 190px;
@@ -1212,7 +1219,7 @@ textarea {
   border: 1px solid #e3e9e6;
   border-radius: 5px;
   outline-color: #79b4a4;
-  font-size: 9px;
+  font-size: 11px;
 }
 .resolution-editor {
   display: block;
@@ -1235,7 +1242,7 @@ textarea {
 }
 .resolution-save-info small {
   color: #7f8e8a;
-  font-size: 9px;
+  font-size: 11px;
 }
 .app-footer {
   display: flex;
@@ -1244,7 +1251,7 @@ textarea {
   margin-top: auto;
   padding: 11px 32px;
   color: #a3acac;
-  font-size: 8px;
+  font-size: 10px;
 }
 .app-footer span:last-child {
   overflow: hidden;
@@ -1267,7 +1274,7 @@ textarea {
   color: #4e786e;
   background: #fbfffd;
   box-shadow: 0 8px 28px #263e3818;
-  font-size: 10px;
+  font-size: 12px;
 }
 .toast > span:nth-child(2) {
   overflow-wrap: anywhere;
@@ -1350,7 +1357,7 @@ textarea {
 .rule-search-count {
   margin: 0 0 2px;
   color: #81908e;
-  font-size: 10px;
+  font-size: 12px;
 }
 .rule-search-result {
   display: grid;
@@ -1377,13 +1384,13 @@ textarea {
 }
 .rule-search-result-heading strong {
   color: #3e7167;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 .rule-search-result-heading small {
   overflow: hidden;
   color: #8b9898;
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1391,7 +1398,7 @@ textarea {
   display: -webkit-box;
   overflow: hidden;
   color: #627176;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
@@ -1427,7 +1434,7 @@ textarea {
 .history-revision-name {
   margin: 0;
   color: #7f8d90;
-  font-size: 9px;
+  font-size: 11px;
 }
 .history-preview-toolbar {
   display: flex;
@@ -1435,7 +1442,7 @@ textarea {
   justify-content: space-between;
   gap: 8px;
   color: #718083;
-  font-size: 9px;
+  font-size: 11px;
 }
 .history-preview-toolbar .conflict-view-switch {
   flex: 0 0 auto;
@@ -1462,20 +1469,20 @@ textarea {
   background: #f1f8f5;
 }
 .history-revision strong {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 .history-revision small {
   overflow: hidden;
   color: #98a4a3;
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .history-empty {
   padding: 10px;
   color: #8a989a;
-  font-size: 10px;
+  font-size: 12px;
 }
 .history-preview {
   min-width: 0;
@@ -1496,7 +1503,7 @@ textarea {
 }
 .history-error {
   color: #a9443d;
-  font-size: 10px;
+  font-size: 12px;
 }
 .compare-modal {
   display: flex;
@@ -1522,7 +1529,7 @@ textarea {
   gap: 12px;
   padding: 8px 2px;
   color: #6d7c80;
-  font-size: 10px;
+  font-size: 12px;
 }
 .switch-preview-diff {
   max-height: min(48vh, 470px);
@@ -1533,7 +1540,7 @@ textarea {
   gap: 9px;
   margin: 0 0 10px;
   color: #74838a;
-  font-size: 10px;
+  font-size: 12px;
 }
 .compare-base select {
   min-width: 180px;
@@ -1543,7 +1550,7 @@ textarea {
   border-radius: 6px;
   color: #405158;
   background: #fff;
-  font-size: 10px;
+  font-size: 12px;
 }
 .compare-columns {
   display: grid;
@@ -1573,7 +1580,7 @@ textarea {
 .compare-column header strong {
   overflow: hidden;
   color: #52636a;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1581,7 +1588,7 @@ textarea {
 .compare-column header span {
   flex: none;
   color: #78a096;
-  font-size: 9px;
+  font-size: 11px;
 }
 .compare-column pre {
   flex: 1;
@@ -1613,7 +1620,7 @@ textarea {
 .modal-description,
 .help-card > p {
   color: #879397;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
 }
 .candidate-source-preview {
@@ -1622,7 +1629,7 @@ textarea {
   border-radius: 6px;
   color: #71817e;
   background: #fafcfb;
-  font-size: 9px;
+  font-size: 11px;
 }
 .candidate-source-preview summary {
   padding: 8px 10px;
@@ -1635,7 +1642,7 @@ textarea {
   padding: 9px 10px;
   border-top: 1px solid #e8eeeb;
   color: #52625f;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1645,7 +1652,7 @@ textarea {
   gap: 7px;
   margin-top: 15px;
   color: #69797f;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
 }
 .field-label input {
@@ -1656,7 +1663,7 @@ textarea {
   border-radius: 5px;
   outline-color: #77b2a3;
   color: #42545b;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 400;
 }
 .path-picker-field {
@@ -1693,13 +1700,13 @@ textarea {
   border-radius: 4px;
   color: #576a70;
   background: #f4f7f5;
-  font-size: 9px;
+  font-size: 11px;
 }
 .log-link {
   display: inline-flex;
   margin-top: 7px;
   color: #418679;
-  font-size: 10px;
+  font-size: 12px;
   text-decoration: none;
 }
 .log-link:hover {
@@ -1749,7 +1756,7 @@ textarea {
   .rule-search-trigger {
     gap: 5px;
     padding: 0 7px;
-    font-size: 9px;
+    font-size: 11px;
   }
   .rule-search-result-heading {
     align-items: flex-start;

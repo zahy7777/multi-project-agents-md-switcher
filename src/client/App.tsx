@@ -1658,7 +1658,7 @@ function App() {
             </div>
           </section>
         ) : (
-          <section className="page-content">
+          <section className="page-content workspace-editor-page">
             <div className="page-title">
               <div>
                 <p className="eyebrow">{relativePath}</p>
