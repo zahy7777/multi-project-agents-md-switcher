@@ -129,6 +129,15 @@ export function createHttpApp(library: PromptLibrary) {
       ),
     );
   });
+  app.put("/api/disk-file", async (request, response) => {
+    response.json(
+      await library.saveDiskFile(
+        readString(request.body?.path, "path"),
+        readString(request.body?.content, "content", true),
+        readString(request.body?.expectedContent, "expectedContent", true),
+      ),
+    );
+  });
   app.post("/api/candidates/rename", async (request, response) => {
     response.json(
       await library.renameCandidate(

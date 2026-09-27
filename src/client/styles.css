@@ -703,7 +703,9 @@ textarea {
   border-color: #69a894;
   color: #244f46;
   background: #dcefe7;
-  box-shadow: inset 3px 0 0 #328375, 0 1px 3px #24594c12;
+  box-shadow:
+    inset 3px 0 0 #328375,
+    0 1px 3px #24594c12;
 }
 .candidate-row.active strong {
   color: #214f45;
@@ -1303,14 +1305,70 @@ textarea {
   gap: 4px;
 }
 .resolution-save-info small {
-  color: #7f8e8a;
-  font-size: 12px;
-  line-height: 1.6;
+  color: #596b66;
+  font-size: 13px;
+  line-height: 1.55;
 }
 .resolution-editor + .editor-footer > button {
   min-height: 34px;
   height: auto;
   white-space: normal;
+}
+.resolution-choice-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+.resolution-choice-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid #9bbdb2;
+  border-radius: 7px;
+  color: #285d51;
+  background: #f5faf8;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+}
+.resolution-choice-button:hover:not(:disabled) {
+  border-color: #4e9884;
+  background: #eaf5f1;
+}
+.resolution-choice-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.resolution-choice-explanations {
+  display: grid;
+  gap: 2px;
+}
+.candidate-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+.effective-tag {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid #7bb5a2;
+  border-radius: 999px;
+  color: #176c55;
+  background: #e3f4ed;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 .app-footer {
   display: flex;
@@ -1580,7 +1638,9 @@ textarea {
   display: flex;
   flex-direction: column;
   width: min(1160px, 100%);
-  max-height: calc(100vh - 40px);
+  height: min(900px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
 }
 .switch-preview-modal {
   display: flex;
@@ -1627,8 +1687,10 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
-  min-height: 280px;
-  max-height: min(64vh, 640px);
+  flex: 1 1 auto;
+  min-height: 180px;
+  max-height: none;
+  overflow: hidden;
 }
 .compare-column {
   display: flex;
@@ -1661,13 +1723,17 @@ textarea {
   color: #78a096;
   font-size: 12px;
 }
-.compare-column pre {
+.compare-column textarea {
   flex: 1;
   min-height: 0;
   margin: 0;
   overflow: auto;
   padding: 12px;
+  border: 0;
+  resize: none;
+  outline: none;
   color: #46585e;
+  background: transparent;
   font:
     12px/1.7 "Cascadia Code",
     "SFMono-Regular",
@@ -1675,6 +1741,19 @@ textarea {
     monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.compare-column:focus-within {
+  border-color: #9abeb3;
+}
+.compare-column footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 10px;
+  border-top: 1px solid #e8eeeb;
+  background: #fff;
+}
+.compare-modal > .modal-actions {
+  margin-top: 10px;
 }
 .modal-title {
   display: flex;
@@ -1808,6 +1887,13 @@ textarea {
   .editor-footer .heading-actions {
     margin-left: auto;
   }
+  .resolution-choice-buttons {
+    width: 100%;
+    margin-left: 0;
+  }
+  .resolution-choice-button {
+    flex: 1 1 200px;
+  }
   .app-footer {
     padding: 11px 21px;
   }
@@ -1842,6 +1928,13 @@ textarea {
   .compare-columns {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(130px, 1fr) minmax(130px, 1fr);
-    max-height: calc(100vh - 270px);
+    overflow-y: auto;
+  }
+  .compare-column {
+    min-height: 210px;
+  }
+  .compare-modal {
+    height: calc(100dvh - 20px);
+    max-height: calc(100dvh - 20px);
   }
 }

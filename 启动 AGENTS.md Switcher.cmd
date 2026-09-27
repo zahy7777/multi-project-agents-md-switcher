@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 setlocal
 cd /d "%~dp0"
 
@@ -12,7 +12,7 @@ set "PROMPTDOCK_OPEN_BROWSER=1"
 call pnpm start
 set "exit_code=%ERRORLEVEL%"
 if not "%exit_code%"=="0" (
-  echo PromptDock exited with code %exit_code%.
+  echo AGENTS.md Switcher exited with code %exit_code%.
   pause
 )
 exit /b %exit_code%
@@ -23,6 +23,6 @@ pause
 exit /b 1
 
 :build_failed
-echo PromptDock build failed. Read the error above.
+echo AGENTS.md Switcher build failed. Read the error above.
 pause
 exit /b 1

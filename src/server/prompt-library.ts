@@ -326,7 +326,8 @@ export class PromptLibrary {
       this.assertNoConflict(targetPath, target);
       const candidate = this.requireCandidate(target, candidateId);
       const wasLocked = target.lockedCandidateId === candidate.id;
-      if (candidate.archived) throw new Error("已归档缓存方案必须先恢复才能编辑。");
+      if (candidate.archived)
+        throw new Error("已归档缓存方案必须先恢复才能编辑。");
       const previousContent = await this.readCandidate(candidate);
       const previousName = candidate.name;
       if (
@@ -335,7 +336,8 @@ export class PromptLibrary {
       ) {
         throw new CandidateChangedError();
       }
-      const revisionSnapshotFile = this.candidateRevisionSnapshotPath(candidate);
+      const revisionSnapshotFile =
+        this.candidateRevisionSnapshotPath(candidate);
       const previousRevisionSnapshot = await this.readFileOrNull(
         path.join(this.historyDirectory, revisionSnapshotFile),
       );
@@ -398,6 +400,25 @@ export class PromptLibrary {
     });
   }
 
+  async saveDiskFile(
+    selectedPath: string,
+    content: string,
+    expectedContent: string,
+  ) {
+    return this.exclusively(async () => {
+      const targetPath = await this.authorizedDirectory(selectedPath);
+      this.requireManagedTarget(targetPath);
+      const currentContent = await this.formalContent(targetPath);
+      if (currentContent === null || currentContent !== expectedContent) {
+        throw new CandidateChangedError();
+      }
+      await this.writeFormal(targetPath, content);
+      await this.record("并排对比中保存磁盘文件");
+      await this.log("disk.save", "ok", `path=${targetPath}`);
+      return this.view();
+    });
+  }
+
   async renameCandidate(
     selectedPath: string,
     candidateId: string,
@@ -415,7 +436,8 @@ export class PromptLibrary {
       if (nextName === candidate.name) return this.view();
 
       const previousName = candidate.name;
-      const revisionSnapshotFile = this.candidateRevisionSnapshotPath(candidate);
+      const revisionSnapshotFile =
+        this.candidateRevisionSnapshotPath(candidate);
       const previousRevisionSnapshot = await this.readFileOrNull(
         path.join(this.historyDirectory, revisionSnapshotFile),
       );
@@ -555,7 +577,9 @@ export class PromptLibrary {
       }
       const previous = candidate.archived ?? false;
       if (previous === archived) {
-        throw new Error(archived ? "该缓存方案已经归档。" : "该缓存方案当前未归档。");
+        throw new Error(
+          archived ? "该缓存方案已经归档。" : "该缓存方案当前未归档。",
+        );
       }
       candidate.archived = archived;
       try {

@@ -89,6 +89,11 @@ export const api = {
         expectedContent,
       }),
     }),
+  saveDiskFile: (path: string, content: string, expectedContent: string) =>
+    request<ManagerState>("/api/disk-file", {
+      method: "PUT",
+      body: JSON.stringify({ path, content, expectedContent }),
+    }),
   renameCandidate: (
     path: string,
     candidateId: string,

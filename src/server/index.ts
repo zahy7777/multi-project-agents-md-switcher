@@ -10,7 +10,7 @@ try {
   const app = createHttpApp(library);
   const server = app.listen(PORT, "127.0.0.1", () => {
     const url = `http://127.0.0.1:${PORT}`;
-    console.log(`PromptDock 本地服务已启动：${url}`);
+    console.log(`AGENTS.md Switcher 本地服务已启动：${url}`);
     console.log(
       `已加载工作空间：${state.workspaces.length}；规则路径索引：${state.targets.length}`,
     );
@@ -23,7 +23,7 @@ try {
   process.once("SIGTERM", stop);
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(`PromptDock 启动失败：${message}`);
+  console.error(`AGENTS.md Switcher 启动失败：${message}`);
   process.exitCode = 1;
 }
 

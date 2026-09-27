@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
   Archive,
@@ -44,6 +37,14 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { diffLines } from "diff";
 import { ApiError, api } from "./api.js";
+import {
+  getLocale,
+  localeNames,
+  locales,
+  saveLocale,
+  t,
+  type Locale,
+} from "./i18n.js";
 
 const empty: ManagerState = {
   workspaces: [],
@@ -142,6 +143,7 @@ function LineDiffView({
 }
 
 function App() {
+  const [locale, setLocale] = useState<Locale>(getLocale);
   const [state, setState] = useState(empty);
   const [selectedWorkspace, setSelectedWorkspace] = useState("");
   const [selectedPath, setSelectedPath] = useState("");
@@ -160,6 +162,7 @@ function App() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [choosingDirectory, setChoosingDirectory] = useState(false);
   const [starting, setStarting] = useState(true);
   const [hasInitialState, setHasInitialState] = useState(false);
   const [showWorkspaceForm, setShowWorkspaceForm] = useState(false);
@@ -193,6 +196,8 @@ function App() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [switchPreviewOpen, setSwitchPreviewOpen] = useState(false);
   const [compareBaseId, setCompareBaseId] = useState("");
+  const [compareLeftDraft, setCompareLeftDraft] = useState("");
+  const [compareRightDraft, setCompareRightDraft] = useState("");
   const [showCompareDiff, setShowCompareDiff] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [showConflictDiff, setShowConflictDiff] = useState(true);
@@ -203,7 +208,6 @@ function App() {
   const openingState = useRef<Promise<ManagerState> | null>(null);
   const copyFeedbackTimeout = useRef<number | null>(null);
   const saveInFlight = useRef(false);
-  const candidateFileInput = useRef<HTMLInputElement>(null);
   const candidateEditor = useRef<HTMLTextAreaElement>(null);
   const resolutionTargetPath = useRef("");
   const workspaceNameCounts = new Map<string, number>();
@@ -367,12 +371,19 @@ function App() {
         }
       : (target?.candidates.find((item) => item.id === compareBaseId) ??
         lockedCandidate);
+  useEffect(() => {
+    if (!compareOpen) return;
+    setCompareLeftDraft(content);
+    setCompareRightDraft(compareBase?.content ?? "");
+  }, [compareOpen, candidate?.id, compareBase?.id]);
   const compareChanges = useMemo(
     () =>
       compareBase
-        ? diffLines(compareBase.content, content, { stripTrailingCr: true })
+        ? diffLines(compareRightDraft, compareLeftDraft, {
+            stripTrailingCr: true,
+          })
         : [],
-    [compareBase?.content, content],
+    [compareBase?.id, compareRightDraft, compareLeftDraft],
   );
   const compareLineCounts = compareChanges.reduce(
     (counts, change) => ({
@@ -503,7 +514,7 @@ function App() {
       })
       .catch((reason: unknown) => {
         if (!mounted) return;
-        setError(message(reason));
+        setError(t(message(reason), locale));
         void refresh().catch(() => undefined);
       })
       .finally(() => {
@@ -621,11 +632,11 @@ function App() {
     try {
       const next = await action();
       setState(next);
-      setNotice(success);
+      setNotice(t(success, locale));
       window.setTimeout(() => setNotice(""), 3500);
       return next;
     } catch (reason) {
-      setError(message(reason));
+      setError(t(message(reason), locale));
       await refresh().catch(() => undefined);
     } finally {
       setBusy(false);
@@ -639,7 +650,7 @@ function App() {
     ].filter(Boolean);
     if (drafts.length === 0) return true;
     return window.confirm(
-      `${drafts.join("和")}有未保存修改；${action}后会丢失。确定继续吗？`,
+      `${drafts.join(t("和", locale))}有未保存修改；${action}后会丢失。确定继续吗？`,
     );
   }
 
@@ -661,15 +672,15 @@ function App() {
   }
 
   async function chooseWorkspaceDirectory() {
-    setBusy(true);
+    setChoosingDirectory(true);
     setError("");
     try {
       const { path } = await api.chooseWorkspaceDirectory();
       if (path) setWorkspaceInput(path);
     } catch (reason) {
-      setError(message(reason));
+      setError(t(message(reason), locale));
     } finally {
-      setBusy(false);
+      setChoosingDirectory(false);
     }
   }
 
@@ -729,7 +740,10 @@ function App() {
   }
 
   function chooseCandidate(item: Candidate) {
-    if (dirty && !window.confirm("当前方案有未保存修改，确定放弃并切换吗？"))
+    if (
+      dirty &&
+      !window.confirm(t("当前方案有未保存修改，确定放弃并切换吗？", locale))
+    )
       return;
     setSelectedCandidateId(item.id);
     setContent(item.content);
@@ -876,7 +890,9 @@ function App() {
         (item) => item.id === candidate.id,
       );
       if (!latestTarget || latestTarget.conflict) {
-        setError("磁盘文件已发生变化，已刷新冲突状态。请先处理冲突再切换。");
+        setError(
+          t("磁盘文件已发生变化，已刷新冲突状态。请先处理冲突再切换。", locale),
+        );
         return;
       }
       if (
@@ -884,12 +900,12 @@ function App() {
         latestCandidate.locked ||
         latestCandidate.archived
       ) {
-        setError("缓存方案状态已变化，页面已刷新；请重新选择方案。");
+        setError(t("缓存方案状态已变化，页面已刷新；请重新选择方案。", locale));
         return;
       }
       setSwitchPreviewOpen(true);
     } catch (reason) {
-      setError(message(reason));
+      setError(t(message(reason), locale));
     } finally {
       setBusy(false);
     }
@@ -919,7 +935,7 @@ function App() {
       ? target.candidates.find((item) => item.id === candidateSourceId)
       : null;
     if (candidateSourceId && !sourceCandidate) {
-      setError("所选缓存方案已不存在，请重新选择内容来源。");
+      setError(t("所选缓存方案已不存在，请重新选择内容来源。", locale));
       return;
     }
     const sourceContent = sourceCandidate?.content ?? content;
@@ -946,43 +962,23 @@ function App() {
     }
   }
 
-  async function importCandidateFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file || !target) return;
-    if (!/\.(md|markdown)$/i.test(file.name)) {
-      setError("只能从 .md 或 .markdown 文件 Fork 缓存方案。");
-      return;
-    }
-    if (
-      dirty &&
-      !window.confirm(
-        "当前方案有未保存修改，Fork 后将切换到新缓存方案。确定继续吗？",
-      )
-    )
-      return;
-
-    const targetPath = target.path;
-    const importedName =
-      file.name.replace(/\.(md|markdown)$/i, "").trim() || "Fork 缓存方案";
+  async function forkSelectedCandidate() {
+    if (!target || !candidate || target.conflict || busy) return;
     const knownIds = new Set(target.candidates.map((item) => item.id));
-    let importedContent: string;
-    try {
-      importedContent = await file.text();
-    } catch (reason) {
-      setError(message(reason));
-      return;
-    }
-
+    const forkName = `${candidate.name} ${t("副本", locale)}`;
     const next = await act(
-      () => api.createCandidate(targetPath, importedName, importedContent),
-      "已从文件 Fork 新缓存方案；磁盘文件未更改",
+      () =>
+        api.createCandidate(
+          target.path,
+          forkName,
+          dirty ? content : candidate.content,
+        ),
+      "已 Fork 当前缓存方案；新方案已打开，可直接修改",
     );
     const created = next?.targets
-      .find((item) => samePath(item.path, targetPath))
+      .find((item) => samePath(item.path, target.path))
       ?.candidates.find((item) => !knownIds.has(item.id));
     if (!created) return;
-    setSelectedPath(targetPath);
     setSelectedCandidateId(created.id);
     setContent(created.content);
     setName(created.name);
@@ -1074,7 +1070,10 @@ function App() {
     if (
       dirty &&
       !window.confirm(
-        "当前编辑器有未保存修改。从历史版本 Fork 缓存方案后将切换编辑器，确定继续吗？",
+        t(
+          "当前编辑器有未保存修改。从历史版本 Fork 缓存方案后将切换编辑器，确定继续吗？",
+          locale,
+        ),
       )
     )
       return;
@@ -1130,20 +1129,64 @@ function App() {
       setState(next);
       setNotice(
         candidate.locked
-          ? "当前方案与磁盘文件已同步；历史版本已保存"
-          : "历史版本已保存",
+          ? t("当前方案与磁盘文件已同步；历史版本已保存", locale)
+          : t("历史版本已保存", locale),
       );
       window.setTimeout(() => setNotice(""), 3500);
     } catch (reason) {
       if (reason instanceof ApiError && reason.code === "CANDIDATE_CHANGED") {
-        setError(message(reason));
+        setError(t(message(reason), locale));
       } else {
-        setError(message(reason));
+        setError(t(message(reason), locale));
         await refresh().catch(() => undefined);
       }
     } finally {
       setBusy(false);
       saveInFlight.current = false;
+    }
+  }
+
+  async function saveCompareSide(side: "left" | "right") {
+    if (!target || !candidate || !compareBase || busy || target.conflict)
+      return;
+    const isLeft = side === "left";
+    const text = isLeft ? compareLeftDraft : compareRightDraft;
+    const selected = isLeft ? candidate : compareBase;
+    const savedText = isLeft ? content : compareBase.content;
+    if (text === savedText || (selected.archived ?? false)) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const next =
+        selected.id === "__disk__"
+          ? await api.saveDiskFile(target.path, text, selected.content)
+          : await api.saveCandidate(
+              target.path,
+              selected.id,
+              selected.name,
+              text,
+              selected.name,
+              selected.content,
+            );
+      setState(next);
+      if (isLeft) {
+        setContent(text);
+        setCompareLeftDraft(text);
+      } else {
+        setCompareRightDraft(text);
+      }
+      setNotice(
+        selected.id === "__disk__"
+          ? t("磁盘文件已保存；如与当前方案不同，会显示冲突提示", locale)
+          : t("此侧内容已保存并新增历史版本", locale),
+      );
+      window.setTimeout(() => setNotice(""), 3500);
+    } catch (reason) {
+      setError(t(message(reason), locale));
+      await refresh().catch(() => undefined);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1212,7 +1255,10 @@ function App() {
       );
       if (!latestTarget || latestTarget.conflict) {
         setError(
-          "磁盘文件已发生变化，未打开预览；当前草稿已保留，请重新扫描并处理冲突。",
+          t(
+            "磁盘文件已发生变化，未打开预览；当前草稿已保留，请重新扫描并处理冲突。",
+            locale,
+          ),
         );
         return;
       }
@@ -1223,7 +1269,10 @@ function App() {
         latestCandidate.content !== savedCandidateContent
       ) {
         setError(
-          "当前方案已在其他窗口变化，未打开预览；当前草稿已保留，请先重新扫描并核对。",
+          t(
+            "当前方案已在其他窗口变化，未打开预览；当前草稿已保留，请先重新扫描并核对。",
+            locale,
+          ),
         );
         return;
       }
@@ -1231,7 +1280,7 @@ function App() {
       setCompareBaseId(candidateId);
       setCompareOpen(true);
     } catch (reason) {
-      setError(message(reason));
+      setError(t(message(reason), locale));
     } finally {
       setBusy(false);
     }
@@ -1406,17 +1455,17 @@ function App() {
             <FileCode2 size={20} />
           </span>
           <span>
-            <strong>PromptDock</strong>
-            <small>本地文件管理</small>
+            <strong>AGENTS.md Switcher</strong>
+            <small>{t("本地文件管理", locale)}</small>
           </span>
         </div>
 
         <div className="section-heading">
-          <span>工作空间</span>
+          <span>{t("工作空间", locale)}</span>
           <button
             className="icon-button"
-            aria-label="添加工作空间"
-            title="添加工作空间"
+            aria-label={t("添加工作空间", locale)}
+            title={t("添加工作空间", locale)}
             onClick={() => setShowWorkspaceForm(true)}
           >
             <Plus size={16} />
@@ -1443,7 +1492,7 @@ function App() {
                     <span className="workspace-name-line">
                       {name}
                       {samePath(workspace, userWorkspace ?? "") ? (
-                        <em>用户文件</em>
+                        <em>{t("用户文件", locale)}</em>
                       ) : null}
                     </span>
                     {disambiguated ? (
@@ -1469,20 +1518,20 @@ function App() {
             );
           })}
           {state.workspaces.length === 0 && (
-            <div className="empty-note">还没有工作空间</div>
+            <div className="empty-note">{t("还没有工作空间", locale)}</div>
           )}
         </div>
 
         <div className="section-heading rule-heading">
-          <span>文件</span>
+          <span>{t("文件", locale)}</span>
           <div className="heading-actions">
             <span className="count">{workspaceTargets.length}</span>
             {selectedWorkspace ? (
               <>
                 <button
                   className="icon-button"
-                  aria-label="初始化目录"
-                  title="在当前工作空间中创建磁盘文件"
+                  aria-label={t("初始化目录", locale)}
+                  title={t("在当前工作空间中创建磁盘文件", locale)}
                   disabled={busy}
                   onClick={() => {
                     setInitializeInput(selectedWorkspace);
@@ -1493,8 +1542,8 @@ function App() {
                 </button>
                 <button
                   className="icon-button"
-                  aria-label="重新扫描当前工作空间"
-                  title="重新扫描当前工作空间"
+                  aria-label={t("重新扫描当前工作空间", locale)}
+                  title={t("重新扫描当前工作空间", locale)}
                   disabled={busy}
                   onClick={rescanSelectedWorkspace}
                 >
@@ -1508,8 +1557,8 @@ function App() {
           <label className="search-box">
             <Search size={14} />
             <input
-              aria-label="筛选文件路径"
-              placeholder="筛选路径"
+              aria-label={t("筛选文件路径", locale)}
+              placeholder={t("筛选路径", locale)}
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
             />
@@ -1538,9 +1587,12 @@ function App() {
           ))}
           {selectedWorkspace && workspaceTargets.length === 0 ? (
             <div className="empty-rules">
-              <strong>没有发现磁盘文件 AGENTS.md</strong>
+              <strong>{t("没有发现磁盘文件 AGENTS.md", locale)}</strong>
               <span>
-                工作空间已登记，可以在根目录创建磁盘文件和首个缓存方案。
+                {t(
+                  "工作空间已登记，可以在根目录创建磁盘文件和首个缓存方案。",
+                  locale,
+                )}
               </span>
               <button
                 disabled={busy}
@@ -1551,7 +1603,7 @@ function App() {
                   )
                 }
               >
-                初始化磁盘文件 AGENTS.md
+                {t("初始化磁盘文件 AGENTS.md", locale)}
               </button>
             </div>
           ) : null}
@@ -1561,14 +1613,14 @@ function App() {
           <div className="history-card">
             <GitBranch size={15} />
             <span>
-              <small>本地历史</small>
-              <strong>Git 已启用</strong>
+              <small>{t("本地历史", locale)}</small>
+              <strong>{t("Git 已启用", locale)}</strong>
             </span>
             <i />
           </div>
           <button className="help-link" onClick={() => setHelpOpen(true)}>
             <CircleHelp size={15} />
-            使用说明与诊断
+            {t("使用说明与诊断", locale)}
           </button>
         </div>
       </aside>
@@ -1576,10 +1628,12 @@ function App() {
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumbs">
-            <span>工作空间</span>
+            <span>{t("工作空间", locale)}</span>
             <ChevronRight size={14} />
             <strong>
-              {selectedWorkspace ? pathLeaf(selectedWorkspace) : "选择目录"}
+              {selectedWorkspace
+                ? pathLeaf(selectedWorkspace)
+                : t("选择目录", locale)}
             </strong>
             {relativePath ? (
               <>
@@ -1591,23 +1645,44 @@ function App() {
           <div className="topbar-tools">
             <button
               className="secondary-button rule-search-trigger"
-              aria-label="搜索全部文件"
+              aria-label={t("搜索全部文件", locale)}
               aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
-              title="搜索所有已扫描路径中的磁盘文件和方案正文（Ctrl+Shift+F）"
+              title={t(
+                "搜索所有已扫描路径中的磁盘文件和方案正文（Ctrl+Shift+F）",
+                locale,
+              )}
               disabled={starting || busy}
               onClick={() => setRuleSearchOpen(true)}
             >
               <Search size={14} />
-              搜索全部文件
+              {t("搜索全部文件", locale)}
             </button>
             <div className="topbar-status">
               <span className={`live-dot ${starting ? "is-pulsing" : ""}`} />
               {starting
                 ? hasInitialState
-                  ? `正在后台扫描 ${state.workspaces.length} 个工作空间`
-                  : "正在读取本地状态…"
-                : "仅本机运行"}
+                  ? `${t("正在后台扫描", locale)} ${state.workspaces.length} ${t("个工作空间", locale)}`
+                  : t("正在读取本地状态…", locale)
+                : t("仅本机运行", locale)}
             </div>
+            <label className="locale-picker">
+              <span className="sr-only">{t("界面语言", locale)}</span>
+              <select
+                aria-label={t("界面语言", locale)}
+                value={locale}
+                onChange={(event) => {
+                  const nextLocale = event.target.value as Locale;
+                  saveLocale(nextLocale);
+                  setLocale(nextLocale);
+                }}
+              >
+                {locales.map((option) => (
+                  <option key={option} value={option}>
+                    {localeNames[option]}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </header>
 
@@ -1618,32 +1693,36 @@ function App() {
             </div>
             <p className="eyebrow">AGENT INSTRUCTION VARIANTS</p>
             <h1>
-              一份 AGENTS.md，<span>多个提示词方案，随时切换。</span>
+              {t("一份 AGENTS.md，", locale)}
+              <span>{t("多个提示词方案，随时切换。", locale)}</span>
             </h1>
             <p>
-              想尝试不同版本，不必手动备份、复制或覆盖文件。分别保存多个缓存方案，选中并确认差异后即可切换。
+              {t(
+                "想尝试不同版本，不必手动备份、复制或覆盖文件。分别保存多个缓存方案，选中并确认差异后即可切换。",
+                locale,
+              )}
               <br />
-              磁盘文件和缓存方案都只保存在你的设备上。
+              {t("磁盘文件和缓存方案都只保存在你的设备上。", locale)}
             </p>
             <button
               className="primary-button"
               onClick={() => setShowWorkspaceForm(true)}
             >
               <Plus size={16} />
-              添加工作空间
+              {t("添加工作空间", locale)}
             </button>
             <div className="feature-list">
               <span>
                 <ShieldCheck size={15} />
-                本地文件
+                {t("本地文件", locale)}
               </span>
               <span>
                 <GitBranch size={15} />
-                可追溯历史
+                {t("可追溯历史", locale)}
               </span>
               <span>
                 <Clock3 size={15} />
-                保存即记录
+                {t("保存即记录", locale)}
               </span>
             </div>
           </section>
@@ -1652,26 +1731,29 @@ function App() {
             <div className="page-title">
               <div>
                 <p className="eyebrow">{relativePath}</p>
-                <h1>检测到磁盘文件与当前方案不一致</h1>
+                <h1>{t("检测到磁盘文件与当前方案不一致", locale)}</h1>
                 <p>
-                  外部程序可以照常编辑磁盘文件。PromptDock
-                  会显示差异并提供合并处理；解决前暂缓在这里切换方案。
+                  {t(
+                    "外部程序可以照常编辑磁盘文件。PromptDock 会显示差异并提供合并处理；解决前暂缓在这里切换方案。",
+                    locale,
+                  )}
                 </p>
               </div>
               <span className="status danger">
                 <AlertTriangle size={14} />
-                需要处理
+                {t("需要处理", locale)}
               </span>
             </div>
             <div className="conflict-view-toolbar">
               <span>
-                当前方案 → 磁盘文件 · 新增 {conflictLineCounts.added} 行 · 删除{" "}
-                {conflictLineCounts.removed} 行
+                {t("当前方案 → 磁盘文件 · 新增", locale)}{" "}
+                {conflictLineCounts.added} {t("行 · 删除", locale)}{" "}
+                {conflictLineCounts.removed} {t("行", locale)}
               </span>
               <div
                 className="conflict-view-switch"
                 role="group"
-                aria-label="冲突查看方式"
+                aria-label={t("冲突查看方式", locale)}
               >
                 <button
                   type="button"
@@ -1679,7 +1761,7 @@ function App() {
                   className={!showConflictDiff ? "active" : ""}
                   onClick={() => setShowConflictDiff(false)}
                 >
-                  并排原文
+                  {t("并排原文", locale)}
                 </button>
                 <button
                   type="button"
@@ -1687,31 +1769,38 @@ function App() {
                   className={showConflictDiff ? "active" : ""}
                   onClick={() => setShowConflictDiff(true)}
                 >
-                  标记差异
+                  {t("标记差异", locale)}
                 </button>
               </div>
             </div>
             {showConflictDiff ? (
               <LineDiffView
                 changes={conflictChanges}
-                ariaLabel="磁盘文件与当前方案的行差异"
-                emptyMessage="没有可显示的文本差异；请检查磁盘文件或当前方案是否缺失。"
+                ariaLabel={t("磁盘文件与当前方案的行差异", locale)}
+                emptyMessage={t(
+                  "没有可显示的文本差异；请检查磁盘文件或当前方案是否缺失。",
+                  locale,
+                )}
               />
             ) : (
               <div className="conflict-grid">
                 <div className="compare-panel">
-                  <label>磁盘文件</label>
-                  <pre>{target.formalContent ?? "磁盘文件已被删除"}</pre>
+                  <label>{t("磁盘文件", locale)}</label>
+                  <pre>
+                    {target.formalContent ?? t("磁盘文件已被删除", locale)}
+                  </pre>
                 </div>
                 <div className="compare-panel">
-                  <label>当前方案</label>
-                  <pre>{lockedCandidate?.content ?? "当前方案不存在"}</pre>
+                  <label>{t("当前方案", locale)}</label>
+                  <pre>
+                    {lockedCandidate?.content ?? t("当前方案不存在", locale)}
+                  </pre>
                 </div>
               </div>
             )}
             <div className="resolution-toolbar">
               <button onClick={() => setResolution(target.formalContent ?? "")}>
-                把磁盘文件放入解决稿
+                {t("把磁盘文件放入解决稿", locale)}
               </button>
               <button
                 onClick={() =>
@@ -1721,53 +1810,67 @@ function App() {
                   )
                 }
               >
-                把当前方案放入解决稿
+                {t("把当前方案放入解决稿", locale)}
               </button>
               {dirty ? (
                 <button onClick={() => setResolution(content)}>
-                  把未保存草稿放入解决稿
+                  {t("把未保存草稿放入解决稿", locale)}
                 </button>
               ) : null}
               <label
                 className="resolution-name-label"
                 htmlFor="conflict-candidate-name"
               >
-                新缓存方案名称（仅新建时使用）
+                {t("新缓存方案名称（仅新建时使用）", locale)}
               </label>
               <input
                 id="conflict-candidate-name"
-                aria-label="新缓存方案名称（仅新建方案时使用）"
-                title="仅选择“保存为新缓存方案”时使用此名称"
+                aria-label={t("新缓存方案名称（仅新建方案时使用）", locale)}
+                title={t("仅选择“保存为新缓存方案”时使用此名称", locale)}
                 value={resolutionName}
                 onChange={(event) => setResolutionName(event.target.value)}
               />
             </div>
             <textarea
               className="resolution-editor"
-              aria-label="冲突解决内容"
+              aria-label={t("冲突解决内容", locale)}
               value={resolution}
               onChange={(event) => setResolution(event.target.value)}
             />
             <div className="editor-footer">
               <span className="resolution-save-info">
                 <span>
-                  选择一种保存方式。两种方式都会将解决稿写入磁盘并结束冲突。
+                  {t("两种方式都会将解决稿写入磁盘文件并结束冲突：", locale)}
                 </span>
-                <small>
-                  新缓存方案：保留当前方案及其历史，另建方案并将它设为当前方案。
-                  当前方案新历史：更新当前方案正文并新增历史版本，不新建方案。
-                </small>
+                <div className="resolution-choice-explanations">
+                  <small>
+                    {t(
+                      "保存为新缓存方案：保留当前方案及其历史，创建新方案并将新方案设为当前方案。",
+                      locale,
+                    )}
+                  </small>
+                  <small>
+                    {t(
+                      "保存为当前方案的新历史版本：更新当前方案正文并新增历史版本，不创建新方案。",
+                      locale,
+                    )}
+                  </small>
+                </div>
                 <small
                   data-testid="resolution-content-stats"
-                  title="行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。"
+                  title={t(
+                    "行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。",
+                    locale,
+                  )}
                 >
-                  {resolutionMetrics.lines} 行 · {resolutionMetrics.characters}{" "}
-                  字符 · {resolutionMetrics.utf8Bytes} UTF-8 字节
+                  {resolutionMetrics.lines} {t("行 ·", locale)}{" "}
+                  {resolutionMetrics.characters} {t("字符 ·", locale)}{" "}
+                  {resolutionMetrics.utf8Bytes} {t("UTF-8 字节", locale)}
                 </small>
               </span>
               <button
                 className="secondary-button"
-                title="复制当前冲突解决稿，包括未保存修改"
+                title={t("复制当前冲突解决稿，包括未保存修改", locale)}
                 onClick={() => void copyResolution()}
               >
                 {copiedItem === "resolution" ? (
@@ -1775,24 +1878,28 @@ function App() {
                 ) : (
                   <Copy size={14} />
                 )}
-                {copiedItem === "resolution" ? "已复制解决稿" : "复制解决稿"}
+                {copiedItem === "resolution"
+                  ? t("已复制解决稿", locale)
+                  : t("复制解决稿", locale)}
               </button>
-              <button
-                className="secondary-button"
-                disabled={busy}
-                onClick={() => void resolveActiveConflict("current-revision")}
-              >
-                <Check size={15} />
-                保存为当前方案的新历史版本
-              </button>
-              <button
-                className="primary-button"
-                disabled={busy}
-                onClick={() => void resolveActiveConflict("new-candidate")}
-              >
-                <Check size={15} />
-                保存为新缓存方案
-              </button>
+              <div className="resolution-choice-buttons">
+                <button
+                  className="resolution-choice-button"
+                  disabled={busy}
+                  onClick={() => void resolveActiveConflict("current-revision")}
+                >
+                  <Check size={15} />
+                  {t("保存为当前方案的新历史版本", locale)}
+                </button>
+                <button
+                  className="resolution-choice-button"
+                  disabled={busy}
+                  onClick={() => void resolveActiveConflict("new-candidate")}
+                >
+                  <Check size={15} />
+                  {t("保存为新缓存方案", locale)}
+                </button>
+              </div>
             </div>
           </section>
         ) : (
@@ -1800,22 +1907,24 @@ function App() {
             <div className="page-title">
               <div>
                 <p className="eyebrow">{relativePath}</p>
-                <h1>Agent 指令方案</h1>
+                <h1>{t("Agent 指令方案", locale)}</h1>
                 <p>
-                  为同一份 AGENTS.md
-                  保存多套提示词；想尝试其他版本时，选中方案并确认差异即可切换。
+                  {t(
+                    "为同一份 AGENTS.md 保存多套提示词；想尝试其他版本时，选中方案并确认差异即可切换。",
+                    locale,
+                  )}
                 </p>
               </div>
               <span className="status">
                 <span className="live-dot" />
                 {target.candidates.find((item) => item.locked)?.name ??
-                  "已初始化"}
+                  t("已初始化", locale)}
               </span>
             </div>
             <div className="editor-layout">
               <aside className="candidate-panel">
                 <div className="candidate-heading">
-                  <span>缓存方案</span>
+                  <span>{t("缓存方案", locale)}</span>
                   <div className="candidate-heading-actions">
                     {candidate &&
                     ((!candidate.locked && lockedCandidate) ||
@@ -1827,13 +1936,19 @@ function App() {
                       <button
                         aria-label={
                           candidate.locked && candidateContentDirty
-                            ? "预览待同步差异"
-                            : "与其他缓存方案对比"
+                            ? t("预览待同步差异", locale)
+                            : t("并排编辑文件", locale)
                         }
                         title={
                           candidate.locked && candidateContentDirty
-                            ? "只读预览当前草稿与当前方案（与磁盘同步）的差异；保存前不会修改文件"
-                            : "将当前编辑器内容与其他缓存方案并排查看"
+                            ? t(
+                                "只读预览当前草稿与当前方案（与磁盘同步）的差异；保存前不会修改文件",
+                                locale,
+                              )
+                            : t(
+                                "并排编辑当前文件和所选基准文件，分别保存回各自文件",
+                                locale,
+                              )
                         }
                         disabled={busy}
                         onClick={() => {
@@ -1861,16 +1976,16 @@ function App() {
                       </button>
                     ) : null}
                     <button
-                      aria-label="查看历史版本"
-                      title="查看此方案的历史版本"
+                      aria-label={t("查看历史版本", locale)}
+                      title={t("查看此方案的历史版本", locale)}
                       disabled={busy || historyLoading}
                       onClick={() => void openCandidateHistory()}
                     >
                       <Clock3 size={14} />
                     </button>
                     <button
-                      aria-label="新建缓存方案"
-                      title="新建缓存方案"
+                      aria-label={t("新建缓存方案", locale)}
+                      title={t("新建缓存方案", locale)}
                       disabled={busy}
                       onClick={() => {
                         setCandidateSourceId("");
@@ -1880,28 +1995,23 @@ function App() {
                       <Plus size={15} />
                     </button>
                     <button
-                      aria-label="从 Markdown Fork 缓存方案"
-                      title="从 Markdown 文件 Fork 一个缓存方案；来源文件和磁盘文件都不会被修改"
-                      disabled={busy || target.conflict}
-                      onClick={() => candidateFileInput.current?.click()}
+                      aria-label={t("Fork 当前选中的缓存方案", locale)}
+                      title={t(
+                        "Fork 当前选中的方案并打开副本直接编辑；来源方案和磁盘文件不变",
+                        locale,
+                      )}
+                      disabled={busy || target.conflict || !candidate}
+                      onClick={() => void forkSelectedCandidate()}
                     >
                       <GitFork size={14} />
                     </button>
-                    <input
-                      ref={candidateFileInput}
-                      aria-label="选择 Markdown 文件以 Fork 缓存方案"
-                      type="file"
-                      accept=".md,.markdown,text/markdown,text/plain"
-                      hidden
-                      onChange={(event) => void importCandidateFile(event)}
-                    />
                   </div>
                 </div>
                 {candidate ? (
                   <div className="cache-plan-actions">
                     <button
                       type="button"
-                      aria-label="重命名选中的缓存方案"
+                      aria-label={t("重命名选中的缓存方案", locale)}
                       disabled={busy || dirty || target.conflict}
                       onClick={() => {
                         setRenameCandidateName(candidate.name);
@@ -1909,30 +2019,32 @@ function App() {
                       }}
                     >
                       <PencilLine size={14} />
-                      重命名
+                      {t("重命名", locale)}
                     </button>
                     <button
                       type="button"
                       className="delete-cache-button"
-                      aria-label="删除选中的缓存方案"
+                      aria-label={t("删除选中的缓存方案", locale)}
                       disabled={
                         busy || dirty || target.conflict || candidate.locked
                       }
                       title={
-                        candidate.locked ? "当前方案不能删除" : "删除此缓存方案"
+                        candidate.locked
+                          ? t("当前方案不能删除", locale)
+                          : t("删除此缓存方案", locale)
                       }
                       onClick={() => void deleteCurrentCandidate()}
                     >
                       <Trash2 size={14} />
-                      删除
+                      {t("删除", locale)}
                     </button>
                   </div>
                 ) : null}
                 <label className="candidate-filter">
                   <Search size={12} />
                   <input
-                    aria-label="筛选缓存方案"
-                    placeholder="搜索方案名称或内容"
+                    aria-label={t("筛选缓存方案", locale)}
+                    placeholder={t("搜索方案名称或内容", locale)}
                     value={candidateFilter}
                     onChange={(event) => setCandidateFilter(event.target.value)}
                   />
@@ -1940,7 +2052,9 @@ function App() {
                 <button
                   className="archive-filter-button"
                   aria-label={
-                    showArchivedCandidates ? "返回当前方案" : "查看已归档方案"
+                    showArchivedCandidates
+                      ? t("返回当前方案", locale)
+                      : t("查看已归档方案", locale)
                   }
                   disabled={
                     busy ||
@@ -1958,7 +2072,7 @@ function App() {
                     <Archive size={13} />
                   )}
                   {showArchivedCandidates
-                    ? "返回当前方案"
+                    ? t("返回当前方案", locale)
                     : `已归档 (${target?.candidates.filter((item) => item.archived).length ?? 0})`}
                 </button>
                 <div className="candidate-list">
@@ -1971,28 +2085,32 @@ function App() {
                       <FileCode2 size={15} />
                       <span>
                         <strong>{item.name}</strong>
-                        <small>
-                          {item.locked
-                            ? "当前方案"
-                            : item.archived
-                              ? "已归档"
-                              : "缓存方案"}
-                          {(candidateNameCounts.get(
-                            item.name.trim().toLowerCase(),
-                          ) ?? 0) > 1
-                            ? ` · ${item.id.slice(0, 7)}`
-                            : ""}
-                        </small>
+                        <div className="candidate-meta">
+                          <small>
+                            {item.locked
+                              ? t("当前方案", locale)
+                              : item.archived
+                                ? t("已归档", locale)
+                                : t("缓存方案", locale)}
+                            {(candidateNameCounts.get(
+                              item.name.trim().toLowerCase(),
+                            ) ?? 0) > 1
+                              ? ` · ${item.id.slice(0, 7)}`
+                              : ""}
+                          </small>
+                          {item.locked ? (
+                            <span className="effective-tag">
+                              {t("生效中", locale)}
+                            </span>
+                          ) : null}
+                        </div>
                       </span>
-                      {item.locked ? (
-                        <span className="lock-mark">
-                          <Check size={12} />
-                        </span>
-                      ) : null}
                     </button>
                   ))}
                   {visibleCandidates.length === 0 ? (
-                    <p className="candidate-list-empty">没有匹配的缓存方案。</p>
+                    <p className="candidate-list-empty">
+                      {t("没有匹配的缓存方案。", locale)}
+                    </p>
                   ) : null}
                 </div>
                 {candidate && candidate.archived ? (
@@ -2002,7 +2120,7 @@ function App() {
                     onClick={() => void restoreCurrentCandidate()}
                   >
                     <ArchiveRestore size={14} />
-                    恢复缓存方案
+                    {t("恢复缓存方案", locale)}
                   </button>
                 ) : candidate && !candidate.locked ? (
                   <div className="candidate-actions">
@@ -2012,23 +2130,23 @@ function App() {
                       onClick={() => void openCandidateSwitchPreview()}
                     >
                       <ArrowDownUp size={14} />
-                      切换当前方案并同步磁盘文件
+                      {t("切换当前方案并同步磁盘文件", locale)}
                     </button>
                     <button
                       className="archive-candidate-button"
-                      aria-label="归档当前方案"
-                      title="从当前方案列表收起；正文和历史保留"
+                      aria-label={t("归档当前方案", locale)}
+                      title={t("从当前方案列表收起；正文和历史保留", locale)}
                       disabled={busy || dirty || target.conflict}
                       onClick={() => void archiveCurrentCandidate()}
                     >
                       <Archive size={14} />
-                      归档
+                      {t("归档", locale)}
                     </button>
                   </div>
                 ) : null}
                 <div className="candidate-foot">
                   <span className="live-dot" />
-                  保存时自动记录历史
+                  {t("保存时自动记录历史", locale)}
                 </div>
               </aside>
               <div className="editor-panel">
@@ -2043,24 +2161,30 @@ function App() {
                   {candidate?.locked ? (
                     <span className="locked-tag">
                       <Check size={12} />
-                      与磁盘同步
+                      {t("与磁盘同步", locale)}
                     </span>
                   ) : candidate?.archived ? (
-                    <span className="draft-tag">已归档 · 只读</span>
+                    <span className="draft-tag">
+                      {t("已归档 · 只读", locale)}
+                    </span>
                   ) : (
-                    <span className="draft-tag">方案草稿</span>
+                    <span className="draft-tag">{t("方案草稿", locale)}</span>
                   )}
                   <div
                     className="editor-mode-switch"
                     role="group"
-                    aria-label="编辑视图"
+                    aria-label={t("编辑视图", locale)}
                   >
                     <button
                       type="button"
                       aria-pressed={!previewMode}
                       className={!previewMode ? "active" : ""}
                       disabled={candidate?.archived ?? false}
-                      title={candidate?.archived ? "已归档方案只读" : undefined}
+                      title={
+                        candidate?.archived
+                          ? t("已归档方案只读", locale)
+                          : undefined
+                      }
                       onClick={() => setPreviewMode(false)}
                     >
                       {candidate?.archived ? (
@@ -2068,7 +2192,9 @@ function App() {
                       ) : (
                         <PencilLine size={12} />
                       )}
-                      {candidate?.archived ? "只读" : "编辑"}
+                      {candidate?.archived
+                        ? t("只读", locale)
+                        : t("编辑", locale)}
                     </button>
                     <button
                       type="button"
@@ -2077,7 +2203,7 @@ function App() {
                       onClick={() => setPreviewMode(true)}
                     >
                       <Eye size={12} />
-                      预览
+                      {t("预览", locale)}
                     </button>
                   </div>
                   <button
@@ -2093,19 +2219,19 @@ function App() {
                     }}
                   >
                     <Search size={12} />
-                    查找替换
+                    {t("查找替换", locale)}
                   </button>
                 </div>
                 {findReplaceOpen ? (
                   <div
                     className="editor-find-replace"
                     role="group"
-                    aria-label="查找替换方案内容"
+                    aria-label={t("查找替换方案内容", locale)}
                   >
                     <input
-                      aria-label="查找方案内容"
-                      placeholder="查找文本"
-                      title="只查找当前方案，按原文区分大小写"
+                      aria-label={t("查找方案内容", locale)}
+                      placeholder={t("查找文本", locale)}
+                      title={t("只查找当前方案，按原文区分大小写", locale)}
                       value={findQuery}
                       onChange={(event) => {
                         setFindQuery(event.target.value);
@@ -2113,9 +2239,12 @@ function App() {
                       }}
                     />
                     <input
-                      aria-label="替换为"
-                      placeholder="替换为"
-                      title="替换结果只修改当前草稿；保存方案后才会写入文件"
+                      aria-label={t("替换为", locale)}
+                      placeholder={t("替换为", locale)}
+                      title={t(
+                        "替换结果只修改当前草稿；保存方案后才会写入文件",
+                        locale,
+                      )}
                       value={replacementText}
                       onChange={(event) =>
                         setReplacementText(event.target.value)
@@ -2123,15 +2252,15 @@ function App() {
                     />
                     <span aria-live="polite">
                       {findMatchPositions.length === 0
-                        ? "没有匹配"
+                        ? t("没有匹配", locale)
                         : activeFindMatch >= 0
                           ? `第 ${activeFindMatch + 1} / ${findMatchPositions.length} 处`
                           : `找到 ${findMatchPositions.length} 处`}
                     </span>
                     <button
                       type="button"
-                      aria-label="上一个匹配"
-                      title="上一个匹配"
+                      aria-label={t("上一个匹配", locale)}
+                      title={t("上一个匹配", locale)}
                       disabled={findMatchPositions.length === 0}
                       onClick={() => moveToFindMatch(-1)}
                     >
@@ -2139,8 +2268,8 @@ function App() {
                     </button>
                     <button
                       type="button"
-                      aria-label="下一个匹配"
-                      title="下一个匹配"
+                      aria-label={t("下一个匹配", locale)}
+                      title={t("下一个匹配", locale)}
                       disabled={findMatchPositions.length === 0}
                       onClick={() => moveToFindMatch(1)}
                     >
@@ -2149,7 +2278,7 @@ function App() {
                     <button
                       type="button"
                       className="secondary-button"
-                      title="替换当前匹配；只修改草稿"
+                      title={t("替换当前匹配；只修改草稿", locale)}
                       disabled={
                         findMatchPositions.length === 0 ||
                         candidate?.archived ||
@@ -2157,12 +2286,12 @@ function App() {
                       }
                       onClick={() => replaceFindMatch(false)}
                     >
-                      替换当前
+                      {t("替换当前", locale)}
                     </button>
                     <button
                       type="button"
                       className="secondary-button"
-                      title="替换当前方案中的全部匹配；只修改草稿"
+                      title={t("替换当前方案中的全部匹配；只修改草稿", locale)}
                       disabled={
                         findMatchPositions.length === 0 ||
                         candidate?.archived ||
@@ -2170,12 +2299,12 @@ function App() {
                       }
                       onClick={() => replaceFindMatch(true)}
                     >
-                      全部替换
+                      {t("全部替换", locale)}
                     </button>
                     <button
                       type="button"
                       className="icon-button"
-                      aria-label="关闭查找替换"
+                      aria-label={t("关闭查找替换", locale)}
                       onClick={() => setFindReplaceOpen(false)}
                     >
                       <X size={13} />
@@ -2185,7 +2314,11 @@ function App() {
                 <div
                   className="editor-view"
                   id="candidate-editor-view"
-                  aria-label={previewMode ? "Markdown 预览" : "方案编辑器"}
+                  aria-label={
+                    previewMode
+                      ? t("Markdown 预览", locale)
+                      : t("方案编辑器", locale)
+                  }
                 >
                   {candidate ? (
                     previewMode ? (
@@ -2193,7 +2326,7 @@ function App() {
                     ) : (
                       <input
                         className="candidate-name"
-                        aria-label="方案名称"
+                        aria-label={t("方案名称", locale)}
                         value={name}
                         readOnly={candidate.archived}
                         onChange={(event) => setName(event.target.value)}
@@ -2203,7 +2336,7 @@ function App() {
                   {previewMode ? (
                     <article
                       className="markdown-preview"
-                      aria-label="Markdown 预览"
+                      aria-label={t("Markdown 预览", locale)}
                     >
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
@@ -2211,7 +2344,8 @@ function App() {
                         components={{
                           img: ({ alt }) => (
                             <span className="markdown-image-placeholder">
-                              [未加载图片{alt ? `：${alt}` : ""}]
+                              {t("[未加载图片", locale)}
+                              {alt ? `：${alt}` : ""}]
                             </span>
                           ),
                         }}
@@ -2223,7 +2357,7 @@ function App() {
                     <textarea
                       ref={candidateEditor}
                       className="markdown-editor"
-                      aria-label="方案内容"
+                      aria-label={t("方案内容", locale)}
                       spellCheck={false}
                       value={content}
                       readOnly={candidate?.archived ?? false}
@@ -2235,11 +2369,17 @@ function App() {
                   <div className="editor-footer-message">
                     <span
                       data-testid="candidate-content-stats"
-                      title="行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。"
+                      title={t(
+                        "行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。",
+                        locale,
+                      )}
                     >
-                      {dirty ? "有未保存更改" : "所有更改已保存"} ·{" "}
-                      {contentMetrics.lines} 行 · {contentMetrics.characters}{" "}
-                      字符 · {contentMetrics.utf8Bytes} UTF-8 字节
+                      {dirty
+                        ? t("有未保存更改", locale)
+                        : t("所有更改已保存", locale)}{" "}
+                      · {contentMetrics.lines} {t("行 ·", locale)}{" "}
+                      {contentMetrics.characters} {t("字符 ·", locale)}{" "}
+                      {contentMetrics.utf8Bytes} {t("UTF-8 字节", locale)}
                     </span>
                     {candidate?.locked && dirty ? (
                       <span
@@ -2249,7 +2389,7 @@ function App() {
                       >
                         {formalSyncImpact.added === 0 &&
                         formalSyncImpact.removed === 0
-                          ? "正文与磁盘文件一致；本次只改方案名称"
+                          ? t("正文与磁盘文件一致；本次只改方案名称", locale)
                           : `保存并同步将新增 ${formalSyncImpact.added} 行、删除 ${formalSyncImpact.removed} 行`}
                       </span>
                     ) : null}
@@ -2258,7 +2398,7 @@ function App() {
                     <button
                       className="secondary-button"
                       disabled={!candidate}
-                      title="复制当前编辑器内容，包括未保存修改"
+                      title={t("复制当前编辑器内容，包括未保存修改", locale)}
                       onClick={() => void copyCurrentContent()}
                     >
                       {copiedItem === "content" ? (
@@ -2266,26 +2406,31 @@ function App() {
                       ) : (
                         <Copy size={14} />
                       )}
-                      {copiedItem === "content" ? "已复制" : "复制内容"}
+                      {copiedItem === "content"
+                        ? t("已复制", locale)
+                        : t("复制内容", locale)}
                     </button>
                     <button
                       className="secondary-button"
                       disabled={!candidate}
-                      title="导出当前编辑器内容，包括未保存修改"
+                      title={t("导出当前编辑器内容，包括未保存修改", locale)}
                       onClick={exportCurrentCandidate}
                     >
                       <Download size={14} />
-                      导出 Markdown
+                      {t("导出 Markdown", locale)}
                     </button>
                     {dirty ? (
                       <button
                         className="secondary-button"
                         disabled={busy}
-                        title="还原此方案最近保存的名称和正文"
+                        title={t("还原此方案最近保存的名称和正文", locale)}
                         onClick={() => {
                           if (
                             !window.confirm(
-                              "放弃当前未保存修改，并还原此方案最近保存的名称和正文吗？",
+                              t(
+                                "放弃当前未保存修改，并还原此方案最近保存的名称和正文吗？",
+                                locale,
+                              ),
                             )
                           )
                             return;
@@ -2294,7 +2439,7 @@ function App() {
                         }}
                       >
                         <RotateCcw size={14} />
-                        还原已保存内容
+                        {t("还原已保存内容", locale)}
                       </button>
                     ) : null}
                     <button
@@ -2308,8 +2453,8 @@ function App() {
                     >
                       <Save size={15} />
                       {candidate?.locked
-                        ? "保存当前方案并同步磁盘文件"
-                        : "保存方案"}
+                        ? t("保存当前方案并同步磁盘文件", locale)
+                        : t("保存方案", locale)}
                     </button>
                   </div>
                 </div>
@@ -2319,12 +2464,12 @@ function App() {
               <div>
                 <FileCode2 size={15} />
                 <span>
-                  <small>磁盘文件位置</small>
+                  <small>{t("磁盘文件位置", locale)}</small>
                   <strong>{shortPath(formalFilePath(target.path))}</strong>
                 </span>
                 <button
                   className="formal-path-copy"
-                  title="复制完整磁盘文件路径到剪贴板"
+                  title={t("复制完整磁盘文件路径到剪贴板", locale)}
                   onClick={() => void copyFormalPath()}
                 >
                   {copiedItem === "formal-path" ? (
@@ -2332,18 +2477,20 @@ function App() {
                   ) : (
                     <Copy size={13} />
                   )}
-                  {copiedItem === "formal-path" ? "路径已复制" : "复制路径"}
+                  {copiedItem === "formal-path"
+                    ? t("路径已复制", locale)
+                    : t("复制路径", locale)}
                 </button>
               </div>
               {target.conflict ? (
                 <span className="formal-match formal-conflict">
                   <AlertTriangle size={13} />
-                  磁盘文件与当前方案不一致
+                  {t("磁盘文件与当前方案不一致", locale)}
                 </span>
               ) : (
                 <span className="formal-match">
                   <Check size={13} />
-                  磁盘与当前方案一致
+                  {t("磁盘与当前方案一致", locale)}
                 </span>
               )}
             </div>
@@ -2351,11 +2498,11 @@ function App() {
         )}
 
         <footer className="app-footer">
-          <span>PromptDock · 你的本地文件不会上传</span>
+          <span>{t("AGENTS.md Switcher · 你的本地文件不会上传", locale)}</span>
           <span>
             {state.historyPath
               ? `历史库：${shortPath(state.historyPath, 2)}`
-              : "等待本地服务"}
+              : t("等待本地服务", locale)}
           </span>
         </footer>
       </main>
@@ -2367,7 +2514,7 @@ function App() {
           </span>
           <span>{error || notice}</span>
           <button
-            aria-label="关闭提示"
+            aria-label={t("关闭提示", locale)}
             onClick={() => {
               setError("");
               setNotice("");
@@ -2393,13 +2540,13 @@ function App() {
           >
             <div className="modal-title">
               <div>
-                <p className="eyebrow">只读搜索 · 不修改文件</p>
-                <h2 id="rule-search-title">搜索全部文件</h2>
+                <p className="eyebrow">{t("只读搜索 · 不修改文件", locale)}</p>
+                <h2 id="rule-search-title">{t("搜索全部文件", locale)}</h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="关闭文件搜索"
+                aria-label={t("关闭文件搜索", locale)}
                 onClick={() => setRuleSearchOpen(false)}
               >
                 <X size={16} />
@@ -2409,24 +2556,32 @@ function App() {
               <Search size={15} />
               <input
                 autoFocus
-                aria-label="搜索文件正文"
-                placeholder="输入要查找的文件文字"
+                aria-label={t("搜索文件正文", locale)}
+                placeholder={t("输入要查找的文件文字", locale)}
                 value={ruleSearchQuery}
                 onChange={(event) => setRuleSearchQuery(event.target.value)}
               />
             </label>
             <p className="modal-description">
-              搜索所有已扫描路径中的磁盘文件和方案正文，包含已归档方案。相同的磁盘文件与当前方案只显示一次；冲突两侧会分别显示。
+              {t(
+                "搜索所有已扫描路径中的磁盘文件和方案正文，包含已归档方案。相同的磁盘文件与当前方案只显示一次；冲突两侧会分别显示。",
+                locale,
+              )}
             </p>
             <div className="rule-search-results" aria-live="polite">
               {!normalizedRuleSearchQuery ? (
-                <p className="history-empty">输入文字开始搜索。</p>
+                <p className="history-empty">
+                  {t("输入文字开始搜索。", locale)}
+                </p>
               ) : ruleSearchResults.length === 0 ? (
-                <p className="history-empty">没有匹配的文件正文。</p>
+                <p className="history-empty">
+                  {t("没有匹配的文件正文。", locale)}
+                </p>
               ) : (
                 <>
                   <p className="rule-search-count">
-                    找到 {ruleSearchResults.length} 个匹配项
+                    {t("找到", locale)} {ruleSearchResults.length}{" "}
+                    {t("个匹配项", locale)}
                   </p>
                   {ruleSearchResults.map((result) => (
                     <button
@@ -2457,7 +2612,7 @@ function App() {
                 className="secondary-button"
                 onClick={() => setRuleSearchOpen(false)}
               >
-                关闭
+                {t("关闭", locale)}
               </button>
             </div>
           </section>
@@ -2474,39 +2629,44 @@ function App() {
           <form className="modal-card" onSubmit={addWorkspace}>
             <div className="modal-title">
               <div>
-                <p className="eyebrow">添加本机目录</p>
-                <h2>添加工作空间</h2>
+                <p className="eyebrow">{t("添加本机目录", locale)}</p>
+                <h2>{t("添加工作空间", locale)}</h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="关闭"
+                aria-label={t("关闭", locale)}
                 onClick={() => setShowWorkspaceForm(false)}
               >
                 <X size={16} />
               </button>
             </div>
             <p className="modal-description">
-              选择一个本机目录，添加后会扫描该目录及其所有子目录。
+              {t(
+                "选择一个本机目录，添加后会扫描该目录及其所有子目录。",
+                locale,
+              )}
             </p>
             <label className="field-label">
-              文件夹路径
+              {t("文件夹路径", locale)}
               <span className="path-picker-field">
                 <input
                   autoFocus
                   required
-                  placeholder="选择文件夹，或输入本机路径"
+                  placeholder={t("选择文件夹，或输入本机路径", locale)}
                   value={workspaceInput}
                   onChange={(event) => setWorkspaceInput(event.target.value)}
                 />
                 <button
                   type="button"
                   className="secondary-button"
-                  disabled={busy}
+                  disabled={choosingDirectory}
                   onClick={() => void chooseWorkspaceDirectory()}
                 >
                   <FolderOpen size={14} />
-                  浏览…
+                  {choosingDirectory
+                    ? t("正在打开…", locale)
+                    : t("浏览…", locale)}
                 </button>
               </span>
             </label>
@@ -2516,14 +2676,14 @@ function App() {
                 className="secondary-button"
                 onClick={() => setShowWorkspaceForm(false)}
               >
-                取消
+                {t("取消", locale)}
               </button>
               <button
                 className="primary-button"
-                disabled={busy || !workspaceInput.trim()}
+                disabled={busy || choosingDirectory || !workspaceInput.trim()}
               >
                 <FolderOpen size={15} />
-                {busy ? "正在扫描…" : "添加并扫描"}
+                {busy ? t("正在扫描…", locale) : t("添加并扫描", locale)}
               </button>
             </div>
           </form>
@@ -2544,30 +2704,30 @@ function App() {
           >
             <div className="modal-title">
               <div>
-                <p className="eyebrow">缓存方案</p>
-                <h2>重命名</h2>
+                <p className="eyebrow">{t("缓存方案", locale)}</p>
+                <h2>{t("重命名", locale)}</h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="关闭重命名窗口"
+                aria-label={t("关闭重命名窗口", locale)}
                 onClick={() => setShowRenameCandidateForm(false)}
               >
                 <X size={16} />
               </button>
             </div>
             <label className="field-label">
-              新名称
+              {t("新名称", locale)}
               <input
                 autoFocus
                 required
-                aria-label="缓存方案新名称"
+                aria-label={t("缓存方案新名称", locale)}
                 value={renameCandidateName}
                 onChange={(event) => setRenameCandidateName(event.target.value)}
               />
             </label>
             <p className="modal-description">
-              重命名会记入本机历史，不会更改方案正文或磁盘文件。
+              {t("重命名会记入本机历史，不会更改方案正文或磁盘文件。", locale)}
             </p>
             <div className="modal-actions">
               <button
@@ -2575,7 +2735,7 @@ function App() {
                 className="secondary-button"
                 onClick={() => setShowRenameCandidateForm(false)}
               >
-                取消
+                {t("取消", locale)}
               </button>
               <button
                 className="primary-button"
@@ -2586,7 +2746,7 @@ function App() {
                 }
               >
                 <PencilLine size={14} />
-                保存名称
+                {t("保存名称", locale)}
               </button>
             </div>
           </form>
@@ -2603,57 +2763,67 @@ function App() {
           <form className="modal-card" onSubmit={createCandidate}>
             <div className="modal-title">
               <div>
-                <p className="eyebrow">缓存方案</p>
-                <h2>创建缓存方案</h2>
+                <p className="eyebrow">{t("缓存方案", locale)}</p>
+                <h2>{t("创建缓存方案", locale)}</h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="关闭"
+                aria-label={t("关闭", locale)}
                 onClick={() => setShowCandidateForm(false)}
               >
                 <X size={16} />
               </button>
             </div>
             <label className="field-label">
-              方案名称
+              {t("方案名称", locale)}
               <input
                 autoFocus
                 required
-                placeholder="例如：更严格的代码审查"
-                aria-label="新方案名称"
+                placeholder={t("例如：更严格的代码审查", locale)}
+                aria-label={t("新方案名称", locale)}
                 value={candidateName}
                 onChange={(event) => setCandidateName(event.target.value)}
               />
             </label>
             <label className="field-label">
-              方案内容来源
+              {t("方案内容来源", locale)}
               <select
-                aria-label="方案内容来源"
+                aria-label={t("方案内容来源", locale)}
                 value={candidateSourceId}
                 onChange={(event) => setCandidateSourceId(event.target.value)}
               >
-                <option value="">当前编辑器（含未保存修改）</option>
+                <option value="">
+                  {t("当前编辑器（含未保存修改）", locale)}
+                </option>
                 {target?.candidates.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name} · {item.id.slice(0, 7)}
-                    {item.locked ? "（与磁盘同步）" : ""}
-                    {item.archived ? "（已归档）" : ""}
+                    {item.locked ? t("（与磁盘同步）", locale) : ""}
+                    {item.archived ? t("（已归档）", locale) : ""}
                   </option>
                 ))}
               </select>
             </label>
             <p className="modal-description">
               {candidateSourceId && dirty
-                ? "将从所选缓存方案 Fork；当前编辑器中的未保存草稿会保留。"
+                ? t(
+                    "将从所选缓存方案 Fork；当前编辑器中的未保存草稿会保留。",
+                    locale,
+                  )
                 : candidateSourceId
-                  ? "将从所选缓存方案 Fork，并在创建后打开。"
-                  : "将编辑器当前内容（包括未保存修改）复制为新方案；创建后可单独编辑和比较。"}
+                  ? t("将从所选缓存方案 Fork，并在创建后打开。", locale)
+                  : t(
+                      "将编辑器当前内容（包括未保存修改）复制为新方案；创建后可单独编辑和比较。",
+                      locale,
+                    )}
             </p>
             {selectedSourceCandidate ? (
               <details className="candidate-source-preview">
-                <summary>预览已保存来源正文（只读）</summary>
-                <pre>{selectedSourceCandidate.content || "（空文档）"}</pre>
+                <summary>{t("预览已保存来源正文（只读）", locale)}</summary>
+                <pre>
+                  {selectedSourceCandidate.content || t("（空文档）", locale)}
+                </pre>
               </details>
             ) : null}
             <div className="modal-actions">
@@ -2662,14 +2832,14 @@ function App() {
                 className="secondary-button"
                 onClick={() => setShowCandidateForm(false)}
               >
-                取消
+                {t("取消", locale)}
               </button>
               <button
                 className="primary-button"
                 disabled={busy || !candidateName.trim()}
               >
                 <Plus size={15} />
-                创建缓存方案
+                {t("创建缓存方案", locale)}
               </button>
             </div>
           </form>
@@ -2686,24 +2856,32 @@ function App() {
           <section className="modal-card history-modal">
             <div className="modal-title">
               <div>
-                <p className="eyebrow">本机 Git 历史</p>
-                <h2>{historyCandidate?.name ?? "缓存方案"} 的历史版本</h2>
+                <p className="eyebrow">{t("本机 Git 历史", locale)}</p>
+                <h2>
+                  {historyCandidate?.name ?? t("缓存方案", locale)}{" "}
+                  {t("的历史版本", locale)}
+                </h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="关闭历史版本"
+                aria-label={t("关闭历史版本", locale)}
                 onClick={() => setHistoryOpen(false)}
               >
                 <X size={16} />
               </button>
             </div>
             <p className="modal-description">
-              对比基准：所选历史版本；对比对象：当前编辑器（含未保存修改）。历史版本只读；从历史版本
-              Fork 缓存方案不会改写历史记录或磁盘文件。
+              {t(
+                "对比基准：所选历史版本；对比对象：当前编辑器（含未保存修改）。历史版本只读；从历史版本 Fork 缓存方案不会改写历史记录或磁盘文件。",
+                locale,
+              )}
             </p>
             {historyError ? (
-              <p className="history-error">读取历史失败：{historyError}</p>
+              <p className="history-error">
+                {t("读取历史失败：", locale)}
+                {historyError}
+              </p>
             ) : null}
             <div className="history-layout">
               <div className="history-revisions">
@@ -2723,23 +2901,26 @@ function App() {
                   </button>
                 ))}
                 {historyLoading && historyRevisions.length === 0 ? (
-                  <p className="history-empty">正在读取历史…</p>
+                  <p className="history-empty">{t("正在读取历史…", locale)}</p>
                 ) : null}
                 {!historyLoading &&
                 !historyError &&
                 historyRevisions.length === 0 ? (
-                  <p className="history-empty">这个缓存方案还没有历史版本。</p>
+                  <p className="history-empty">
+                    {t("这个缓存方案还没有历史版本。", locale)}
+                  </p>
                 ) : null}
               </div>
               <div className="history-version-view">
                 <div className="history-preview-toolbar">
                   <span>
-                    当前草稿相较历史版本 · 新增 {historyLineCounts.added} 行 ·
-                    删除 {historyLineCounts.removed} 行
+                    {t("当前草稿相较历史版本 · 新增", locale)}{" "}
+                    {historyLineCounts.added} {t("行 · 删除", locale)}{" "}
+                    {historyLineCounts.removed} {t("行", locale)}
                   </span>
                   <div
                     className="conflict-view-switch"
-                    aria-label="历史版本查看方式"
+                    aria-label={t("历史版本查看方式", locale)}
                   >
                     <button
                       type="button"
@@ -2747,7 +2928,7 @@ function App() {
                       aria-pressed={showHistoryDiff}
                       onClick={() => setShowHistoryDiff(true)}
                     >
-                      标记差异
+                      {t("标记差异", locale)}
                     </button>
                     <button
                       type="button"
@@ -2755,23 +2936,25 @@ function App() {
                       aria-pressed={!showHistoryDiff}
                       onClick={() => setShowHistoryDiff(false)}
                     >
-                      历史全文
+                      {t("历史全文", locale)}
                     </button>
                   </div>
                 </div>
                 <p className="history-revision-name">
-                  历史版本名称：
-                  {historyRevisionName ?? "此历史版本未单独记录名称"}
+                  {t("历史版本名称：", locale)}
+                  {historyRevisionName ?? t("此历史版本未单独记录名称", locale)}
                 </p>
                 {historyContent === null ? (
                   <pre className="history-preview">
-                    {historyLoading ? "正在读取历史版本…" : "选择一个历史版本"}
+                    {historyLoading
+                      ? t("正在读取历史版本…", locale)
+                      : t("选择一个历史版本", locale)}
                   </pre>
                 ) : showHistoryDiff ? (
                   <LineDiffView
                     changes={historyChanges}
-                    ariaLabel="历史版本与当前草稿的差异"
-                    emptyMessage="历史版本与当前草稿一致。"
+                    ariaLabel={t("历史版本与当前草稿的差异", locale)}
+                    emptyMessage={t("历史版本与当前草稿一致。", locale)}
                   />
                 ) : (
                   <pre className="history-preview">{historyContent}</pre>
@@ -2784,7 +2967,7 @@ function App() {
                 className="secondary-button"
                 onClick={() => setHistoryOpen(false)}
               >
-                关闭
+                {t("关闭", locale)}
               </button>
               <button
                 type="button"
@@ -2793,7 +2976,7 @@ function App() {
                 onClick={exportSelectedHistoryRevision}
               >
                 <Download size={14} />
-                导出此历史版本
+                {t("导出此历史版本", locale)}
               </button>
               <button
                 className="primary-button"
@@ -2807,7 +2990,7 @@ function App() {
                 onClick={() => void createCandidateFromHistory()}
               >
                 <Clock3 size={14} />
-                Fork 此历史版本为缓存方案
+                {t("Fork 此历史版本为缓存方案", locale)}
               </button>
             </div>
           </section>
@@ -2824,34 +3007,45 @@ function App() {
           <section className="modal-card switch-preview-modal">
             <div className="modal-title">
               <div>
-                <p className="eyebrow">磁盘文件写入预览</p>
-                <h2>确认切换当前方案并同步磁盘文件</h2>
+                <p className="eyebrow">{t("磁盘文件写入预览", locale)}</p>
+                <h2>{t("确认切换当前方案并同步磁盘文件", locale)}</h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="关闭切换预览"
+                aria-label={t("关闭切换预览", locale)}
                 onClick={() => setSwitchPreviewOpen(false)}
               >
                 <X size={16} />
               </button>
             </div>
             <p className="modal-description">
-              将用已保存方案「{candidate.name}」覆盖磁盘文件
+              {t("将用已保存方案「", locale)}
+              {candidate.name}
+              {t("」覆盖磁盘文件", locale)}
               <code>{formalFilePath(target.path)}</code>
-              ，并把它设为当前方案。此操作保留其他缓存方案和历史版本。
+              {t(
+                "，并把它设为当前方案。此操作保留其他缓存方案和历史版本。",
+                locale,
+              )}
             </p>
             <div className="switch-preview-summary">
-              <span>{candidate.name} → 磁盘文件</span>
               <span>
-                新增 {switchLineCounts.added} 行 · 删除{" "}
-                {switchLineCounts.removed} 行
+                {candidate.name} {t("→ 磁盘文件", locale)}
+              </span>
+              <span>
+                {t("新增", locale)} {switchLineCounts.added}{" "}
+                {t("行 · 删除", locale)} {switchLineCounts.removed}{" "}
+                {t("行", locale)}
               </span>
             </div>
             <LineDiffView
               changes={switchChanges}
-              ariaLabel="磁盘文件切换差异"
-              emptyMessage="方案正文与磁盘文件完全一致；切换只会更新当前方案。"
+              ariaLabel={t("磁盘文件切换差异", locale)}
+              emptyMessage={t(
+                "方案正文与磁盘文件完全一致；切换只会更新当前方案。",
+                locale,
+              )}
               className="conflict-diff switch-preview-diff"
             />
             <div className="modal-actions">
@@ -2860,7 +3054,7 @@ function App() {
                 className="secondary-button"
                 onClick={() => setSwitchPreviewOpen(false)}
               >
-                取消
+                {t("取消", locale)}
               </button>
               <button
                 type="button"
@@ -2869,7 +3063,7 @@ function App() {
                 onClick={() => void confirmCandidateSwitch()}
               >
                 <ArrowDownUp size={14} />
-                确认切换当前方案并同步磁盘文件
+                {t("确认切换当前方案并同步磁盘文件", locale)}
               </button>
             </div>
           </section>
@@ -2886,17 +3080,17 @@ function App() {
           <section className="modal-card compare-modal">
             <div className="modal-title">
               <div>
-                <p className="eyebrow">只读并排查看</p>
+                <p className="eyebrow">{t("并排查看与编辑", locale)}</p>
                 <h2>
                   {candidate.locked && candidateContentDirty
-                    ? "方案修改同步预览"
-                    : "缓存方案对比"}
+                    ? t("方案修改同步预览", locale)
+                    : t("并排编辑文件", locale)}
                 </h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="关闭方案对比"
+                aria-label={t("关闭方案对比", locale)}
                 onClick={() => setCompareOpen(false)}
               >
                 <X size={16} />
@@ -2904,24 +3098,28 @@ function App() {
             </div>
             <p className="modal-description">
               {candidate.locked && candidateContentDirty
-                ? "左侧是待同步的正文草稿；右侧是当前方案已保存的内容。此窗口只读，磁盘文件要到点击保存时才会更新。"
-                : dirty
-                  ? "左侧显示当前编辑器内容（含未保存修改）；右侧显示已保存的基准方案。此窗口只读。"
-                  : "此窗口不会修改任何文件。"}
+                ? t(
+                    "编辑并保存各自文件：左侧是当前方案草稿，右侧是当前方案已保存文件。",
+                    locale,
+                  )
+                : t(
+                    "左右分别编辑各自文件，点击对应的保存按钮写回原文件。",
+                    locale,
+                  )}
             </p>
             <label className="compare-base">
-              对比基准
+              {t("对比基准", locale)}
               <select
-                aria-label="对比基准"
+                aria-label={t("对比基准", locale)}
                 value={compareBase.id}
                 onChange={(event) => setCompareBaseId(event.target.value)}
               >
                 {target?.formalContent !== null ? (
-                  <optgroup label="磁盘">
+                  <optgroup label={t("磁盘", locale)}>
                     <option value="__disk__">AGENTS.md</option>
                   </optgroup>
                 ) : null}
-                <optgroup label="缓存方案">
+                <optgroup label={t("缓存方案", locale)}>
                   {target?.candidates
                     .filter(
                       (item) =>
@@ -2933,14 +3131,14 @@ function App() {
                       <option key={item.id} value={item.id}>
                         {item.name}
                         {item.id === candidate.id
-                          ? "（当前方案的已保存内容）"
+                          ? t("（当前方案的已保存内容）", locale)
                           : item.locked
-                            ? "（与磁盘同步）"
+                            ? t("（与磁盘同步）", locale)
                             : ""}
                       </option>
                     ))}
                 </optgroup>
-                <optgroup label="已归档">
+                <optgroup label={t("已归档", locale)}>
                   {target?.candidates
                     .filter((item) => item.archived && item.id !== candidate.id)
                     .map((item) => (
@@ -2953,13 +3151,14 @@ function App() {
             </label>
             <div className="conflict-view-toolbar compare-view-toolbar">
               <span>
-                {compareBase.name} → 当前编辑器 · 新增 {compareLineCounts.added}{" "}
-                行 · 删除 {compareLineCounts.removed} 行
+                {compareBase.name} {t("→ 当前编辑器 · 新增", locale)}{" "}
+                {compareLineCounts.added} {t("行 · 删除", locale)}{" "}
+                {compareLineCounts.removed} {t("行", locale)}
               </span>
               <div
                 className="conflict-view-switch"
                 role="group"
-                aria-label="方案对比查看方式"
+                aria-label={t("方案对比查看方式", locale)}
               >
                 <button
                   type="button"
@@ -2967,7 +3166,7 @@ function App() {
                   className={!showCompareDiff ? "active" : ""}
                   onClick={() => setShowCompareDiff(false)}
                 >
-                  并排原文
+                  {t("并排原文", locale)}
                 </button>
                 <button
                   type="button"
@@ -2975,15 +3174,15 @@ function App() {
                   className={showCompareDiff ? "active" : ""}
                   onClick={() => setShowCompareDiff(true)}
                 >
-                  标记差异
+                  {t("标记差异", locale)}
                 </button>
               </div>
             </div>
             {showCompareDiff ? (
               <LineDiffView
                 changes={compareChanges}
-                ariaLabel="对比基准到当前编辑器的行差异"
-                emptyMessage="两个方案的正文完全一致。"
+                ariaLabel={t("对比基准到当前编辑器的行差异", locale)}
+                emptyMessage={t("两个方案的正文完全一致。", locale)}
                 className="conflict-diff candidate-compare-diff"
               />
             ) : (
@@ -2991,24 +3190,70 @@ function App() {
                 <section className="compare-column">
                   <header>
                     <strong>{candidate.name}</strong>
-                    <span>{dirty ? "当前草稿" : "缓存方案"}</span>
+                    <span>
+                      {dirty ? t("当前草稿", locale) : t("缓存方案", locale)}
+                    </span>
                   </header>
-                  <pre>{content}</pre>
+                  <textarea
+                    aria-label={t("编辑左侧文件", locale)}
+                    value={compareLeftDraft}
+                    onChange={(event) =>
+                      setCompareLeftDraft(event.target.value)
+                    }
+                    spellCheck={false}
+                  />
+                  <footer>
+                    <button
+                      className="secondary-button"
+                      aria-label={t("保存左侧文件", locale)}
+                      disabled={
+                        busy || target?.conflict || compareLeftDraft === content
+                      }
+                      onClick={() => void saveCompareSide("left")}
+                    >
+                      <Save size={14} />
+                      {t("保存", locale)}
+                    </button>
+                  </footer>
                 </section>
                 <section className="compare-column">
                   <header>
                     <strong>{compareBase.name}</strong>
                     <span>
                       {compareBase.id === "__disk__"
-                        ? "磁盘文件"
+                        ? t("磁盘文件", locale)
                         : compareBase.archived
-                          ? "已归档方案"
+                          ? t("已归档方案", locale)
                           : compareBase.locked
-                            ? "当前方案（与磁盘同步）"
-                            : "缓存方案"}
+                            ? t("当前方案（与磁盘同步）", locale)
+                            : t("缓存方案", locale)}
                     </span>
                   </header>
-                  <pre>{compareBase.content}</pre>
+                  <textarea
+                    aria-label={t("编辑右侧文件", locale)}
+                    value={compareRightDraft}
+                    onChange={(event) =>
+                      setCompareRightDraft(event.target.value)
+                    }
+                    spellCheck={false}
+                    readOnly={Boolean(compareBase.archived)}
+                  />
+                  <footer>
+                    <button
+                      className="secondary-button"
+                      aria-label={t("保存右侧文件", locale)}
+                      disabled={
+                        busy ||
+                        target?.conflict ||
+                        compareBase.archived ||
+                        compareRightDraft === compareBase.content
+                      }
+                      onClick={() => void saveCompareSide("right")}
+                    >
+                      <Save size={14} />
+                      {t("保存", locale)}
+                    </button>
+                  </footer>
                 </section>
               </div>
             )}
@@ -3017,7 +3262,7 @@ function App() {
                 className="primary-button"
                 onClick={() => setCompareOpen(false)}
               >
-                返回缓存方案
+                {t("返回缓存方案", locale)}
               </button>
             </div>
           </section>
@@ -3050,23 +3295,26 @@ function App() {
           >
             <div className="modal-title">
               <div>
-                <p className="eyebrow">新建文件路径</p>
-                <h2>初始化目录</h2>
+                <p className="eyebrow">{t("新建文件路径", locale)}</p>
+                <h2>{t("初始化目录", locale)}</h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="关闭"
+                aria-label={t("关闭", locale)}
                 onClick={() => setShowInitializeForm(false)}
               >
                 <X size={16} />
               </button>
             </div>
             <p className="modal-description">
-              输入工作空间内已存在的文件夹路径。目标目录必须位于当前工作空间中。
+              {t(
+                "输入工作空间内已存在的文件夹路径。目标目录必须位于当前工作空间中。",
+                locale,
+              )}
             </p>
             <label className="field-label">
-              目录路径
+              {t("目录路径", locale)}
               <input
                 autoFocus
                 required
@@ -3080,14 +3328,14 @@ function App() {
                 className="secondary-button"
                 onClick={() => setShowInitializeForm(false)}
               >
-                取消
+                {t("取消", locale)}
               </button>
               <button
                 className="primary-button"
                 disabled={busy || !initializeInput.trim()}
               >
                 <FolderPlus size={15} />
-                初始化并同步
+                {t("初始化并同步", locale)}
               </button>
             </div>
           </form>
@@ -3104,26 +3352,30 @@ function App() {
           <section className="modal-card help-card">
             <div className="modal-title">
               <div>
-                <p className="eyebrow">帮助与诊断</p>
-                <h2>本地运行状态</h2>
+                <p className="eyebrow">{t("帮助与诊断", locale)}</p>
+                <h2>{t("本地运行状态", locale)}</h2>
               </div>
               <button
                 className="icon-button"
-                aria-label="关闭"
+                aria-label={t("关闭", locale)}
                 onClick={() => setHelpOpen(false)}
               >
                 <X size={16} />
               </button>
             </div>
             <p>
-              用户文件路径：<code>{state.userRulesPath || "尚未检测到"}</code>
+              {t("用户文件路径：", locale)}
+              <code>{state.userRulesPath || t("尚未检测到", locale)}</code>
             </p>
             <p>
-              本地诊断日志：<code>{state.diagnosticsPath || "尚未生成"}</code>
+              {t("本地诊断日志：", locale)}
+              <code>{state.diagnosticsPath || t("尚未生成", locale)}</code>
             </p>
             <p>
-              工作空间目录通过粘贴本机路径添加。磁盘文件保存在目标路径；缓存方案和
-              Git 历史保存在本机数据目录。当前方案与磁盘文件保持一致。
+              {t(
+                "工作空间目录通过粘贴本机路径添加。磁盘文件保存在目标路径；缓存方案和 Git 历史保存在本机数据目录。当前方案与磁盘文件保持一致。",
+                locale,
+              )}
             </p>
             <a
               className="log-link"
@@ -3131,14 +3383,14 @@ function App() {
               target="_blank"
               rel="noreferrer"
             >
-              在浏览器中打开诊断日志
+              {t("在浏览器中打开诊断日志", locale)}
             </a>
             <div className="modal-actions">
               <button
                 className="primary-button"
                 onClick={() => setHelpOpen(false)}
               >
-                知道了
+                {t("知道了", locale)}
               </button>
             </div>
           </section>
