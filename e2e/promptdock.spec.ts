@@ -2468,6 +2468,16 @@ test("并发窗口的过期候选保存被拒绝且草稿可另存为新候选",
   await page.goto("/");
   await addWorkspace(page, workspace);
 
+  const initialResponse = await page.request.get("/api/state");
+  const initialState = await initialResponse.json();
+  const initialTarget = initialState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  const lockedCandidateId = initialTarget.candidates.find(
+    (item: { locked: boolean }) => item.locked,
+  ).id;
+  const historyUrl = `/api/candidates/${encodeURIComponent(lockedCandidateId)}/history?${new URLSearchParams({ path: workspace })}`;
+
   const secondPage = await context.newPage();
   await secondPage.goto("/");
   await addWorkspace(secondPage, workspace);
@@ -2479,6 +2489,9 @@ test("并发窗口的过期候选保存被拒绝且草稿可另存为新候选",
 
   await page.getByRole("button", { name: "保存并同步正式文件" }).click();
   await expect(page.getByText("候选与正式文件已同步并记入历史")).toBeVisible();
+  const historyAfterFirstSave = await page.request.get(historyUrl);
+  const savedHistory = await historyAfterFirstSave.json();
+  expect(savedHistory).toHaveLength(2);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     firstWindowRules,
   );
@@ -2489,6 +2502,10 @@ test("并发窗口的过期候选保存被拒绝且草稿可另存为新候选",
   );
   await expect(secondPage.getByLabel("候选内容", { exact: true })).toHaveValue(
     staleDraft,
+  );
+  const historyAfterRejectedSave = await page.request.get(historyUrl);
+  expect(await historyAfterRejectedSave.json()).toHaveLength(
+    savedHistory.length,
   );
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     firstWindowRules,
