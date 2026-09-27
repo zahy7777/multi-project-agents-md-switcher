@@ -2507,6 +2507,15 @@ test("并发窗口的过期候选保存被拒绝且草稿可另存为新候选",
   expect(await historyAfterRejectedSave.json()).toHaveLength(
     savedHistory.length,
   );
+  const stateAfterRejectedSave = await page.request.get("/api/state");
+  const targetAfterRejectedSave = (
+    await stateAfterRejectedSave.json()
+  ).targets.find((item: { path: string }) => item.path === workspace);
+  expect(
+    targetAfterRejectedSave.candidates.find(
+      (item: { id: string }) => item.id === lockedCandidateId,
+    ).content,
+  ).toBe(firstWindowRules);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     firstWindowRules,
   );
