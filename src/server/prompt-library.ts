@@ -69,6 +69,19 @@ export class PromptLibrary {
     return this.view();
   }
 
+  async getFormalStatus(selectedPath: string) {
+    const targetPath = Object.keys(this.state.targets).find((item) =>
+      this.samePath(item, selectedPath),
+    );
+    if (!targetPath) return null;
+    const stored = this.state.targets[targetPath];
+    return {
+      path: targetPath,
+      formalContent: await this.formalContent(targetPath),
+      conflict: this.isConflict(targetPath, stored),
+    };
+  }
+
   async addWorkspace(selectedPath: string) {
     return this.exclusively(async () => {
       const workspace = await this.existingDirectory(selectedPath);
@@ -381,6 +394,100 @@ export class PromptLibrary {
         "candidate.save",
         "ok",
         `path=${targetPath} candidate=${candidate.id} locked=${wasLocked}`,
+      );
+      return this.view();
+    });
+  }
+
+  async renameCandidate(
+    selectedPath: string,
+    candidateId: string,
+    name: string,
+    expectedName: string,
+  ) {
+    return this.exclusively(async () => {
+      const targetPath = await this.authorizedDirectory(selectedPath);
+      const target = this.requireManagedTarget(targetPath);
+      this.assertNoConflict(targetPath, target);
+      const candidate = this.requireCandidate(target, candidateId);
+      if (candidate.name !== expectedName) throw new CandidateChangedError();
+      const nextName = name.trim();
+      if (!nextName) throw new Error("请输入缓存版本名称。");
+      if (nextName === candidate.name) return this.view();
+
+      const previousName = candidate.name;
+      const revisionSnapshotFile = this.candidateRevisionSnapshotPath(candidate);
+      const previousRevisionSnapshot = await this.readFileOrNull(
+        path.join(this.historyDirectory, revisionSnapshotFile),
+      );
+      try {
+        candidate.name = nextName;
+        await this.writeCandidateRevisionSnapshot(candidate);
+        await this.persist();
+        await this.record("重命名缓存版本");
+      } catch (error) {
+        candidate.name = previousName;
+        if (previousRevisionSnapshot === null) {
+          await fs
+            .rm(path.join(this.historyDirectory, revisionSnapshotFile), {
+              force: true,
+            })
+            .catch(() => undefined);
+        } else {
+          await this.writeAtomic(
+            path.join(this.historyDirectory, revisionSnapshotFile),
+            previousRevisionSnapshot,
+          ).catch(() => undefined);
+        }
+        await this.persist().catch(() => undefined);
+        throw error;
+      }
+      await this.log(
+        "candidate.rename",
+        "ok",
+        `path=${targetPath} candidate=${candidate.id}`,
+      );
+      return this.view();
+    });
+  }
+
+  async deleteCandidate(selectedPath: string, candidateId: string) {
+    return this.exclusively(async () => {
+      const targetPath = await this.authorizedDirectory(selectedPath);
+      const target = this.requireManagedTarget(targetPath);
+      this.assertNoConflict(targetPath, target);
+      const candidate = this.requireCandidate(target, candidateId);
+      if (target.lockedCandidateId === candidate.id) {
+        throw new Error("当前缓存不能删除。");
+      }
+
+      const content = await this.readCandidate(candidate);
+      const revisionSnapshotFile = this.candidateRevisionSnapshotPath(candidate);
+      const previousRevisionSnapshot = await this.readFileOrNull(
+        path.join(this.historyDirectory, revisionSnapshotFile),
+      );
+      const candidateIndex = target.candidates.indexOf(candidate);
+      target.candidates.splice(candidateIndex, 1);
+      try {
+        await this.persist();
+        await this.removeCandidateFiles(candidate);
+        await this.record("删除缓存版本");
+      } catch (error) {
+        target.candidates.splice(candidateIndex, 0, candidate);
+        await this.writeCandidate(candidate, content).catch(() => undefined);
+        if (previousRevisionSnapshot !== null) {
+          await this.writeAtomic(
+            path.join(this.historyDirectory, revisionSnapshotFile),
+            previousRevisionSnapshot,
+          ).catch(() => undefined);
+        }
+        await this.persist().catch(() => undefined);
+        throw error;
+      }
+      await this.log(
+        "candidate.delete",
+        "ok",
+        `path=${targetPath} candidate=${candidate.id}`,
       );
       return this.view();
     });

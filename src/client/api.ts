@@ -1,4 +1,8 @@
-import type { CandidateRevision, ManagerState } from "../shared/contracts.js";
+import type {
+  CandidateRevision,
+  FormalStatus,
+  ManagerState,
+} from "../shared/contracts.js";
 
 export class ApiError extends Error {
   constructor(
@@ -34,6 +38,10 @@ const post = (body: unknown): RequestInit => ({
 
 export const api = {
   state: () => request<ManagerState>("/api/state"),
+  formalStatus: (path: string) =>
+    request<FormalStatus | null>(
+      `/api/formal-status?${new URLSearchParams({ path })}`,
+    ),
   addWorkspace: (path: string) =>
     request<ManagerState>("/api/workspaces", post({ path })),
   chooseWorkspaceDirectory: () =>
@@ -81,6 +89,21 @@ export const api = {
         expectedContent,
       }),
     }),
+  renameCandidate: (
+    path: string,
+    candidateId: string,
+    name: string,
+    expectedName: string,
+  ) =>
+    request<ManagerState>(
+      "/api/candidates/rename",
+      post({ path, candidateId, name, expectedName }),
+    ),
+  deleteCandidate: (path: string, candidateId: string) =>
+    request<ManagerState>(
+      "/api/candidates/delete",
+      post({ path, candidateId }),
+    ),
   lockCandidate: (path: string, candidateId: string) =>
     request<ManagerState>("/api/candidates/lock", post({ path, candidateId })),
   setCandidateArchived: (

@@ -54,6 +54,11 @@ export function createHttpApp(library: PromptLibrary) {
   app.get("/api/state", async (_request, response) =>
     response.json(await library.getState()),
   );
+  app.get("/api/formal-status", async (_request, response) =>
+    response.json(
+      await library.getFormalStatus(readString(_request.query.path, "path")),
+    ),
+  );
   app.get("/api/diagnostics", async (_request, response) => {
     response.type("text/plain").send(await library.readDiagnostics());
   });
@@ -121,6 +126,24 @@ export function createHttpApp(library: PromptLibrary) {
         readString(request.body?.content, "content", true),
         readString(request.body?.expectedName, "expectedName"),
         readString(request.body?.expectedContent, "expectedContent", true),
+      ),
+    );
+  });
+  app.post("/api/candidates/rename", async (request, response) => {
+    response.json(
+      await library.renameCandidate(
+        readString(request.body?.path, "path"),
+        readString(request.body?.candidateId, "candidateId"),
+        readString(request.body?.name, "name"),
+        readString(request.body?.expectedName, "expectedName"),
+      ),
+    );
+  });
+  app.post("/api/candidates/delete", async (request, response) => {
+    response.json(
+      await library.deleteCandidate(
+        readString(request.body?.path, "path"),
+        readString(request.body?.candidateId, "candidateId"),
       ),
     );
   });

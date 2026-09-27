@@ -28,4 +28,9 @@ export type ManagerState = {
   userRulesPath: string;
 };
 
+export type FormalStatus = Pick<
+  RulePath,
+  "path" | "formalContent" | "conflict"
+>;
+
 export type ApiFailure = { error: { code: string; message: string } };

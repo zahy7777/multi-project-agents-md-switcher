@@ -608,6 +608,39 @@ textarea {
   color: #548c80;
   background: #f9fbfa;
 }
+.cache-version-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin: 0 1px 9px;
+}
+.cache-version-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 7px;
+  border: 1px solid #dfe9e4;
+  border-radius: 6px;
+  color: #47796f;
+  background: #f9fbfa;
+  font-size: 12px;
+  font-weight: 600;
+}
+.cache-version-actions button:hover:not(:disabled) {
+  border-color: #9fc7b9;
+  background: #f0f7f3;
+}
+.cache-version-actions .delete-cache-button {
+  border-color: #efdfdc;
+  color: #a44f47;
+  background: #fffafa;
+}
+.cache-version-actions .delete-cache-button:hover:not(:disabled) {
+  border-color: #dca39d;
+  background: #fff1ef;
+}
 .candidate-filter {
   display: flex;
   align-items: center;
@@ -1274,6 +1307,9 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.formal-card .formal-conflict {
+  color: #b34c42;
 }
 
 .toast {
