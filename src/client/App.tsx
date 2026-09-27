@@ -22,6 +22,7 @@ import {
   FolderOpen,
   FolderMinus,
   FolderPlus,
+  GitFork,
   GitCompare,
   GitBranch,
   Plus,
@@ -32,7 +33,6 @@ import {
   Search,
   ShieldCheck,
   Trash2,
-  Upload,
   X,
 } from "lucide-react";
 import type {
@@ -357,8 +357,16 @@ function App() {
   const selectedSourceCandidate =
     target?.candidates.find((item) => item.id === candidateSourceId) ?? null;
   const compareBase =
-    target?.candidates.find((item) => item.id === compareBaseId) ??
-    lockedCandidate;
+    compareBaseId === "__disk__" && target?.formalContent !== null && target
+      ? {
+          id: "__disk__",
+          name: "磁盘文件",
+          content: target.formalContent ?? "",
+          locked: false,
+          archived: false,
+        }
+      : target?.candidates.find((item) => item.id === compareBaseId) ??
+        lockedCandidate;
   const compareChanges = useMemo(
     () =>
       compareBase
@@ -956,7 +964,7 @@ function App() {
 
     const targetPath = target.path;
     const importedName =
-      file.name.replace(/\.(md|markdown)$/i, "").trim() || "导入缓存";
+      file.name.replace(/\.(md|markdown)$/i, "").trim() || "Fork 缓存";
     const knownIds = new Set(target.candidates.map((item) => item.id));
     let importedContent: string;
     try {
@@ -968,7 +976,7 @@ function App() {
 
     const next = await act(
       () => api.createCandidate(targetPath, importedName, importedContent),
-      "已从文件导入为新缓存，磁盘文件未更改",
+      "已从文件 Fork 为新缓存，磁盘文件未更改",
     );
     const created = next?.targets
       .find((item) => samePath(item.path, targetPath))
@@ -1820,12 +1828,12 @@ function App() {
                       <Plus size={15} />
                     </button>
                     <button
-                      aria-label="从 Markdown 导入缓存"
-                      title="导入为新的缓存版本；来源文件和磁盘文件都不会被修改"
+                      aria-label="从 Markdown Fork 缓存"
+                      title="从 Markdown 文件 Fork 一个缓存版本；来源文件和磁盘文件都不会被修改"
                       disabled={busy || target.conflict}
                       onClick={() => candidateFileInput.current?.click()}
                     >
-                      <Upload size={14} />
+                      <GitFork size={14} />
                     </button>
                     <input
                       ref={candidateFileInput}
@@ -2856,22 +2864,39 @@ function App() {
                 value={compareBase.id}
                 onChange={(event) => setCompareBaseId(event.target.value)}
               >
-                {target?.candidates
-                  .filter(
-                    (item) =>
-                      item.id !== candidate.id ||
-                      (candidate.locked && candidateContentDirty),
-                  )
-                  .map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                      {item.id === candidate.id
-                        ? "（当前已保存版）"
-                        : item.locked
-                          ? "（与磁盘同步）"
-                          : ""}
-                    </option>
-                  ))}
+                {target?.formalContent !== null ? (
+                  <optgroup label="磁盘">
+                    <option value="__disk__">AGENTS.md</option>
+                  </optgroup>
+                ) : null}
+                <optgroup label="缓存">
+                  {target?.candidates
+                    .filter(
+                      (item) =>
+                        !item.archived &&
+                        (item.id !== candidate.id ||
+                          (candidate.locked && candidateContentDirty)),
+                    )
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                        {item.id === candidate.id
+                          ? "（当前已保存版）"
+                          : item.locked
+                            ? "（与磁盘同步）"
+                            : ""}
+                      </option>
+                    ))}
+                </optgroup>
+                <optgroup label="已归档">
+                  {target?.candidates
+                    .filter((item) => item.archived && item.id !== candidate.id)
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                </optgroup>
               </select>
             </label>
             <div className="conflict-view-toolbar compare-view-toolbar">
@@ -2921,7 +2946,15 @@ function App() {
                 <section className="compare-column">
                   <header>
                     <strong>{compareBase.name}</strong>
-                    <span>{compareBase.locked ? "与磁盘同步" : "缓存基准"}</span>
+                    <span>
+                      {compareBase.id === "__disk__"
+                        ? "磁盘文件"
+                        : compareBase.archived
+                          ? "已归档缓存"
+                          : compareBase.locked
+                            ? "与磁盘同步的缓存"
+                            : "缓存"}
+                    </span>
                   </header>
                   <pre>{compareBase.content}</pre>
                 </section>
