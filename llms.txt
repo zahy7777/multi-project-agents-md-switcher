@@ -12,6 +12,7 @@
 - A directory has one authoritative disk file at `AGENTS.md`.
 - A cache plan is an independent prompt version for the same disk file; selecting and confirming it syncs that version to the disk file.
 - Each cache plan has its own read-only history snapshots, stored locally in Git.
+- From plan history, Fork a snapshot as a new plan or restore its content into the current plan. Restore appends a new history entry without rewriting older history; if the current plan is active, it also syncs the disk file.
 - Fork directly duplicates the selected cache plan and opens the copy for editing; no folder picker is involved.
 - Browse opens a native local folder picker and fills in the path; workspace scanning begins only after the user chooses “Add and scan”.
 - Side-by-side comparison panes are independently editable and have separate save actions for the current plan and selected baseline (including the disk file).

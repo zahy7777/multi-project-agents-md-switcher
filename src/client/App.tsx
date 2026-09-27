@@ -1104,6 +1104,48 @@ function App() {
     setHistoryOpen(false);
   }
 
+  async function restoreCandidateFromHistory() {
+    if (!historyCandidate || historyContent === null || !selectedHistoryCommit)
+      return;
+    const latestCandidate = state.targets
+      .find((item) => samePath(item.path, historyTargetPath))
+      ?.candidates.find((item) => item.id === historyCandidate.id);
+    if (!latestCandidate || latestCandidate.archived) return;
+    const confirmMessage = dirty
+      ? t(
+          "将所选历史版本的正文保存为当前缓存方案的新历史版本。已有历史不会被改写；若当前方案正在生效，也会同步磁盘文件。当前编辑器的未保存修改会被替换。继续吗？",
+          locale,
+        )
+      : t(
+          "将所选历史版本的正文保存为当前缓存方案的新历史版本。已有历史不会被改写；若当前方案正在生效，也会同步磁盘文件。继续吗？",
+          locale,
+        );
+    if (!window.confirm(confirmMessage)) return;
+
+    const next = await act(
+      () =>
+        api.saveCandidate(
+          historyTargetPath,
+          latestCandidate.id,
+          latestCandidate.name,
+          historyContent,
+          latestCandidate.name,
+          latestCandidate.content,
+        ),
+      "已用所选历史版本创建新的历史版本",
+    );
+    if (!next) return;
+    const updated = next.targets
+      .find((item) => samePath(item.path, historyTargetPath))
+      ?.candidates.find((item) => item.id === latestCandidate.id);
+    if (!updated) return;
+    setSelectedPath(historyTargetPath);
+    setSelectedCandidateId(updated.id);
+    setName(updated.name);
+    setContent(updated.content);
+    setHistoryOpen(false);
+  }
+
   async function saveCurrentCandidate() {
     if (
       !target ||
@@ -2943,10 +2985,16 @@ function App() {
                     </button>
                   </div>
                 </div>
-                <p className="history-revision-name">
-                  {t("历史版本名称：", locale)}
-                  {historyRevisionName ?? t("此历史版本未单独记录名称", locale)}
-                </p>
+              <p className="history-revision-name">
+                {t("历史版本名称：", locale)}
+                {historyRevisionName ?? t("此历史版本未单独记录名称", locale)}
+              </p>
+              <p className="history-action-hint">
+                {t(
+                  "Fork 会新建缓存方案；恢复会更新当前方案并追加历史版本。若当前方案正在生效，也会同步磁盘文件。",
+                  locale,
+                )}
+              </p>
                 {historyContent === null ? (
                   <pre className="history-preview">
                     {historyLoading
@@ -2982,7 +3030,7 @@ function App() {
                 {t("导出此历史版本", locale)}
               </button>
               <button
-                className="primary-button"
+                className="secondary-button"
                 disabled={
                   busy ||
                   historyLoading ||
@@ -2992,8 +3040,23 @@ function App() {
                 }
                 onClick={() => void createCandidateFromHistory()}
               >
-                <Clock3 size={14} />
+                <GitFork size={14} />
                 {t("Fork 此历史版本为缓存方案", locale)}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={
+                  busy ||
+                  historyLoading ||
+                  !selectedHistoryCommit ||
+                  historyContent === null ||
+                  !!target?.conflict ||
+                  !!historyCandidate?.archived
+                }
+                onClick={() => void restoreCandidateFromHistory()}
+              >
+                <Clock3 size={14} />
+                {t("用此版本恢复当前方案", locale)}
               </button>
             </div>
           </section>

@@ -60,7 +60,7 @@ Fork 按钮会直接复制当前选中的缓存方案，并自动打开新方案
 
 ### 历史版本与差异
 
-每个缓存方案都有独立历史，可查看保存时间、方案名称和正文差异，也可以 Fork 历史版本作为新方案。查看历史只读，不会回滚磁盘文件。
+每个缓存方案都有独立历史，可查看保存时间、方案名称和正文差异。历史面板提供两个并列操作：Fork 所选历史为新缓存方案；或“用此版本恢复当前方案”，以所选正文保存为当前方案的新历史版本，不改写旧历史。若当前方案正在生效，恢复也会同步磁盘文件。只浏览历史不会修改任何内容。
 
 ![AGENTS.md Switcher 的方案历史版本界面](docs/screenshots/zh-history.png)
 
@@ -118,7 +118,7 @@ pnpm exec playwright install chromium
 4. 新建缓存方案可复制编辑器当前内容（包括未保存修改），也可从此路径的任一已保存方案 Fork 一份；弹窗可展开只读预览来源正文。若当前编辑器有未保存修改，从已保存方案 Fork 会保留原编辑器和草稿，新方案加入列表但不抢占编辑位置。也可以从本机 `.md`／`.markdown` 文件 Fork 一个缓存方案（未设为当前方案）。Fork 不会修改来源文件或磁盘文件。缓存方案可单独编辑和保存；每次保存都会为该方案生成一个历史版本并记入本地 Git。保存时服务端会核对页面打开时的方案名称和正文；如果另一个窗口已经保存了新内容，过期保存会被拒绝，当前草稿保留，可用“新建缓存方案”另存。保存当前方案时同时更新工作空间中的磁盘文件；当前方案有未保存修改时，编辑器会显示本次同步对磁盘文件新增和删除的行数。
    切换当前方案前会先检查最新磁盘文件状态，再显示所选缓存方案与磁盘文件的逐行差异及增删行数；发现外部修改会先进入冲突处理。只有确认后才写入磁盘文件，服务端也会在确认时再次检查。取消预览不改动文件或当前方案。
 5. 磁盘文件与当前方案不一致时显示冲突，并阻止在 AGENTS.md Switcher 内切换；外部程序仍可照常改磁盘文件。冲突页默认标出从当前方案到磁盘文件的逐行新增和删除，也可并排查看原文。可将磁盘文件、当前方案或未保存草稿放入解决稿再手动合并。合并后有两种保存方式：**保存为新缓存方案**会保留当前方案及其历史，另建方案并将它设为当前方案；**保存为当前方案的新历史版本**会更新当前方案正文并增加历史记录，不新建方案。两种方式都会将解决稿写入磁盘文件，并恢复当前方案与磁盘文件的一致。
-6. 每次保存方案都会为该方案生成一个历史版本，包括只改方案名称的保存。历史版本可逐行比较正文，也能查看当时的方案名称。历史版本视图只读，不会改写缓存方案或磁盘文件。可直接导出选中的历史版本为 Markdown；也可从历史版本 Fork 一个新缓存方案，不会回滚历史或直接覆盖磁盘文件。
+6. 每次保存方案都会为该方案生成一个历史版本，包括只改方案名称的保存。历史版本可逐行比较正文，也能查看当时的方案名称。可直接导出选中的历史版本为 Markdown，也可 Fork 为新缓存方案，或“用此版本恢复当前方案”。恢复会以所选正文新增一条历史记录；已有历史不会被改写。若当前方案正在生效，恢复会同步磁盘文件。只浏览历史不会修改方案或磁盘文件。
 7. 其他缓存方案可与磁盘文件或其他缓存方案比较；对比基准下拉框按“磁盘”“缓存方案”“已归档”分组。并排编辑时，左右两侧均可直接修改原文，各自的“保存”按钮写回对应缓存方案或磁盘文件。
 8. 编辑器可在编辑和 Markdown 预览间切换；预览随当前草稿即时更新，支持 GFM 表格和任务列表，不会保存内容。原始 HTML 不渲染，图片链接显示占位文字而不发起网络请求。方案编辑区和冲突解决稿都会实时显示当前草稿的行数、Unicode 码点数和 UTF-8 字节数；空内容计一行，末尾换行后的空行也计入，帮助发现文件体量变化。
 9. 缓存方案列表可按名称或正文搜索；搜索只隐藏暂时不匹配的方案，不会切换或删除方案。列表上方可重命名或删除选中的缓存方案；重命名会记入本机历史，不更改正文，当前方案不可删除。删除会将方案从列表和搜索结果中移除，旧的历史版本仍保留在本机 Git 中。同一路径存在同名方案时，列表会附加各自 ID 前 7 位，方便区分并选择准确方案。
@@ -143,7 +143,7 @@ AGENTS.md Switcher is a local-first **AGENTS.md prompt variant manager and switc
 
 ### Experiment with multiple prompt versions
 
-For example, you want to experiment with the tone and constraints in `my-app/AGENTS.md`. Keep the current “Stable” version, then Fork an “Experimental concise wording” cache plan and edit it. Compare the two, switch to the one you want, and keep the other as-is. Each plan has its own history. You do not need to manually copy the old prompt, overwrite the file, or rename files to switch back. Open a plan's history to compare or Fork an earlier snapshot; history browsing never rewrites the disk file.
+For example, you want to experiment with the tone and constraints in `my-app/AGENTS.md`. Keep the current “Stable” version, then Fork an “Experimental concise wording” cache plan and edit it. Compare the two, switch to the one you want, and keep the other as-is. Each plan has its own history. You do not need to manually copy the old prompt, overwrite the file, or rename files to switch back. In history, Fork a snapshot as a new plan or restore it to the current plan. Restore appends a new history entry without changing earlier history; if the current plan is active, it syncs the disk file too. Browsing history alone never changes files.
 
 Other programs can keep editing the disk file normally. If AGENTS.md Switcher detects that it no longer matches the current plan, it shows the differences and offers a merge flow. Only switching through AGENTS.md Switcher is paused until you resolve the mismatch.
 
@@ -156,7 +156,7 @@ After merging, choose one of two explicit save actions. **Save as a new cache pl
 | --------------- | ------------------------------------------------------------------------ |
 | Disk file       | The single `AGENTS.md` at a target directory; the agent reads this file. |
 | Cache plan      | An independent prompt version you can edit and switch to the disk file.  |
-| Version history | Read-only snapshots saved by one cache plan.                             |
+| Version history | Snapshots saved by one cache plan; restoring one appends a new history entry. |
 | Current plan    | The plan synchronized with the disk file.                                |
 
 ### Screenshots

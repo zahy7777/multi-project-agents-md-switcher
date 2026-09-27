@@ -1606,6 +1606,12 @@ textarea {
   color: #7f8d90;
   font-size: 12px;
 }
+.history-action-hint {
+  margin: 0;
+  color: #657a73;
+  font-size: 12px;
+  line-height: 1.55;
+}
 .history-preview-toolbar {
   display: flex;
   align-items: center;

@@ -802,6 +802,36 @@ const entries: Array<[string, string, string, string]> = [
     "이 기록 버전을 캐시 플랜으로 Fork",
   ],
   [
+    "用此版本恢复当前方案",
+    "Restore the current plan to this version",
+    "このバージョンで現在のプランを復元",
+    "이 버전으로 현재 플랜 복원",
+  ],
+  [
+    "Fork 会新建缓存方案；恢复会更新当前方案并追加历史版本。若当前方案正在生效，也会同步磁盘文件。",
+    "Fork creates a separate cache plan. Restore updates the current plan and adds a new history entry; if it is active, the disk file is synced too.",
+    "Fork は別のキャッシュプランを作成します。復元すると現在のプランを更新して新しい履歴を追加します。現在有効なプランの場合はディスクファイルも同期します。",
+    "Fork는 별도의 캐시 플랜을 만듭니다. 복원하면 현재 플랜을 업데이트하고 새 기록을 추가하며, 현재 활성 플랜이면 디스크 파일도 동기화합니다.",
+  ],
+  [
+    "将所选历史版本的正文保存为当前缓存方案的新历史版本。已有历史不会被改写；若当前方案正在生效，也会同步磁盘文件。继续吗？",
+    "Save the selected history content as a new history version of the current plan. Existing history stays unchanged; if this plan is active, the disk file will also be synced. Continue?",
+    "選択した履歴の内容を現在のプランの新しい履歴として保存します。既存の履歴は変更されません。現在有効なプランの場合はディスクファイルも同期します。続行しますか？",
+    "선택한 기록 내용을 현재 플랜의 새 기록 버전으로 저장합니다. 기존 기록은 변경되지 않습니다. 현재 활성 플랜이면 디스크 파일도 동기화합니다. 계속할까요?",
+  ],
+  [
+    "将所选历史版本的正文保存为当前缓存方案的新历史版本。已有历史不会被改写；若当前方案正在生效，也会同步磁盘文件。当前编辑器的未保存修改会被替换。继续吗？",
+    "Save the selected history content as a new history version of the current plan. Existing history stays unchanged; if this plan is active, the disk file will also be synced. Unsaved editor changes will be replaced. Continue?",
+    "選択した履歴の内容を現在のプランの新しい履歴として保存します。既存の履歴は変更されません。現在有効なプランの場合はディスクファイルも同期します。未保存の編集内容は置き換えられます。続行しますか？",
+    "선택한 기록 내용을 현재 플랜의 새 기록 버전으로 저장합니다. 기존 기록은 변경되지 않습니다. 현재 활성 플랜이면 디스크 파일도 동기화합니다. 저장하지 않은 편집 내용은 대체됩니다. 계속할까요?",
+  ],
+  [
+    "已用所选历史版本创建新的历史版本",
+    "Restored the selected history as a new history version",
+    "選択した履歴から新しい履歴バージョンを作成しました",
+    "선택한 기록으로 새 기록 버전을 만들었습니다",
+  ],
+  [
     "关闭切换预览",
     "Close switch preview",
     "切り替えプレビューを閉じる",
