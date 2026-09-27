@@ -994,6 +994,24 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   );
 
   await page.getByRole("button", { name: "切换为正式规则" }).click();
+  await page.getByRole("button", { name: "关闭切换预览" }).click();
+  await expect(
+    page.getByRole("heading", { name: "确认切换为正式规则" }),
+  ).toHaveCount(0);
+  const stateAfterClosingPreview = await page.request.get("/api/state");
+  const targetAfterClosingPreview = (
+    await stateAfterClosingPreview.json()
+  ).targets.find((item: { path: string }) => item.path === workspace);
+  expect(
+    targetAfterClosingPreview.candidates.find(
+      (item: { name: string }) => item.name === "Candidate B",
+    ).locked,
+  ).toBe(false);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    originalRules,
+  );
+
+  await page.getByRole("button", { name: "切换为正式规则" }).click();
   const lockCandidatePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/candidates/lock") &&
