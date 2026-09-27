@@ -2353,3 +2353,105 @@ test("候选查找替换只改草稿，保存锁定候选后才同步正式文�
     replacedDraft,
   );
 });
+
+test("锁定候选保存前可预览待同步差异且不提前改文件", async ({ page }) => {
+  const formalRules = "Keep this formal line\n";
+  const workspace = await makeWorkspace(
+    "locked-candidate-preview",
+    formalRules,
+  );
+  const draft = `${formalRules}new behavior to review\n`;
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page.getByRole("button", { name: "AGENTS.md", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "候选内容", exact: true })
+    .fill(draft);
+  await page.getByRole("button", { name: "预览待同步差异" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "锁定候选修改预览" }),
+  ).toBeVisible();
+  await page
+    .getByLabel("对比基准版本")
+    .selectOption({ label: "导入的正式规则（当前已保存版）" });
+  await expect(
+    page.getByLabel("对比基准版本").locator("option:checked"),
+  ).toHaveText("导入的正式规则（当前已保存版）");
+  await expect(page.getByText(/新增 1 行 · 删除 0 行/)).toBeVisible();
+  await page.getByRole("button", { name: "标记差异" }).click();
+  await expect(page.locator(".candidate-compare-diff")).toContainText(
+    "new behavior to review",
+  );
+  if (process.env.PROMPTDOCK_LOCKED_PREVIEW_SCREENSHOT_PATH) {
+    await page.screenshot({
+      path: process.env.PROMPTDOCK_LOCKED_PREVIEW_SCREENSHOT_PATH,
+    });
+  }
+
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalRules,
+  );
+  const persistedState = await page.request
+    .get("/api/state")
+    .then((r) => r.json());
+  const persistedTarget = persistedState.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(persistedTarget.candidates[0].content).toBe(formalRules);
+
+  await page.getByRole("button", { name: "关闭版本对比" }).click();
+  await expect(page.getByLabel("候选内容", { exact: true })).toHaveValue(draft);
+  await page.getByRole("button", { name: "保存并同步正式文件" }).click();
+  await expect(page.getByText("候选与正式文件已同步并记入历史")).toBeVisible();
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(draft);
+});
+
+test("锁定草稿预览发现外部正式文件变更时阻止过期预览并保留草稿", async ({
+  page,
+}) => {
+  const formalRules = "Original formal rules\n";
+  const externalRules = "External formal update\n";
+  const workspace = await makeWorkspace(
+    "locked-preview-external-change",
+    formalRules,
+  );
+  const draft = `${formalRules}unsaved candidate change\n`;
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page.getByRole("button", { name: "AGENTS.md", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "候选内容", exact: true })
+    .fill(draft);
+  await writeFile(path.join(workspace, "AGENTS.md"), externalRules, "utf8");
+
+  await page.getByRole("button", { name: "预览待同步差异" }).click();
+  await expect(page.locator(".toast-error")).toContainText(
+    "正式文件已发生变化，未打开预览",
+  );
+  await expect(
+    page.getByRole("heading", { name: "锁定候选修改预览" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("textbox", { name: "候选内容", exact: true }),
+  ).toHaveValue(draft);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    externalRules,
+  );
+
+  const scanConfirmation = page.waitForEvent("dialog");
+  const scanClick = page
+    .getByRole("button", { name: "重新扫描当前工作空间" })
+    .click();
+  const confirmation = await scanConfirmation;
+  expect(confirmation.message()).toContain("当前候选有未保存修改");
+  await confirmation.accept();
+  await scanClick;
+  await expect(
+    page.getByRole("heading", { name: "规则文件冲突" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "把未保存草稿放入解决稿" }).click();
+  await expect(page.getByLabel("冲突解决内容")).toHaveValue(draft);
+});

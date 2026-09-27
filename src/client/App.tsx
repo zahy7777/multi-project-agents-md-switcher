@@ -446,6 +446,7 @@ function App() {
   );
   const dirty =
     !!candidate && (content !== candidate.content || name !== candidate.name);
+  const candidateContentDirty = !!candidate && content !== candidate.content;
   const findMatchPositions = useMemo(
     () => findTextMatches(content, findQuery),
     [content, findQuery],
@@ -1049,6 +1050,49 @@ function App() {
     await copyToClipboard(resolution, "resolution");
   }
 
+  async function previewLockedCandidateChanges() {
+    if (!target || !candidate?.locked || !candidateContentDirty || busy) return;
+    const targetPath = target.path;
+    const candidateId = candidate.id;
+    const savedCandidateContent = candidate.content;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const latest = await api.state();
+      const latestTarget = latest.targets.find((item) =>
+        samePath(item.path, targetPath),
+      );
+      const latestCandidate = latestTarget?.candidates.find(
+        (item) => item.id === candidateId,
+      );
+      if (!latestTarget || latestTarget.conflict) {
+        setError(
+          "正式文件已发生变化，未打开预览；当前草稿已保留，请重新扫描并处理冲突。",
+        );
+        return;
+      }
+      if (
+        !latestCandidate ||
+        latestTarget.lockedCandidateId !== candidateId ||
+        latestCandidate.archived ||
+        latestCandidate.content !== savedCandidateContent
+      ) {
+        setError(
+          "锁定候选已在其他窗口变化，未打开预览；当前草稿已保留，请先重新扫描并核对。",
+        );
+        return;
+      }
+      setState(latest);
+      setCompareBaseId(candidateId);
+      setCompareOpen(true);
+    } catch (reason) {
+      setError(message(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function moveToFindMatch(direction: -1 | 1) {
     if (findMatchPositions.length === 0) return;
     const nextMatch =
@@ -1591,14 +1635,26 @@ function App() {
                 <div className="candidate-heading">
                   <span>候选版本</span>
                   <div className="candidate-heading-actions">
-                    {candidate && !candidate.locked && lockedCandidate ? (
+                    {candidate &&
+                    ((!candidate.locked && lockedCandidate) ||
+                      (candidate.locked && candidateContentDirty)) ? (
                       <button
-                        aria-label="与其他版本对比"
-                        title="将当前编辑器内容与任意其他候选并排查看"
+                        aria-label={
+                          candidate.locked ? "预览待同步差异" : "与其他版本对比"
+                        }
+                        title={
+                          candidate.locked
+                            ? "只读预览当前草稿与正式生效版本的差异；保存前不会修改文件"
+                            : "将当前编辑器内容与任意其他候选并排查看"
+                        }
                         disabled={busy}
                         onClick={() => {
-                          setCompareBaseId(lockedCandidate?.id ?? "");
-                          setCompareOpen(true);
+                          if (candidate.locked) {
+                            void previewLockedCandidateChanges();
+                          } else {
+                            setCompareBaseId(lockedCandidate?.id ?? "");
+                            setCompareOpen(true);
+                          }
                         }}
                       >
                         <GitCompare size={14} />
@@ -2508,7 +2564,11 @@ function App() {
             <div className="modal-title">
               <div>
                 <p className="eyebrow">只读并排查看</p>
-                <h2>候选版本对比</h2>
+                <h2>
+                  {candidate.locked && candidateContentDirty
+                    ? "锁定候选修改预览"
+                    : "候选版本对比"}
+                </h2>
               </div>
               <button
                 type="button"
@@ -2520,9 +2580,11 @@ function App() {
               </button>
             </div>
             <p className="modal-description">
-              {dirty
-                ? "左侧显示当前编辑器内容（含未保存修改）；右侧显示已保存的基准候选。此窗口只读。"
-                : "此窗口不会修改任何文件。"}
+              {candidate.locked && candidateContentDirty
+                ? "左侧是待同步的正文草稿；右侧是当前正式生效的已保存版本。此窗口只读，正式文件要到点击保存时才会更新。"
+                : dirty
+                  ? "左侧显示当前编辑器内容（含未保存修改）；右侧显示已保存的基准候选。此窗口只读。"
+                  : "此窗口不会修改任何文件。"}
             </p>
             <label className="compare-base">
               对比基准
@@ -2532,11 +2594,19 @@ function App() {
                 onChange={(event) => setCompareBaseId(event.target.value)}
               >
                 {target?.candidates
-                  .filter((item) => item.id !== candidate.id)
+                  .filter(
+                    (item) =>
+                      item.id !== candidate.id ||
+                      (candidate.locked && candidateContentDirty),
+                  )
                   .map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}
-                      {item.locked ? "（正式生效）" : ""}
+                      {item.id === candidate.id
+                        ? "（当前已保存版）"
+                        : item.locked
+                          ? "（正式生效）"
+                          : ""}
                     </option>
                   ))}
               </select>
