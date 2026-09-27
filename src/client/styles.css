@@ -412,6 +412,47 @@ textarea {
   align-items: center;
   gap: 18px;
 }
+.locale-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid #dce5e1;
+  border-radius: 9px;
+  color: #507168;
+  background: linear-gradient(180deg, #fff 0%, #f7faf8 100%);
+  box-shadow: 0 1px 2px rgb(31 60 50 / 5%);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+.locale-picker:hover {
+  border-color: #a8c5ba;
+  background: #fff;
+  box-shadow: 0 2px 7px rgb(31 60 50 / 9%);
+}
+.locale-picker:focus-within {
+  border-color: #6da892;
+  box-shadow: 0 0 0 3px rgb(88 157 129 / 16%);
+}
+.locale-picker select {
+  max-width: 104px;
+  padding: 0 13px 0 0;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  color: #405a52;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.locale-chevron {
+  pointer-events: none;
+  color: #879b94;
+  transform: rotate(90deg);
+}
 .rule-search-trigger {
   min-height: 30px;
   padding: 0 10px;
@@ -1909,6 +1950,15 @@ textarea {
   }
   .topbar-status {
     font-size: 0;
+  }
+  .locale-picker {
+    min-height: 30px;
+    gap: 5px;
+    padding: 0 7px;
+  }
+  .locale-picker select {
+    max-width: 88px;
+    font-size: 11px;
   }
   .rule-search-trigger {
     gap: 5px;

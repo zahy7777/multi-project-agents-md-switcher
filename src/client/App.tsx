@@ -18,6 +18,7 @@ import {
   GitFork,
   GitCompare,
   GitBranch,
+  Languages,
   Plus,
   PencilLine,
   RefreshCw,
@@ -1667,6 +1668,7 @@ function App() {
             </div>
             <label className="locale-picker">
               <span className="sr-only">{t("界面语言", locale)}</span>
+              <Languages aria-hidden="true" size={15} strokeWidth={1.8} />
               <select
                 aria-label={t("界面语言", locale)}
                 value={locale}
@@ -1682,6 +1684,7 @@ function App() {
                   </option>
                 ))}
               </select>
+              <ChevronRight aria-hidden="true" className="locale-chevron" size={13} />
             </label>
           </div>
         </header>
