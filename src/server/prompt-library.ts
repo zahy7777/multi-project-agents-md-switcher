@@ -33,6 +33,17 @@ type CandidateRevisionSnapshot = {
   name: string;
 };
 
+export class CandidateChangedError extends Error {
+  readonly code = "CANDIDATE_CHANGED";
+
+  constructor() {
+    super(
+      "此候选已在其他窗口保存新版本。当前草稿未覆盖任何内容；请新建候选保留这份草稿，或重新载入最新版本。",
+    );
+    this.name = "CandidateChangedError";
+  }
+}
+
 export class PromptLibrary {
   readonly dataDirectory = applicationDataDirectory();
   readonly historyDirectory = path.join(this.dataDirectory, "library");
@@ -293,6 +304,8 @@ export class PromptLibrary {
     candidateId: string,
     name: string,
     content: string,
+    expectedName: string,
+    expectedContent: string,
   ) {
     return this.exclusively(async () => {
       const targetPath = await this.authorizedDirectory(selectedPath);
@@ -303,6 +316,12 @@ export class PromptLibrary {
       if (candidate.archived) throw new Error("已归档候选必须先恢复才能编辑。");
       const previousContent = await this.readCandidate(candidate);
       const previousName = candidate.name;
+      if (
+        previousName !== expectedName ||
+        previousContent !== expectedContent
+      ) {
+        throw new CandidateChangedError();
+      }
       const revisionSnapshotFile =
         this.candidateRevisionSnapshotPath(candidate);
       const previousRevisionSnapshot = await this.readFileOrNull(

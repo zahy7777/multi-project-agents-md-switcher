@@ -4,7 +4,7 @@ import express, {
 } from "express";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { PromptLibrary } from "./prompt-library.js";
+import { CandidateChangedError, type PromptLibrary } from "./prompt-library.js";
 import { PORT } from "./settings.js";
 
 const uiOrigins = new Set([
@@ -115,6 +115,8 @@ export function createHttpApp(library: PromptLibrary) {
         readString(request.body?.candidateId, "candidateId"),
         readString(request.body?.name, "name"),
         readString(request.body?.content, "content", true),
+        readString(request.body?.expectedName, "expectedName"),
+        readString(request.body?.expectedContent, "expectedContent", true),
       ),
     );
   });
@@ -175,14 +177,17 @@ export function createHttpApp(library: PromptLibrary) {
         `${request.method} ${request.path}: ${message}`,
       )
       .catch(() => undefined);
+    const code = (error as { code?: string }).code;
     const status =
-      (error as { code?: string }).code === "ENOENT" ||
-      (error as { type?: string }).type === "entity.parse.failed"
-        ? 400
-        : 500;
+      error instanceof CandidateChangedError
+        ? 409
+        : code === "ENOENT" ||
+            (error as { type?: string }).type === "entity.parse.failed"
+          ? 400
+          : 500;
     response
       .status(status)
-      .json({ error: { code: "REQUEST_FAILED", message } });
+      .json({ error: { code: code ?? "REQUEST_FAILED", message } });
   };
   app.use(errors);
   return app;

@@ -1,5 +1,16 @@
 import type { CandidateRevision, ManagerState } from "../shared/contracts.js";
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function request<T>(url: string, options?: RequestInit) {
   const response = await fetch(url, {
     ...options,
@@ -7,7 +18,11 @@ async function request<T>(url: string, options?: RequestInit) {
   });
   const result = await response.json();
   if (!response.ok) {
-    throw new Error(result?.error?.message ?? `请求失败：${response.status}`);
+    throw new ApiError(
+      result?.error?.message ?? `请求失败：${response.status}`,
+      response.status,
+      result?.error?.code ?? "REQUEST_FAILED",
+    );
   }
   return result as T;
 }
@@ -47,10 +62,19 @@ export const api = {
     candidateId: string,
     name: string,
     content: string,
+    expectedName: string,
+    expectedContent: string,
   ) =>
     request<ManagerState>("/api/candidates", {
       method: "PUT",
-      body: JSON.stringify({ path, candidateId, name, content }),
+      body: JSON.stringify({
+        path,
+        candidateId,
+        name,
+        content,
+        expectedName,
+        expectedContent,
+      }),
     }),
   lockCandidate: (path: string, candidateId: string) =>
     request<ManagerState>("/api/candidates/lock", post({ path, candidateId })),

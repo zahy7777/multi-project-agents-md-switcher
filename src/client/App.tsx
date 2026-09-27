@@ -42,7 +42,7 @@ import type {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { diffLines } from "diff";
-import { api } from "./api.js";
+import { ApiError, api } from "./api.js";
 
 const empty: ManagerState = {
   workspaces: [],
@@ -983,14 +983,34 @@ function App() {
     )
       return;
     saveInFlight.current = true;
+    setBusy(true);
+    setError("");
+    setNotice("");
     try {
-      await act(
-        () => api.saveCandidate(target.path, candidate.id, name, content),
+      const next = await api.saveCandidate(
+        target.path,
+        candidate.id,
+        name,
+        content,
+        candidate.name,
+        candidate.content,
+      );
+      setState(next);
+      setNotice(
         candidate.locked
           ? "候选与正式文件已同步并记入历史"
           : "候选已保存并记入历史",
       );
+      window.setTimeout(() => setNotice(""), 3500);
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.code === "CANDIDATE_CHANGED") {
+        setError(message(reason));
+      } else {
+        setError(message(reason));
+        await refresh().catch(() => undefined);
+      }
     } finally {
+      setBusy(false);
       saveInFlight.current = false;
     }
   }

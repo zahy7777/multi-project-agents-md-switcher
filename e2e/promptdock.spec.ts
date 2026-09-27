@@ -2455,3 +2455,69 @@ test("锁定草稿预览发现外部正式文件变更时阻止过期预览并�
   await page.getByRole("button", { name: "把未保存草稿放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(draft);
 });
+
+test("并发窗口的过期候选保存被拒绝且草稿可另存为新候选", async ({
+  page,
+  context,
+}) => {
+  const originalRules = "# Shared rules\nKeep the formal file safe.\n";
+  const workspace = await makeWorkspace(
+    "concurrent-candidate-save",
+    originalRules,
+  );
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+
+  const secondPage = await context.newPage();
+  await secondPage.goto("/");
+  await addWorkspace(secondPage, workspace);
+
+  const firstWindowRules = `${originalRules}\nSaved in the first window.\n`;
+  const staleDraft = `${originalRules}\nUncommitted draft from the second window.\n`;
+  await page.getByLabel("候选内容", { exact: true }).fill(firstWindowRules);
+  await secondPage.getByLabel("候选内容", { exact: true }).fill(staleDraft);
+
+  await page.getByRole("button", { name: "保存并同步正式文件" }).click();
+  await expect(page.getByText("候选与正式文件已同步并记入历史")).toBeVisible();
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    firstWindowRules,
+  );
+
+  await secondPage.getByRole("button", { name: "保存并同步正式文件" }).click();
+  await expect(secondPage.locator(".toast-error")).toContainText(
+    "此候选已在其他窗口保存新版本",
+  );
+  await expect(secondPage.getByLabel("候选内容", { exact: true })).toHaveValue(
+    staleDraft,
+  );
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    firstWindowRules,
+  );
+
+  await secondPage.getByRole("button", { name: "新建候选" }).click();
+  await secondPage.getByLabel("新候选名称").fill("Second window draft");
+  await secondPage.getByRole("button", { name: "创建候选" }).click();
+  await expect(
+    secondPage.getByText("候选已创建并记录到本地 Git"),
+  ).toBeVisible();
+  await expect(secondPage.getByLabel("候选名称", { exact: true })).toHaveValue(
+    "Second window draft",
+  );
+  await expect(secondPage.getByLabel("候选内容", { exact: true })).toHaveValue(
+    staleDraft,
+  );
+  const response = await secondPage.request.get("/api/state");
+  const state = await response.json();
+  const target = state.targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    target.candidates.some(
+      (item: { name: string; content: string }) =>
+        item.name === "Second window draft" && item.content === staleDraft,
+    ),
+  ).toBe(true);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    firstWindowRules,
+  );
+});
