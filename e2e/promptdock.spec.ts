@@ -1448,6 +1448,17 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   const workspace = await makeWorkspace("empty-project");
   await page.goto("/");
   await addWorkspace(page, workspace);
+  await expect(
+    page.getByRole("heading", { name: "把规则版本，清楚地管起来。" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "添加工作空间" }).last().click();
+  await expect(
+    page.getByRole("heading", { name: "添加工作空间" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "取消" }).click();
+  await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
+    0,
+  );
   await expect(page.getByText("没有发现 AGENTS.md")).toBeVisible();
   await page.getByRole("button", { name: "初始化 AGENTS.md" }).click();
   await expect(page.getByLabel("候选内容")).toHaveValue("# AGENTS.md\n");
