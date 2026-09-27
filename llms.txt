@@ -1,0 +1,33 @@
+# PromptDock
+
+> Local-first manager for AGENTS.md instruction files. Manage multiple cache plans, switch the active disk file, and inspect each plan's own version history.
+>
+> 本机运行的 AGENTS.md 管理器：管理多个缓存方案、切换当前磁盘文件，并查看每个方案各自的历史版本。
+
+## Project
+
+- PromptDock is a local web application for managing AI agent instruction files such as AGENTS.md.
+- A directory has one authoritative disk file at `AGENTS.md`.
+- A cache plan is an independent editable alternative for that disk file.
+- Each cache plan has its own read-only history snapshots, stored locally in Git.
+- Switching the current plan previews the diff, then writes the selected plan to the disk file after confirmation.
+- External edits that make the disk file differ from the current plan create a conflict that must be resolved before switching.
+- File contents and history stay on the user's device. The app's Node service binds to `127.0.0.1`; it is not a hosted sync service.
+- Supports Windows, macOS, and Linux with Node.js 20+, pnpm, and Git.
+
+## 项目概览
+
+- PromptDock 是本地运行的 AI agent 指令文件管理器，面向 `AGENTS.md` 等文件。
+- 一个目录路径对应唯一的权威磁盘文件 `AGENTS.md`。
+- 缓存方案是该磁盘文件的独立可编辑备选内容。
+- 每个缓存方案都有独立的只读历史版本；历史由本机 Git 保存。
+- 切换当前方案前会预览差异；确认后才会将方案写入磁盘文件。
+- 外部编辑导致磁盘文件与当前方案不一致时，必须先解决冲突才能切换。
+- 文件正文和历史仅保存在用户设备上；Node 服务只监听 `127.0.0.1`，不是云端同步服务。
+- 支持 Windows、macOS 和 Linux，需要 Node.js 20+、pnpm 与 Git。
+
+## Resources
+
+- [README / 使用指南](README.md): quick start, concept model, features, local data, and operating instructions in Chinese and English.
+- [Screenshots](docs/screenshots/): application overview, plan history, and conflict resolution.
+- [Package manifest](package.json): dependencies and run commands.

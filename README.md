@@ -1,6 +1,55 @@
-# PromptDock Web
+# PromptDock — AGENTS.md 磁盘文件与缓存方案管理器
 
-PromptDock 是本机运行的 `AGENTS.md` 文件管理器，核心模型是磁盘文件与缓存方案：每个目标路径下只有一个实际生效的磁盘文件；应用可保存多个独立的缓存方案，每个方案都有自己的历史版本。选择方案会将内容加载到编辑器；切换当前方案会将所选方案写入磁盘文件。当前方案与磁盘文件保持一致；外部修改造成两者不一致时，需要先合并再恢复一致。浏览器提供文件管理界面，Node 服务负责扫描和写入工作空间，并在本地 Git 中记录历史版本。文件内容不会上传。
+**在本机管理 AI agent 指令文件的多个缓存方案、切换当前方案，并查看每个方案自己的历史版本。** PromptDock 是一个本地优先的桌面浏览器应用，适用于 Codex 等读取 `AGENTS.md` 的开发工具。文件内容、缓存方案与历史版本都留在你的设备上。
+
+> **核心模型：磁盘文件 + 缓存方案。** 一个目录路径对应唯一的 `AGENTS.md` 磁盘文件；一个磁盘文件可以有多个独立的缓存方案。每个方案都有自己的历史版本。当前方案应与磁盘文件保持一致；切换方案时，PromptDock 会先预览差异，确认后再将方案写入磁盘文件。外部程序改动磁盘文件时，PromptDock 会提示冲突并要求先合并。
+
+## 快速开始
+
+需要 Node.js 20+、pnpm 和 Git。克隆项目后运行：
+
+```sh
+pnpm install
+pnpm dev
+```
+
+打开 <http://127.0.0.1:5173>，添加包含 `AGENTS.md` 的本机目录。首次使用生产单进程模式：
+
+```sh
+pnpm build
+pnpm start
+```
+
+再打开 <http://127.0.0.1:4317>。GitHub 上的[完整中文指南](#中文使用指南)包含 Windows 启动方式、操作说明和本地数据位置。
+
+## 用一个例子理解磁盘和缓存
+
+假设项目磁盘上已有 `my-app/AGENTS.md`，其中要求 agent 使用 TypeScript。你可以从它 Fork 出“严格类型检查”和“快速原型”两个**缓存方案**，分别编辑和保存；每次保存都会给相应方案增加一个**历史版本**。之后选择“严格类型检查”，预览它与磁盘文件的差异并确认，磁盘上的 `AGENTS.md` 就会被同步。方案切换不删除其他方案；你可以随时查看或 Fork 某个方案的历史版本。
+
+| 名称 | 表示什么 | 例子 |
+| --- | --- | --- |
+| 磁盘文件 | 目标路径上真实存在、agent 实际读取的唯一文件 | `my-app/AGENTS.md` |
+| 缓存方案 | 同一磁盘文件的独立内容选项，可编辑、归档和切换 | “严格类型检查”“快速原型” |
+| 历史版本 | 某个缓存方案保存时留下的只读快照 | “严格类型检查”的上一次保存 |
+| 当前方案 | 当前与磁盘文件同步的方案 | 切换后写入 `AGENTS.md` 的方案 |
+
+![PromptDock 的文件和缓存方案管理界面](docs/screenshots/zh-main.png)
+
+### 历史版本与差异
+
+每个缓存方案都有独立历史，可查看保存时间、方案名称和正文差异，也可以 Fork 历史版本作为新方案。查看历史只读，不会回滚磁盘文件。
+
+![PromptDock 的方案历史版本界面](docs/screenshots/zh-history.png)
+
+### 外部修改与冲突处理
+
+如果 agent 或其他编辑器改动了磁盘文件，导致它与当前方案不一致，PromptDock 会阻止直接切换。你可以对照磁盘文件和当前方案，形成新的解决稿，再一次性保存并恢复同步。
+
+![PromptDock 的磁盘文件冲突处理界面](docs/screenshots/zh-conflict.png)
+
+## 中文使用指南
+
+PromptDock 在本机运行：浏览器呈现界面，Node 服务负责扫描和写入工作空间，本地 Git 记录方案历史。它不会将文件正文上传到云端。
 
 ## 运行
 
@@ -59,3 +108,64 @@ pnpm exec playwright install chromium
 - 可设置 `PROMPTDOCK_DATA_DIR` 将应用数据放到指定目录，便于隔离测试或备份。
 
 纯浏览器无法获得系统目录选择器返回的任意本机路径，因此添加工作空间使用路径输入框；实际文件操作仍由本机 Node API 完成。
+
+## English guide
+
+PromptDock is a local-first **AGENTS.md manager** for people who maintain different instruction sets for AI coding agents. It runs on your computer and keeps file contents and Git history local.
+
+### The disk file and cache plans
+
+Think of the model as one disk file and several cache plans. A directory has one `AGENTS.md` disk file, which is the file an agent reads. Cache plans are independent alternatives for that file. Each plan has its own saved version history.
+
+For example, start with `my-app/AGENTS.md` and Fork two plans: “Strict TypeScript” and “Rapid prototyping.” Edit and save each plan independently. When you switch the current plan, PromptDock previews its diff against the disk file and writes it only after you confirm. Later, open that plan's history to compare or Fork an earlier snapshot. History browsing never rewrites the disk file.
+
+| Term | Meaning |
+| --- | --- |
+| Disk file | The single `AGENTS.md` at a target directory; the agent reads this file. |
+| Cache plan | An independent, editable alternative for the disk file. |
+| Version history | Read-only snapshots saved by one cache plan. |
+| Current plan | The plan synchronized with the disk file. |
+
+### Screenshots
+
+![PromptDock file and cache plan overview](docs/screenshots/zh-main.png)
+
+![Per-plan version history](docs/screenshots/zh-history.png)
+
+![Disk file conflict review](docs/screenshots/zh-conflict.png)
+
+### Quick start
+
+Requirements: Node.js 20 or later, pnpm, and Git.
+
+```sh
+pnpm install
+pnpm dev
+```
+
+Open <http://127.0.0.1:5173> and add a local directory containing `AGENTS.md`. For the single-process production mode:
+
+```sh
+pnpm build
+pnpm start
+```
+
+Then open <http://127.0.0.1:4317>. The service listens on the local loopback interface. On Windows, you can also launch `启动 PromptDock.cmd` from Explorer.
+
+### Features
+
+- Add local directories and scan for `AGENTS.md` files.
+- Create, Fork, rename, archive, search, and switch independent cache plans.
+- Save per-plan history in local Git; compare snapshots and Fork an earlier version.
+- Preview disk-file and plan diffs before switching.
+- Resolve external-edit conflicts with a merge draft before synchronizing again.
+- Edit Markdown with live preview, find and replace, and unsaved-draft protection.
+- Search disk files and cache plan contents across registered directories.
+
+### Privacy and local data
+
+PromptDock does not upload file contents. The Node service binds to `127.0.0.1` and performs local file operations. Cache plans, workspace registrations, and Git history are stored in the local PromptDock data directory. See [Local data and diagnostics](#本地数据与诊断) for platform-specific paths and the `PROMPTDOCK_DATA_DIR` override.
+
+## License
+
+No license has been selected yet. Until a license is added, standard copyright applies to this source code.
