@@ -1017,23 +1017,15 @@ function App() {
 
   function exportCurrentCandidate() {
     if (!candidate) return;
-    const safeName = (name || candidate.name)
-      .trim()
-      .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
-      .replace(/[. ]+$/g, "");
-    const portableName = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(safeName)
-      ? `_${safeName}`
-      : safeName || "candidate";
-    const downloadUrl = URL.createObjectURL(
-      new Blob([content], { type: "text/markdown;charset=utf-8" }),
+    downloadMarkdown(name || candidate.name, content);
+  }
+
+  function exportSelectedHistoryRevision() {
+    if (historyContent === null) return;
+    downloadMarkdown(
+      historyRevisionName ?? historyCandidate?.name ?? "candidate",
+      historyContent,
     );
-    const downloadLink = document.createElement("a");
-    downloadLink.href = downloadUrl;
-    downloadLink.download = `${portableName}.md`;
-    document.body.append(downloadLink);
-    downloadLink.click();
-    downloadLink.remove();
-    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000);
   }
 
   async function copyToClipboard(
@@ -2493,6 +2485,15 @@ function App() {
                 关闭
               </button>
               <button
+                type="button"
+                className="secondary-button"
+                disabled={historyLoading || historyContent === null}
+                onClick={exportSelectedHistoryRevision}
+              >
+                <Download size={14} />
+                导出此历史版本
+              </button>
+              <button
                 className="primary-button"
                 disabled={
                   busy ||
@@ -2827,6 +2828,26 @@ function pathLeaf(value: string) {
       .split(/[\\/]/)
       .at(-1) || value
   );
+}
+
+function downloadMarkdown(name: string, content: string) {
+  const safeName = name
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
+    .replace(/[. ]+$/g, "");
+  const portableName = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(safeName)
+    ? `_${safeName}`
+    : safeName || "candidate";
+  const downloadUrl = URL.createObjectURL(
+    new Blob([content], { type: "text/markdown;charset=utf-8" }),
+  );
+  const downloadLink = document.createElement("a");
+  downloadLink.href = downloadUrl;
+  downloadLink.download = `${portableName}.md`;
+  document.body.append(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000);
 }
 
 function message(reason: unknown) {

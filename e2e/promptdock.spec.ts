@@ -2245,6 +2245,13 @@ test("只改候选名称也形成历史版本，并可按历史名称另建候�
     .fill("Renamed only");
   await page.getByRole("button", { name: "保存候选" }).click();
   await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+  const stateBeforeHistory = await page.request.get("/api/state");
+  const targetBeforeHistory = (await stateBeforeHistory.json()).targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  const candidate = targetBeforeHistory.candidates.find(
+    (item: { name: string }) => item.name === "Renamed only",
+  );
   await page.getByRole("button", { name: "查看候选历史" }).click();
 
   const revisions = page.locator(".history-revision");
@@ -2254,6 +2261,29 @@ test("只改候选名称也形成历史版本，并可按历史名称另建候�
   await expect(page.getByText("历史候选名称：Original name")).toBeVisible();
   await page.getByRole("button", { name: "历史全文" }).click();
   await expect(page.locator(".history-preview")).toHaveText(formalRules);
+  const historyDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出此历史版本" }).click();
+  const historyDownload = await historyDownloadPromise;
+  expect(historyDownload.suggestedFilename()).toBe("Original name.md");
+  const historyExportFile = path.join(testRoot, "exported history revision.md");
+  await historyDownload.saveAs(historyExportFile);
+  expect(await readFile(historyExportFile, "utf8")).toBe(formalRules);
+  expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
+    formalRules,
+  );
+  const stateAfterExport = await page.request.get("/api/state");
+  const targetAfterExport = (await stateAfterExport.json()).targets.find(
+    (item: { path: string }) => item.path === workspace,
+  );
+  expect(
+    targetAfterExport.candidates.find(
+      (item: { id: string }) => item.id === candidate.id,
+    ).content,
+  ).toBe(formalRules);
+  const historyAfterExport = await page.request.get(
+    `/api/candidates/${encodeURIComponent(candidate.id)}/history?${new URLSearchParams({ path: workspace })}`,
+  );
+  expect(await historyAfterExport.json()).toHaveLength(2);
   if (process.env.PROMPTDOCK_NAME_HISTORY_SCREENSHOT_PATH) {
     await page.screenshot({
       path: process.env.PROMPTDOCK_NAME_HISTORY_SCREENSHOT_PATH,
