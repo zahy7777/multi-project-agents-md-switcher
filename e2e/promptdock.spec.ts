@@ -24,7 +24,7 @@ async function addWorkspace(
   workspace: string,
 ) {
   await page.getByRole("button", { name: "添加工作空间" }).first().click();
-  await page.getByPlaceholder(/例如 C:/).fill(workspace);
+  await page.getByPlaceholder("选择文件夹，或输入本机路径").fill(workspace);
   await page.getByRole("button", { name: "添加并扫描" }).click();
   await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
     0,
@@ -187,6 +187,57 @@ test("跨路径规则搜索能跳转缓存方案并保护未保存草稿", async
   await conflictDialog.dismiss();
   await cancelledConflictClick;
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(unsavedResolution);
+});
+
+test("工作空间 Ignore 按 gitignore 语义过滤磁盘文件并保留可恢复状态", async ({ page }, testInfo) => {
+  const workspace = await makeWorkspace("workspace-ignore", "root rules\n");
+  const ignoredDirectory = path.join(workspace, "archive", "draft-one");
+  const visibleDirectory = path.join(workspace, "current");
+  await mkdir(ignoredDirectory, { recursive: true });
+  await mkdir(visibleDirectory, { recursive: true });
+  await writeFile(path.join(ignoredDirectory, "AGENTS.md"), "archived rules\n", "utf8");
+  await writeFile(path.join(visibleDirectory, "AGENTS.md"), "current rules\n", "utf8");
+
+  await page.goto("/");
+  await addWorkspace(page, workspace);
+  await page.getByRole("button", { name: "Ignore 规则" }).click();
+  await expect(page.getByLabel("Ignore 规则内容")).toBeVisible();
+  await page.getByLabel("Ignore 规则内容").fill("archive/\n");
+  await page.getByRole("button", { name: "保存并重新扫描" }).click();
+  await expect(page.getByRole("button", { name: /archive[\\/]draft-one/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "current", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "AGENTS.md", exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("ignore-panel.png") });
+  await page.getByRole("button", { name: "搜索全部文件" }).click();
+  await page.getByLabel("搜索文件正文").fill("archived rules");
+  await expect(page.getByText("没有匹配的文件正文。")).toBeVisible();
+  await page.getByRole("button", { name: "关闭文件搜索" }).click();
+
+  await page.getByLabel("Ignore 规则内容").fill("");
+  await page.getByRole("button", { name: "保存并重新扫描" }).click();
+  await expect(page.getByRole("button", { name: /archive[\\/]draft-one/ })).toBeVisible();
+  const state = await (await page.request.get("/api/state")).json();
+  expect(state.workspaceIgnoreRules[workspace]).toBe("");
+});
+
+test("Codex 用户级工作空间可独立忽略并恢复磁盘文件", async ({ page }) => {
+  await page.goto("/");
+  const initialState = await (await page.request.get("/api/state")).json();
+  const userWorkspace = path.dirname(initialState.userRulesPath);
+  await expect(page.getByRole("button", { name: "AGENTS.md", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Ignore 规则" }).click();
+  await page.getByLabel("Ignore 规则内容").fill("AGENTS.md\n");
+  await page.getByRole("button", { name: "保存并重新扫描" }).click();
+  await expect(page.getByRole("button", { name: "AGENTS.md", exact: true })).toHaveCount(0);
+  let state = await (await page.request.get("/api/state")).json();
+  expect(state.workspaceIgnoreRules[userWorkspace]).toBe("AGENTS.md\n");
+
+  await page.getByLabel("Ignore 规则内容").fill("");
+  await page.getByRole("button", { name: "保存并重新扫描" }).click();
+  await expect(page.getByRole("button", { name: "AGENTS.md", exact: true })).toBeVisible();
+  state = await (await page.request.get("/api/state")).json();
+  expect(state.workspaceIgnoreRules[userWorkspace]).toBe("");
 });
 
 test("移除工作空间后搜索不再显示保留的历史目标", async ({ page }) => {
@@ -1601,7 +1652,7 @@ test("同名工作空间按父路径区分且移除确认指向正确路径", as
   await page.goto("/");
   await addWorkspace(page, firstWorkspace);
   await page.getByRole("button", { name: "添加工作空间" }).first().click();
-  await page.getByPlaceholder(/例如 C:/).fill(secondWorkspace);
+  await page.getByPlaceholder("选择文件夹，或输入本机路径").fill(secondWorkspace);
   await page.getByRole("button", { name: "添加并扫描" }).click();
   await expect(page.getByRole("heading", { name: "添加工作空间" })).toHaveCount(
     0,
@@ -1892,7 +1943,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   const addWorkspaceDraft = "unsaved add-workspace resolution\n";
   await page.getByLabel("冲突解决内容").fill(addWorkspaceDraft);
   await addWorkspaceButton.click();
-  await page.getByPlaceholder(/例如 C:/).fill(newWorkspace);
+  await page.getByPlaceholder("选择文件夹，或输入本机路径").fill(newWorkspace);
   const cancelledAddConfirmation = page.waitForEvent("dialog");
   const cancelledAddClick = page
     .getByRole("button", { name: "添加并扫描" })
@@ -1978,7 +2029,7 @@ test("帮助诊断链接可打开本机日志，错误添加可重试", async ({
 
   await page.getByRole("button", { name: "添加工作空间" }).first().click();
   await page
-    .getByPlaceholder(/例如 C:/)
+    .getByPlaceholder("选择文件夹，或输入本机路径")
     .fill(path.join(testRoot, "missing-workspace"));
   await page.getByRole("button", { name: "添加并扫描" }).click();
   await expect(page.locator(".toast-error")).toBeVisible();
@@ -1986,7 +2037,7 @@ test("帮助诊断链接可打开本机日志，错误添加可重试", async ({
     page.getByRole("heading", { name: "添加工作空间" }),
   ).toBeVisible();
   const retryWorkspace = await makeWorkspace("retry-workspace");
-  await page.getByPlaceholder(/例如 C:/).fill(retryWorkspace);
+  await page.getByPlaceholder("选择文件夹，或输入本机路径").fill(retryWorkspace);
   const retryResponsePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/workspaces") &&

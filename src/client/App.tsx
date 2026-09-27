@@ -22,6 +22,7 @@ import {
   Plus,
   PencilLine,
   RefreshCw,
+  Settings2,
   RotateCcw,
   Save,
   Search,
@@ -53,6 +54,7 @@ const empty: ManagerState = {
   historyPath: "",
   diagnosticsPath: "",
   userRulesPath: "",
+  workspaceIgnoreRules: {},
 };
 
 function isWithinWorkspace(targetPath: string, workspace: string) {
@@ -158,6 +160,8 @@ function App() {
   const [activeFindMatch, setActiveFindMatch] = useState(-1);
   const [name, setName] = useState("");
   const [filter, setFilter] = useState("");
+  const [ignoreOpen, setIgnoreOpen] = useState(false);
+  const [ignoreDraft, setIgnoreDraft] = useState("");
   const [ruleSearchOpen, setRuleSearchOpen] = useState(false);
   const [ruleSearchQuery, setRuleSearchQuery] = useState("");
   const [notice, setNotice] = useState("");
@@ -207,6 +211,9 @@ function App() {
   >(null);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
   const openingState = useRef<Promise<ManagerState> | null>(null);
+  useEffect(() => {
+    setIgnoreDraft(state.workspaceIgnoreRules[selectedWorkspace] ?? "");
+  }, [selectedWorkspace, state.workspaceIgnoreRules]);
   const copyFeedbackTimeout = useRef<number | null>(null);
   const saveInFlight = useRef(false);
   const candidateEditor = useRef<HTMLTextAreaElement>(null);
@@ -292,6 +299,7 @@ function App() {
       archived: boolean;
     }[] = [];
     for (const item of state.targets) {
+      if (item.visibleWorkspaces.length === 0) continue;
       if (
         !state.workspaces.some((workspace) =>
           isWithinWorkspace(item.path, workspace),
@@ -462,7 +470,8 @@ function App() {
         .filter(
           (item) =>
             selectedWorkspace &&
-            isWithinWorkspace(item.path, selectedWorkspace),
+            isWithinWorkspace(item.path, selectedWorkspace) &&
+            item.visibleWorkspaces.includes(selectedWorkspace),
         )
         .filter((item) =>
           item.path.toLowerCase().includes(filter.toLowerCase()),
@@ -1592,6 +1601,15 @@ function App() {
                 >
                   <RefreshCw size={14} />
                 </button>
+                <button
+                  className={`icon-button ${ignoreOpen ? "active" : ""}`}
+                  aria-label={t("Ignore 规则", locale)}
+                  title={t("Ignore 规则", locale)}
+                  disabled={busy}
+                  onClick={() => setIgnoreOpen((open) => !open)}
+                >
+                  <Settings2 size={14} />
+                </button>
               </>
             ) : null}
           </div>
@@ -1606,6 +1624,44 @@ function App() {
               onChange={(event) => setFilter(event.target.value)}
             />
           </label>
+        ) : null}
+        {selectedWorkspace && ignoreOpen ? (
+          <section
+            className="ignore-panel"
+            aria-label={t("Ignore 规则", locale)}
+          >
+            <div className="ignore-panel-heading">
+              <strong>{t("忽略磁盘文件", locale)}</strong>
+              <span>{t("Git ignore 语法，按工作空间根目录匹配", locale)}</span>
+            </div>
+            <textarea
+              aria-label={t("Ignore 规则内容", locale)}
+              spellCheck={false}
+              placeholder={
+                "# 例如忽略某个子目录中的文件\narchive/\n**/draft-*/"
+              }
+              value={ignoreDraft}
+              onChange={(event) => setIgnoreDraft(event.target.value)}
+              disabled={busy}
+            />
+            <button
+              className="ignore-save"
+              disabled={
+                busy ||
+                ignoreDraft ===
+                  (state.workspaceIgnoreRules[selectedWorkspace] ?? "")
+              }
+              onClick={() =>
+                void act(
+                  () =>
+                    api.updateWorkspaceIgnore(selectedWorkspace, ignoreDraft),
+                  "Ignore 规则已保存并重新扫描",
+                )
+              }
+            >
+              {t("保存并重新扫描", locale)}
+            </button>
+          </section>
         ) : null}
         <div className="rule-list">
           {workspaceTargets.map((item) => (

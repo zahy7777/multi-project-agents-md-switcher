@@ -110,6 +110,11 @@ textarea {
   color: var(--teal);
   background: #fff;
 }
+.icon-button.active {
+  border-color: #b9d8cf;
+  color: #276e61;
+  background: #e7f3ef;
+}
 .workspace-list {
   display: grid;
   gap: 3px;
@@ -240,6 +245,60 @@ textarea {
 }
 .search-box input::placeholder {
   color: #a5afb1;
+}
+.ignore-panel {
+  display: grid;
+  gap: 9px;
+  margin: 0 3px 10px;
+  padding: 11px;
+  border: 1px solid #dce8e3;
+  border-radius: 8px;
+  background: #f8fbf9;
+}
+.ignore-panel-heading {
+  display: grid;
+  gap: 3px;
+}
+.ignore-panel-heading strong {
+  color: #344a4e;
+  font-size: 12px;
+}
+.ignore-panel-heading span {
+  color: #7c898b;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.ignore-panel textarea {
+  width: 100%;
+  min-height: 94px;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid #dfe7e3;
+  border-radius: 6px;
+  outline-color: #72a99b;
+  color: #35474d;
+  background: #fff;
+  font:
+    12px/1.55 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.ignore-panel textarea::placeholder {
+  color: #a0abaa;
+}
+.ignore-save {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: #328375;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ignore-save:disabled {
+  color: #9ba7a4;
+  background: #e9eeeb;
 }
 .rule-list {
   display: grid;
@@ -424,7 +483,10 @@ textarea {
   color: #507168;
   background: linear-gradient(180deg, #fff 0%, #f7faf8 100%);
   box-shadow: 0 1px 2px rgb(31 60 50 / 5%);
-  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
 }
 .locale-picker:hover {
   border-color: #a8c5ba;

@@ -14,6 +14,7 @@ export type CandidateRevision = {
 
 export type RulePath = {
   path: string;
+  visibleWorkspaces: string[];
   formalContent: string | null;
   lockedCandidateId: string | null;
   candidates: Candidate[];
@@ -22,6 +23,7 @@ export type RulePath = {
 
 export type ManagerState = {
   workspaces: string[];
+  workspaceIgnoreRules: Record<string, string>;
   targets: RulePath[];
   historyPath: string;
   diagnosticsPath: string;

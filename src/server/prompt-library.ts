@@ -11,6 +11,7 @@ import type {
   RulePath,
 } from "../shared/contracts.js";
 import { applicationDataDirectory, userRulesFile } from "./settings.js";
+import { WorkspaceIgnore } from "./workspace-ignore.js";
 
 const execute = promisify(execFile);
 
@@ -56,6 +57,7 @@ export class PromptLibrary {
   );
   private state: StoredState = { workspaces: [], targets: {} };
   private mutationQueue: Promise<void> = Promise.resolve();
+  private readonly workspaceIgnore = new WorkspaceIgnore(this.dataDirectory);
 
   async open(): Promise<ManagerState> {
     await fs.mkdir(this.candidateDirectory, { recursive: true });
@@ -138,6 +140,16 @@ export class PromptLibrary {
         "ok",
         `path=${workspace} elapsed_ms=${Date.now() - started}`,
       );
+      return this.view();
+    });
+  }
+
+  async updateWorkspaceIgnore(selectedPath: string, rules: string) {
+    return this.exclusively(async () => {
+      const workspace = await this.authorizedWorkspace(selectedPath);
+      await this.workspaceIgnore.write(workspace, rules);
+      await this.scanWorkspace(workspace);
+      await this.log("workspace.ignore.update", "ok", `path=${workspace}`);
       return this.view();
     });
   }
@@ -768,7 +780,8 @@ export class PromptLibrary {
   }
 
   private async scanWorkspace(workspace: string) {
-    const discovered = await this.discoverAgentFiles(workspace);
+    const rules = await this.workspaceIgnore.read(workspace);
+    const discovered = await this.discoverAgentFiles(workspace, rules);
     let changed = false;
     const previousTargets = structuredClone(this.state.targets);
     const importedCandidates: SavedCandidate[] = [];
@@ -806,17 +819,24 @@ export class PromptLibrary {
     }
   }
 
-  private async discoverAgentFiles(workspace: string) {
+  private async discoverAgentFiles(workspace: string, rules: string) {
     const pending = [workspace];
     const found: string[] = [];
+    const matcher = this.workspaceIgnore.matcher(rules);
     while (pending.length) {
       const directory = pending.pop()!;
       const entries = await fs.readdir(directory, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = path.join(directory, entry.name);
         if (entry.isSymbolicLink()) continue;
-        if (entry.isDirectory()) pending.push(fullPath);
-        else if (entry.isFile() && entry.name === "AGENTS.md")
+        const relative = path.relative(workspace, fullPath).replace(/\\/g, "/");
+        if (entry.isDirectory()) {
+          if (!matcher.ignores(`${relative}/`)) pending.push(fullPath);
+        } else if (
+          entry.isFile() &&
+          entry.name === "AGENTS.md" &&
+          !matcher.ignores(relative)
+        )
           found.push(await fs.realpath(fullPath));
       }
     }
@@ -825,7 +845,29 @@ export class PromptLibrary {
 
   private async view(): Promise<ManagerState> {
     const targets: RulePath[] = [];
+    const workspaceIgnoreRules = Object.fromEntries(
+      await Promise.all(
+        this.state.workspaces.map(
+          async (workspace) =>
+            [workspace, await this.workspaceIgnore.read(workspace)] as const,
+        ),
+      ),
+    );
     for (const [targetPath, stored] of Object.entries(this.state.targets)) {
+      const visibleWorkspaces: string[] = [];
+      for (const workspace of this.state.workspaces) {
+        if (!this.isWithin(targetPath, workspace)) continue;
+        const relative = path
+          .relative(workspace, path.join(targetPath, "AGENTS.md"))
+          .replace(/\\/g, "/");
+        if (
+          !this.workspaceIgnore
+            .matcher(workspaceIgnoreRules[workspace] ?? "")
+            .ignores(relative)
+        ) {
+          visibleWorkspaces.push(workspace);
+        }
+      }
       const candidates: Candidate[] = [];
       for (const candidate of stored.candidates) {
         candidates.push({
@@ -838,6 +880,7 @@ export class PromptLibrary {
       }
       targets.push({
         path: targetPath,
+        visibleWorkspaces,
         formalContent: await this.formalContent(targetPath),
         lockedCandidateId: stored.lockedCandidateId,
         candidates,
@@ -847,6 +890,7 @@ export class PromptLibrary {
     targets.sort((left, right) => left.path.localeCompare(right.path));
     return {
       workspaces: [...this.state.workspaces],
+      workspaceIgnoreRules,
       targets,
       historyPath: this.historyDirectory,
       diagnosticsPath: this.diagnosticsFile,
@@ -1037,6 +1081,15 @@ export class PromptLibrary {
       throw new Error("该目录不属于已添加的工作空间。");
     }
     return canonical;
+  }
+
+  private async authorizedWorkspace(selectedPath: string) {
+    const canonical = await this.existingDirectory(selectedPath);
+    const workspace = this.state.workspaces.find((item) =>
+      this.samePath(item, canonical),
+    );
+    if (!workspace) throw new Error("该路径不是已添加的工作空间。");
+    return workspace;
   }
 
   private async existingDirectory(selectedPath: string) {

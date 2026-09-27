@@ -9,6 +9,32 @@ export const localeNames: Record<Locale, string> = {
 };
 
 const entries: Array<[string, string, string, string]> = [
+  ["Ignore 规则", "Ignore rules", "Ignore ルール", "Ignore 규칙"],
+  [
+    "忽略磁盘文件",
+    "Ignore disk files",
+    "ディスクファイルを無視",
+    "디스크 파일 무시",
+  ],
+  [
+    "Git ignore 语法，按工作空间根目录匹配",
+    "Git ignore syntax, matched from the workspace root",
+    "Git ignore 構文。ワークスペースのルートから照合します",
+    "Git ignore 문법을 사용하며 작업 공간 루트를 기준으로 일치합니다",
+  ],
+  ["Ignore 规则内容", "Ignore rules", "Ignore ルール", "Ignore 규칙"],
+  [
+    "保存并重新扫描",
+    "Save and rescan",
+    "保存して再スキャン",
+    "저장 후 다시 검색",
+  ],
+  [
+    "Ignore 规则已保存并重新扫描",
+    "Ignore rules saved and workspace rescanned",
+    "Ignore ルールを保存して再スキャンしました",
+    "Ignore 규칙을 저장하고 다시 검색했습니다",
+  ],
   ["界面语言", "Language", "表示言語", "표시 언어"],
   [
     "本地文件管理",

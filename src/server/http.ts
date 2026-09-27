@@ -80,6 +80,14 @@ export function createHttpApp(library: PromptLibrary) {
       await library.rescanWorkspace(readString(request.body?.path, "path")),
     );
   });
+  app.put("/api/workspaces/ignore", async (request, response) => {
+    response.json(
+      await library.updateWorkspaceIgnore(
+        readString(request.body?.path, "path"),
+        readString(request.body?.rules, "rules", true),
+      ),
+    );
+  });
   app.post("/api/workspaces/scan-all", async (_request, response) => {
     response.json(await library.scanAllWorkspaces());
   });

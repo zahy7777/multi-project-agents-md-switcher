@@ -19,6 +19,7 @@
   "dependencies": {
     "diff": "^9.0.0",
     "express": "^5.1.0",
+    "ignore": "^7.0.10",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

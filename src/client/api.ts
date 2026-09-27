@@ -56,6 +56,11 @@ export const api = {
     }),
   scanWorkspace: (path: string) =>
     request<ManagerState>("/api/workspaces/scan", post({ path })),
+  updateWorkspaceIgnore: (path: string, rules: string) =>
+    request<ManagerState>("/api/workspaces/ignore", {
+      method: "PUT",
+      body: JSON.stringify({ path, rules }),
+    }),
   scanAllWorkspaces: () =>
     request<ManagerState>("/api/workspaces/scan-all", post({})),
   initializePath: (path: string) =>
