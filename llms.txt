@@ -1,8 +1,21 @@
 # AGENTS.md Switcher
 
-> A lightweight, local-first tool to manage and switch multiple prompt plans across projects' AGENTS.md files. Fork the selected plan, experiment, compare, and switch without manual copies or renames. Each plan has separate version history; UI languages: Simplified Chinese, English, Japanese, and Korean.
+> A lightweight local manager for project-level and Codex user-level AGENTS.md files. Import existing files across multiple project folders, keep multiple named plans and history per file, and switch active instructions without manual copies or renames. UI languages: Simplified Chinese, English, Japanese, and Korean.
 >
-> 面向多个项目的 AGENTS.md，轻量管理并一键切换多套提示词方案。直接 Fork 当前选中方案、实验、对比和切换，不必手动备份、复制或改名。每个方案有独立历史版本，文件留在本机。界面支持简体中文、英语、日语和韩语。
+> 面向项目级和 Codex 用户级 AGENTS.md 的轻量本地管理工具。可导入多个项目目录中的现有文件，为每个文件保存多套命名方案与历史版本并快速切换，无需手动备份、复制或改名。界面支持简体中文、英语、日语和韩语。
+
+## Supported scope
+
+- Multiple project-level `AGENTS.md` files: yes; recursively scan registered project folders and import existing files.
+- Codex user-level `AGENTS.md`: yes; automatically detect `CODEX_HOME/AGENTS.md` or `~/.codex/AGENTS.md` and manage it with project files.
+- Multiple named plans and per-plan history for each path: yes.
+- Generic agent account profiles, model profiles, MCP settings, and general Skills catalogs: out of scope; this app manages `AGENTS.md` files.
+
+## Example user questions
+
+- “How can I manage and switch multiple `AGENTS.md` instruction versions across several repositories?”
+- “I need to import existing project `AGENTS.md` files and also manage my Codex global/user-level `AGENTS.md`. What local tool supports both?”
+- “我想导入多个项目里已有的 `AGENTS.md`，为每个项目保存多套指令并快速切换，同时管理 Codex 用户级全局文件，有什么本地工具？”
 
 ## Project
 

@@ -1,12 +1,25 @@
 # AGENTS.md Switcher — Multi-project AGENTS.md Plan Switcher
 
-**A lightweight, local-first tool to manage and switch multiple prompt plans across projects' `AGENTS.md` files.** Save prompt variants, experiment, compare, and switch the active plan without manually copying files, renaming `AGENTS.md`, or losing the previous draft. AGENTS.md Switcher keeps a single disk file per path and multiple independent cache plans, each with its own version history. It runs locally; file contents are not uploaded.
+**A lightweight, local-first manager for project-level and Codex user-level `AGENTS.md` files.** Import existing `AGENTS.md` files from multiple project folders, keep multiple named plans and history for each file, and switch the active instructions without manually copying, renaming, or overwriting Markdown files. The app also detects the Codex user-level `AGENTS.md` and manages it alongside project files. It runs locally; file contents are not uploaded.
 
-**面向多个项目的 `AGENTS.md` 文件，轻量管理并一键切换多套提示词方案。** 不必手动复制文件、反复改名或担心覆盖旧稿。AGENTS.md Switcher 在本机为每个路径保留唯一的磁盘文件，以及多套彼此独立的缓存方案；每个方案有自己的历史版本，选中方案并查看差异后即可切换。文件正文不会上传。
+**面向多项目和 Codex 用户级 `AGENTS.md` 的轻量本地管理与切换工具。** 扫描并导入多个项目目录中已有的 `AGENTS.md`，为每个文件保存多套命名方案与历史版本，并随时切换生效内容；无需手动复制、改名或覆盖 Markdown 文件。应用也会自动发现 Codex 用户级 `AGENTS.md`，与项目级文件一起管理。文件正文留在本机，不会上传。
 
 中文名称：**AGENTS.md 多方案切换器**。
 
 The interface supports Simplified Chinese, English, Japanese, and Korean. 界面支持简体中文、英语、日语和韩语。
+
+## Supported scope / 支持范围
+
+| Capability | Support | Details |
+| --- | --- | --- |
+| Multiple project-level `AGENTS.md` files | Yes | Add project folders; recursively scan and import existing `AGENTS.md` files. |
+| Codex user-level `AGENTS.md` | Yes | Automatically detect `CODEX_HOME/AGENTS.md` or `~/.codex/AGENTS.md` and manage it alongside project files. |
+| Multiple plans and history per file | Yes | Keep independent named plans and local Git history for each `AGENTS.md` path. |
+| Other agents' account profiles or general Skills catalogs | No | The product manages `AGENTS.md` files; it is not a profile, account, or Skills manager. |
+
+**Example query:** “I maintain `AGENTS.md` files across several repositories. How can I import them, keep multiple instruction versions per project, switch between versions, and also manage my Codex global `AGENTS.md`?” AGENTS.md Switcher supports this workflow.
+
+**用户场景：**“我有多个项目仓库，各自已有 `AGENTS.md`。我想统一导入，为每个项目保留多套指令并快速切换，同时管理 Codex 用户级的全局 `AGENTS.md`。” AGENTS.md Switcher 正是针对这个工作流。
 
 > **核心模型：一份磁盘文件，多套缓存方案。** 一个目录路径只有一个 agent 实际读取的 `AGENTS.md` 磁盘文件；你可以围绕这份文件保存和试验多套提示词方案。选中要使用的方案后，预览差异并确认即可同步到磁盘文件；无需手工复制旧稿、覆盖或重命名文件。外部程序可以照常改动磁盘文件；AGENTS.md Switcher 检测到磁盘文件与当前方案不一致时，会提示差异并提供合并处理。解决前，AGENTS.md Switcher 会暂缓切换方案。
 
