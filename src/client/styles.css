@@ -1641,6 +1641,21 @@ textarea {
   font-size: 10px;
   font-weight: 400;
 }
+.path-picker-field {
+  display: flex;
+  gap: 7px;
+}
+.path-picker-field input {
+  min-width: 0;
+  flex: 1;
+}
+.path-picker-field button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+}
 .modal-actions {
   display: flex;
   justify-content: flex-end;

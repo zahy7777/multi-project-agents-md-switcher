@@ -599,6 +599,19 @@ function App() {
     setSelectedWorkspace(added);
   }
 
+  async function chooseWorkspaceDirectory() {
+    setBusy(true);
+    setError("");
+    try {
+      const { path } = await api.chooseWorkspaceDirectory();
+      if (path) setWorkspaceInput(path);
+    } catch (reason) {
+      setError(message(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function chooseWorkspace(workspace: string) {
     if (!confirmLeavingCurrentDraft("切换工作空间")) return;
     setShowArchivedCandidates(false);
@@ -2259,17 +2272,28 @@ function App() {
               </button>
             </div>
             <p className="modal-description">
-              纯浏览器无法读取任意本地路径，请粘贴或输入目录路径。添加后服务会扫描该目录下所有子目录。
+              选择一个本机目录，添加后会扫描该目录及其所有子目录。
             </p>
             <label className="field-label">
               文件夹路径
-              <input
-                autoFocus
-                required
-                placeholder="例如 C:\\Projects\\my-app"
-                value={workspaceInput}
-                onChange={(event) => setWorkspaceInput(event.target.value)}
-              />
+              <span className="path-picker-field">
+                <input
+                  autoFocus
+                  required
+                  placeholder="选择文件夹，或输入本机路径"
+                  value={workspaceInput}
+                  onChange={(event) => setWorkspaceInput(event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={busy}
+                  onClick={() => void chooseWorkspaceDirectory()}
+                >
+                  <FolderOpen size={14} />
+                  浏览…
+                </button>
+              </span>
             </label>
             <div className="modal-actions">
               <button

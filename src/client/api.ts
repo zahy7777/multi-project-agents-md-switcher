@@ -36,6 +36,11 @@ export const api = {
   state: () => request<ManagerState>("/api/state"),
   addWorkspace: (path: string) =>
     request<ManagerState>("/api/workspaces", post({ path })),
+  chooseWorkspaceDirectory: () =>
+    request<{ path: string | null }>(
+      "/api/workspaces/choose-directory",
+      post({}),
+    ),
   removeWorkspace: (path: string) =>
     request<ManagerState>("/api/workspaces", {
       method: "DELETE",

@@ -5,6 +5,7 @@ import express, {
 import fs from "node:fs/promises";
 import path from "node:path";
 import { CandidateChangedError, type PromptLibrary } from "./prompt-library.js";
+import { chooseLocalDirectory } from "./choose-directory.js";
 import { PORT } from "./settings.js";
 
 const uiOrigins = new Set([
@@ -60,6 +61,9 @@ export function createHttpApp(library: PromptLibrary) {
     response.json(
       await library.addWorkspace(readString(request.body?.path, "path")),
     );
+  });
+  app.post("/api/workspaces/choose-directory", async (_request, response) => {
+    response.json({ path: await chooseLocalDirectory() });
   });
   app.delete("/api/workspaces", async (request, response) => {
     response.json(
