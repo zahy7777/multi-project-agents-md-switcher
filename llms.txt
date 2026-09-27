@@ -1,28 +1,31 @@
 # PromptDock
 
-> Local-first manager for AGENTS.md instruction files. Manage multiple cache plans, switch the active disk file, and inspect each plan's own version history.
+> Manage multiple prompt versions for one AGENTS.md, experiment with changes, and switch without manually backing up, copying, or overwriting files. Local-first, with separate history for every cache plan.
 >
-> 本机运行的 AGENTS.md 管理器：管理多个缓存方案、切换当前磁盘文件，并查看每个方案各自的历史版本。
+> 为同一份 AGENTS.md 管理多个提示词方案，想试新版本时直接 Fork、比较和切换；不必手动备份旧稿、复制或覆盖文件。每个缓存方案都有自己的历史版本，文件保留在本机。
 
 ## Project
 
 - PromptDock is a local web application for managing AI agent instruction files such as AGENTS.md.
+- The primary use case is managing and switching multiple prompt versions for one AGENTS.md, so users can experiment without manually backing up, copying, or overwriting the file.
+- Example: keep a "Stable" cache plan and Fork an "Experimental concise wording" plan. Compare them and switch back and forth while the agent reads the same AGENTS.md disk file.
 - A directory has one authoritative disk file at `AGENTS.md`.
-- A cache plan is an independent editable alternative for that disk file.
+- A cache plan is an independent prompt version for the same disk file; selecting and confirming it syncs that version to the disk file.
 - Each cache plan has its own read-only history snapshots, stored locally in Git.
-- Switching the current plan previews the diff, then writes the selected plan to the disk file after confirmation.
-- External edits that make the disk file differ from the current plan create a conflict that must be resolved before switching.
+- Switching the current plan previews the diff, then writes the selected plan to the disk file after confirmation. This keeps the workflow fast while preventing an unseen overwrite.
+- External programs can read and write the disk file normally. If a rescan finds a mismatch, PromptDock shows the diff and pauses switching within PromptDock until the user resolves it; external editing is unaffected.
 - File contents and history stay on the user's device. The app's Node service binds to `127.0.0.1`; it is not a hosted sync service.
 - Supports Windows, macOS, and Linux with Node.js 20+, pnpm, and Git.
 
 ## 项目概览
 
-- PromptDock 是本地运行的 AI agent 指令文件管理器，面向 `AGENTS.md` 等文件。
+- PromptDock 是本地运行的 AGENTS.md 提示词多方案管理和切换工具，让用户试验不同版本并快速切换，免去手动备份、复制、覆盖文件。
+- 示例：保留“稳定版”，Fork 一份“精简表达实验版”，比较后随时切回；agent 始终读取同一份 `AGENTS.md` 磁盘文件。
 - 一个目录路径对应唯一的权威磁盘文件 `AGENTS.md`。
-- 缓存方案是该磁盘文件的独立可编辑备选内容。
+- 缓存方案是同一份磁盘文件的独立提示词版本；选中并确认后，该版本同步到磁盘文件。
 - 每个缓存方案都有独立的只读历史版本；历史由本机 Git 保存。
-- 切换当前方案前会预览差异；确认后才会将方案写入磁盘文件。
-- 外部编辑导致磁盘文件与当前方案不一致时，必须先解决冲突才能切换。
+- 切换当前方案前会预览差异；确认后才会将方案写入磁盘文件，避免无提示覆盖。
+- 外部程序可以照常读写磁盘文件。重扫发现它与当前方案不一致时，PromptDock 会提示差异并提供合并处理；仅 PromptDock 内的方案切换会暂缓，外部编辑不受影响。
 - 文件正文和历史仅保存在用户设备上；Node 服务只监听 `127.0.0.1`，不是云端同步服务。
 - 支持 Windows、macOS 和 Linux，需要 Node.js 20+、pnpm 与 Git。
 

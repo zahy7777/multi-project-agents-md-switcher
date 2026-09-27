@@ -1,8 +1,15 @@
-# PromptDock — AGENTS.md 磁盘文件与缓存方案管理器
+# PromptDock — AGENTS.md 多提示词方案管理与切换 | Prompt Variant Switcher
 
-**在本机管理 AI agent 指令文件的多个缓存方案、切换当前方案，并查看每个方案自己的历史版本。** PromptDock 是一个本地优先的桌面浏览器应用，适用于 Codex 等读取 `AGENTS.md` 的开发工具。文件内容、缓存方案与历史版本都留在你的设备上。
+**为同一份 `AGENTS.md` 保存多个提示词方案，尝试不同版本并随时切换。** 不必每次手动复制旧稿、覆盖文件，再想办法保存之前的内容。PromptDock 把多个缓存方案独立保存；选中要使用的方案并确认差异后，同步到 agent 实际读取的磁盘文件。每个方案还有自己的历史版本，应用在本机运行，文件正文不会上传。
 
-> **核心模型：磁盘文件 + 缓存方案。** 一个目录路径对应唯一的 `AGENTS.md` 磁盘文件；一个磁盘文件可以有多个独立的缓存方案。每个方案都有自己的历史版本。当前方案应与磁盘文件保持一致；切换方案时，PromptDock 会先预览差异，确认后再将方案写入磁盘文件。外部程序改动磁盘文件时，PromptDock 会提示冲突并要求先合并。
+> **核心模型：一份磁盘文件，多套缓存方案。** 一个目录路径只有一个 agent 实际读取的 `AGENTS.md` 磁盘文件；你可以围绕这份文件保存和试验多套提示词方案。选中要使用的方案后，预览差异并确认即可同步到磁盘文件；无需手工复制旧稿、覆盖或重命名文件。外部程序可以照常改动磁盘文件；PromptDock 检测到磁盘文件与当前方案不一致时，会提示差异并提供合并处理。解决前，PromptDock 会暂缓切换方案。
+
+## 解决的麻烦
+
+- **想试不同版本的提示词：** 围绕同一个 `AGENTS.md` Fork 和编辑多个缓存方案，保留稳定稿与实验稿。
+- **不再手工备份和覆盖：** 方案各自保存；选中想用的版本，确认差异后同步到唯一的 `AGENTS.md`。
+- **不用复制文件或改文件名：** agent 始终读取同一份磁盘文件，方案切换由 PromptDock 管理。
+- **改过的内容可追溯：** 每个缓存方案独立保存历史版本，随时比较或 Fork 旧稿。
 
 ## 快速开始
 
@@ -22,18 +29,18 @@ pnpm start
 
 再打开 <http://127.0.0.1:4317>。GitHub 上的[完整中文指南](#中文使用指南)包含 Windows 启动方式、操作说明和本地数据位置。
 
-## 用一个例子理解磁盘和缓存
+## 用一个例子理解多方案切换
 
-假设项目磁盘上已有 `my-app/AGENTS.md`，其中要求 agent 使用 TypeScript。你可以从它 Fork 出“严格类型检查”和“快速原型”两个**缓存方案**，分别编辑和保存；每次保存都会给相应方案增加一个**历史版本**。之后选择“严格类型检查”，预览它与磁盘文件的差异并确认，磁盘上的 `AGENTS.md` 就会被同步。方案切换不删除其他方案；你可以随时查看或 Fork 某个方案的历史版本。
+假设你想调整 `my-app/AGENTS.md` 的提示词语气和约束。先保留现在可用的“稳定版”，再 Fork 一份“精简表达实验版”修改。比较后觉得实验版不合适，就切回“稳定版”；想继续探索，再 Fork 新方案。每个**缓存方案**都独立保存，编辑保存会记录自己的**历史版本**。不必把文件改名、手工复制旧内容，或担心新稿覆盖后找不回旧稿。
 
-| 名称 | 表示什么 | 例子 |
-| --- | --- | --- |
-| 磁盘文件 | 目标路径上真实存在、agent 实际读取的唯一文件 | `my-app/AGENTS.md` |
-| 缓存方案 | 同一磁盘文件的独立内容选项，可编辑、归档和切换 | “严格类型检查”“快速原型” |
-| 历史版本 | 某个缓存方案保存时留下的只读快照 | “严格类型检查”的上一次保存 |
-| 当前方案 | 当前与磁盘文件同步的方案 | 切换后写入 `AGENTS.md` 的方案 |
+| 名称     | 表示什么                                             | 例子                          |
+| -------- | ---------------------------------------------------- | ----------------------------- |
+| 磁盘文件 | 目标路径上真实存在、agent 实际读取的唯一文件         | `my-app/AGENTS.md`            |
+| 缓存方案 | 同一份指令文件的独立内容版本，可编辑、归档和快速切换 | “稳定版”“精简表达实验版”      |
+| 历史版本 | 某个缓存方案保存时留下的只读快照                     | “稳定版”的上一次保存          |
+| 当前方案 | 当前与磁盘文件同步的方案                             | 切换后写入 `AGENTS.md` 的方案 |
 
-![PromptDock 的文件和缓存方案管理界面](docs/screenshots/zh-main.png)
+![PromptDock 通过方案列表快速切换 Agent 指令](docs/screenshots/zh-main.png)
 
 ### 历史版本与差异
 
@@ -43,7 +50,7 @@ pnpm start
 
 ### 外部修改与冲突处理
 
-如果 agent 或其他编辑器改动了磁盘文件，导致它与当前方案不一致，PromptDock 会阻止直接切换。你可以对照磁盘文件和当前方案，形成新的解决稿，再一次性保存并恢复同步。
+agent 和其他编辑器可以照常改动磁盘文件。PromptDock 检测到磁盘文件与当前方案不一致时，会提示差异并提供解决方式；你可以对照两边内容形成合并稿。解决前，PromptDock 只会暂缓通过它切换缓存方案，不会限制外部程序读写磁盘文件。
 
 ![PromptDock 的磁盘文件冲突处理界面](docs/screenshots/zh-conflict.png)
 
@@ -111,20 +118,20 @@ pnpm exec playwright install chromium
 
 ## English guide
 
-PromptDock is a local-first **AGENTS.md manager** for people who maintain different instruction sets for AI coding agents. It runs on your computer and keeps file contents and Git history local.
+PromptDock is a local-first **AGENTS.md prompt variant manager and switcher**. Keep multiple prompt versions for the same `AGENTS.md`, experiment with new wording, and switch back whenever you want. You no longer need to manually copy the old prompt aside, overwrite the file, or rename files. PromptDock syncs the selected cache plan to the one disk file your agent reads; file contents and history stay on your device.
 
-### The disk file and cache plans
+### Experiment with multiple prompt versions
 
-Think of the model as one disk file and several cache plans. A directory has one `AGENTS.md` disk file, which is the file an agent reads. Cache plans are independent alternatives for that file. Each plan has its own saved version history.
+For example, you want to experiment with the tone and constraints in `my-app/AGENTS.md`. Keep the current “Stable” version, then Fork an “Experimental concise wording” cache plan and edit it. Compare the two, switch to the one you want, and keep the other as-is. Each plan has its own history. You do not need to manually copy the old prompt, overwrite the file, or rename files to switch back. Open a plan's history to compare or Fork an earlier snapshot; history browsing never rewrites the disk file.
 
-For example, start with `my-app/AGENTS.md` and Fork two plans: “Strict TypeScript” and “Rapid prototyping.” Edit and save each plan independently. When you switch the current plan, PromptDock previews its diff against the disk file and writes it only after you confirm. Later, open that plan's history to compare or Fork an earlier snapshot. History browsing never rewrites the disk file.
+Other programs can keep editing the disk file normally. If PromptDock detects that it no longer matches the current plan, it shows the differences and offers a merge flow. Only switching through PromptDock is paused until you resolve the mismatch.
 
-| Term | Meaning |
-| --- | --- |
-| Disk file | The single `AGENTS.md` at a target directory; the agent reads this file. |
-| Cache plan | An independent, editable alternative for the disk file. |
-| Version history | Read-only snapshots saved by one cache plan. |
-| Current plan | The plan synchronized with the disk file. |
+| Term            | Meaning                                                                  |
+| --------------- | ------------------------------------------------------------------------ |
+| Disk file       | The single `AGENTS.md` at a target directory; the agent reads this file. |
+| Cache plan      | An independent prompt version you can edit and switch to the disk file.  |
+| Version history | Read-only snapshots saved by one cache plan.                             |
+| Current plan    | The plan synchronized with the disk file.                                |
 
 ### Screenshots
 
@@ -155,7 +162,8 @@ Then open <http://127.0.0.1:4317>. The service listens on the local loopback int
 ### Features
 
 - Add local directories and scan for `AGENTS.md` files.
-- Create, Fork, rename, archive, search, and switch independent cache plans.
+- Keep multiple prompt variants for one `AGENTS.md`; experiment and switch without manual backups, copies, overwrites, or renames.
+- Fork, rename, archive, and search independent cache plans.
 - Save per-plan history in local Git; compare snapshots and Fork an earlier version.
 - Preview disk-file and plan diffs before switching.
 - Resolve external-edit conflicts with a merge draft before synchronizing again.

@@ -365,8 +365,8 @@ function App() {
           locked: false,
           archived: false,
         }
-      : target?.candidates.find((item) => item.id === compareBaseId) ??
-        lockedCandidate;
+      : (target?.candidates.find((item) => item.id === compareBaseId) ??
+        lockedCandidate);
   const compareChanges = useMemo(
     () =>
       compareBase
@@ -1352,8 +1352,7 @@ function App() {
       else if (compareOpen) setCompareOpen(false);
       else if (historyOpen) setHistoryOpen(false);
       else if (findReplaceOpen) setFindReplaceOpen(false);
-      else if (showRenameCandidateForm)
-        setShowRenameCandidateForm(false);
+      else if (showRenameCandidateForm) setShowRenameCandidateForm(false);
       else if (showCandidateForm) setShowCandidateForm(false);
       else if (showWorkspaceForm) setShowWorkspaceForm(false);
       else return;
@@ -1535,7 +1534,9 @@ function App() {
           {selectedWorkspace && workspaceTargets.length === 0 ? (
             <div className="empty-rules">
               <strong>没有发现磁盘文件 AGENTS.md</strong>
-              <span>工作空间已登记，可以在根目录创建磁盘文件和首个缓存方案。</span>
+              <span>
+                工作空间已登记，可以在根目录创建磁盘文件和首个缓存方案。
+              </span>
               <button
                 disabled={busy}
                 onClick={() =>
@@ -1610,12 +1611,12 @@ function App() {
             <div className="welcome-symbol">
               <FileCode2 size={30} />
             </div>
-            <p className="eyebrow">LOCAL FILE MANAGER</p>
+            <p className="eyebrow">AGENT INSTRUCTION VARIANTS</p>
             <h1>
-              把文件和缓存方案，<span>一目了然。</span>
+              一份 AGENTS.md，<span>多个提示词方案，随时切换。</span>
             </h1>
             <p>
-              添加一个本机目录，扫描 AGENTS.md，管理可切换的缓存方案；当前方案与磁盘文件保持一致。
+              想尝试不同版本，不必手动备份、复制或覆盖文件。分别保存多个缓存方案，选中并确认差异后即可切换。
               <br />
               磁盘文件和缓存方案都只保存在你的设备上。
             </p>
@@ -1646,8 +1647,11 @@ function App() {
             <div className="page-title">
               <div>
                 <p className="eyebrow">{relativePath}</p>
-                <h1>磁盘文件与当前方案不一致</h1>
-                <p>合并后保存，会用新的缓存方案更新磁盘文件并恢复同步。</p>
+                <h1>检测到磁盘文件与当前方案不一致</h1>
+                <p>
+                  外部程序可以照常编辑磁盘文件。PromptDock
+                  会显示差异并提供合并处理；解决前暂缓在这里切换方案。
+                </p>
               </div>
               <span className="status danger">
                 <AlertTriangle size={14} />
@@ -1733,7 +1737,9 @@ function App() {
             />
             <div className="editor-footer">
               <span className="resolution-save-info">
-                <span>确认后会生成新缓存方案，将它设为当前方案并写入磁盘文件。</span>
+                <span>
+                  确认后会生成新缓存方案，将它设为当前方案并写入磁盘文件。
+                </span>
                 <small
                   data-testid="resolution-content-stats"
                   title="行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。"
@@ -1769,8 +1775,11 @@ function App() {
             <div className="page-title">
               <div>
                 <p className="eyebrow">{relativePath}</p>
-                <h1>文件管理</h1>
-              <p>选择缓存方案会将它加载到编辑器；切换当前方案会把所选方案写入磁盘文件。</p>
+                <h1>Agent 指令方案</h1>
+                <p>
+                  为同一份 AGENTS.md
+                  保存多套提示词；想尝试其他版本时，选中方案并确认差异即可切换。
+                </p>
               </div>
               <span className="status">
                 <span className="live-dot" />
@@ -1816,8 +1825,8 @@ function App() {
                               );
                             setCompareBaseId(
                               candidate.locked
-                                ? otherCandidate?.id ?? ""
-                                : lockedCandidate?.id ?? "",
+                                ? (otherCandidate?.id ?? "")
+                                : (lockedCandidate?.id ?? ""),
                             );
                             setCompareOpen(true);
                           }
@@ -1885,9 +1894,7 @@ function App() {
                         busy || dirty || target.conflict || candidate.locked
                       }
                       title={
-                        candidate.locked
-                          ? "当前方案不能删除"
-                          : "删除此缓存方案"
+                        candidate.locked ? "当前方案不能删除" : "删除此缓存方案"
                       }
                       onClick={() => void deleteCurrentCandidate()}
                     >
@@ -2275,7 +2282,9 @@ function App() {
                       onClick={() => void saveCurrentCandidate()}
                     >
                       <Save size={15} />
-                      {candidate?.locked ? "保存当前方案并同步磁盘文件" : "保存方案"}
+                      {candidate?.locked
+                        ? "保存当前方案并同步磁盘文件"
+                        : "保存方案"}
                     </button>
                   </div>
                 </div>
@@ -2665,7 +2674,8 @@ function App() {
               </button>
             </div>
             <p className="modal-description">
-              对比基准：所选历史版本；对比对象：当前编辑器（含未保存修改）。历史版本只读；从历史版本 Fork 缓存方案不会改写历史记录或磁盘文件。
+              对比基准：所选历史版本；对比对象：当前编辑器（含未保存修改）。历史版本只读；从历史版本
+              Fork 缓存方案不会改写历史记录或磁盘文件。
             </p>
             {historyError ? (
               <p className="history-error">读取历史失败：{historyError}</p>
@@ -3087,8 +3097,8 @@ function App() {
               本地诊断日志：<code>{state.diagnosticsPath || "尚未生成"}</code>
             </p>
             <p>
-              工作空间目录通过粘贴本机路径添加。磁盘文件保存在目标路径；缓存方案和 Git
-              历史保存在本机数据目录。当前方案与磁盘文件保持一致。
+              工作空间目录通过粘贴本机路径添加。磁盘文件保存在目标路径；缓存方案和
+              Git 历史保存在本机数据目录。当前方案与磁盘文件保持一致。
             </p>
             <a
               className="log-link"
