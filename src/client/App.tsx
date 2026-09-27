@@ -160,6 +160,7 @@ function App() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [starting, setStarting] = useState(true);
+  const [hasInitialState, setHasInitialState] = useState(false);
   const [showWorkspaceForm, setShowWorkspaceForm] = useState(false);
   const [workspaceInput, setWorkspaceInput] = useState("");
   const [showCandidateForm, setShowCandidateForm] = useState(false);
@@ -196,6 +197,7 @@ function App() {
     "content" | "formal-path" | "resolution" | null
   >(null);
   const openingScan = useRef<Promise<ManagerState> | null>(null);
+  const openingState = useRef<Promise<ManagerState> | null>(null);
   const copyFeedbackTimeout = useRef<number | null>(null);
   const saveInFlight = useRef(false);
   const candidateFileInput = useRef<HTMLInputElement>(null);
@@ -473,8 +475,18 @@ function App() {
 
   useEffect(() => {
     let mounted = true;
-    openingScan.current ??= api.scanAllWorkspaces();
-    void openingScan.current
+    openingState.current ??= api.state();
+    void openingState.current
+      .then((cached) => {
+        if (mounted) {
+          setState(cached);
+          setHasInitialState(true);
+        }
+      })
+      .then(() => {
+        openingScan.current ??= api.scanAllWorkspaces();
+        return openingScan.current;
+      })
       .then((next) => {
         if (mounted) setState(next);
       })
@@ -1476,8 +1488,12 @@ function App() {
               搜索全部规则
             </button>
             <div className="topbar-status">
-              <span className="live-dot" />
-              {starting ? "正在扫描已登记路径" : "仅本机运行"}
+              <span className={`live-dot ${starting ? "is-pulsing" : ""}`} />
+              {starting
+                ? hasInitialState
+                  ? `正在后台扫描 ${state.workspaces.length} 个工作空间`
+                  : "正在读取本地状态…"
+                : "仅本机运行"}
             </div>
           </div>
         </header>

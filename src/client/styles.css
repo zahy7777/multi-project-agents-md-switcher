@@ -419,6 +419,24 @@ textarea {
   width: 6px;
   height: 6px;
 }
+.topbar-status .live-dot.is-pulsing {
+  animation: scan-pulse 1s ease-in-out infinite alternate;
+}
+@keyframes scan-pulse {
+  from {
+    opacity: 0.45;
+    box-shadow: 0 0 0 2px #e2f3ed;
+  }
+  to {
+    opacity: 1;
+    box-shadow: 0 0 0 5px #e2f3ed;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar-status .live-dot.is-pulsing {
+    animation: none;
+  }
+}
 .welcome-page {
   display: flex;
   flex: 1;
