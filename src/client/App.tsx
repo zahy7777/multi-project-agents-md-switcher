@@ -323,10 +323,10 @@ function App() {
           key: `${item.path}:candidate:${saved.id}`,
           targetPath: item.path,
           label: saved.archived
-            ? `缓存 · ${saved.name} · 已归档`
+            ? `缓存方案 · ${saved.name} · 已归档`
             : saved.locked
-              ? `缓存 · ${saved.name} · 当前缓存`
-              : `缓存 · ${saved.name}`,
+              ? `缓存方案 · ${saved.name} · 当前方案`
+              : `缓存方案 · ${saved.name}`,
           candidateId: saved.id,
           content: saved.content,
           archived: saved.archived,
@@ -634,7 +634,7 @@ function App() {
 
   function confirmLeavingCurrentDraft(action: string) {
     const drafts = [
-      dirty ? "缓存内容" : "",
+      dirty ? "方案内容" : "",
       resolutionDirty ? "冲突解决稿" : "",
     ].filter(Boolean);
     if (drafts.length === 0) return true;
@@ -688,7 +688,7 @@ function App() {
       return;
     if (
       !window.confirm(
-        `从列表移除「${workspaceLabel(workspace)}」？磁盘文件、缓存和历史都会保留；以后重新添加该路径即可继续管理。`,
+        `从列表移除「${workspaceLabel(workspace)}」？磁盘文件、缓存方案和历史版本都会保留；以后重新添加该路径即可继续管理。`,
       )
     )
       return;
@@ -704,12 +704,12 @@ function App() {
   function rescanSelectedWorkspace() {
     const warnings = [
       dirty
-        ? "当前缓存有未保存修改；如果扫描发现冲突，可从冲突页把草稿放入解决稿。"
+        ? "当前方案有未保存修改；如果扫描发现冲突，可从冲突页把草稿放入解决稿。"
         : "",
       resolutionDirty
         ? "当前冲突解决稿有未保存修改；重扫会更新冲突两侧并保留解决稿，请核对后按需重新载入磁盘文件。"
         : "",
-      dirty ? "建议先保存或导出缓存。" : "",
+      dirty ? "建议先保存或导出当前方案。" : "",
     ].filter(Boolean);
     if (
       warnings.length > 0 &&
@@ -729,7 +729,7 @@ function App() {
   }
 
   function chooseCandidate(item: Candidate) {
-    if (dirty && !window.confirm("当前缓存有未保存修改，确定放弃并切换吗？"))
+    if (dirty && !window.confirm("当前方案有未保存修改，确定放弃并切换吗？"))
       return;
     setSelectedCandidateId(item.id);
     setContent(item.content);
@@ -749,7 +749,7 @@ function App() {
           nextName,
           candidate.name,
         ),
-      `缓存版本已重命名为「${nextName}」`,
+      `缓存方案已重命名为「${nextName}」`,
     );
     if (!next) return;
     setName(nextName);
@@ -768,7 +768,7 @@ function App() {
       return;
     if (
       !window.confirm(
-        `确定删除缓存版本「${candidate.name}」吗？它会从缓存列表和搜索结果中移除；本机 Git 历史仍会保留此前记录。此操作不能在界面中撤销。`,
+        `确定删除缓存方案「${candidate.name}」吗？它会从缓存方案列表和搜索结果中移除；本机 Git 历史仍会保留此前记录。此操作不能在界面中撤销。`,
       )
     )
       return;
@@ -776,7 +776,7 @@ function App() {
     const deletedName = candidate.name;
     const next = await act(
       () => api.deleteCandidate(targetPath, candidate.id),
-      `已删除缓存版本「${deletedName}」`,
+      `已删除缓存方案「${deletedName}」`,
     );
     if (!next) return;
     const updatedTarget = next.targets.find((item) => item.path === targetPath);
@@ -828,7 +828,7 @@ function App() {
       return;
     const next = await act(
       () => api.setCandidateArchived(target.path, candidate.id, true),
-      `已归档「${candidate.name}」，正文和版本历史仍保留`,
+      `已归档「${candidate.name}」，方案正文和历史版本仍保留`,
     );
     if (!next) return;
     const currentTarget = next.targets.find(
@@ -884,7 +884,7 @@ function App() {
         latestCandidate.locked ||
         latestCandidate.archived
       ) {
-        setError("缓存状态已变化，页面已刷新；请重新选择缓存。");
+        setError("缓存方案状态已变化，页面已刷新；请重新选择方案。");
         return;
       }
       setSwitchPreviewOpen(true);
@@ -907,7 +907,7 @@ function App() {
       return;
     const next = await act(
       () => api.lockCandidate(target.path, candidate.id),
-      `已设为当前缓存「${candidate.name}」，磁盘文件已同步`,
+      `已设为当前方案「${candidate.name}」，磁盘文件已同步`,
     );
     if (next) setSwitchPreviewOpen(false);
   }
@@ -919,7 +919,7 @@ function App() {
       ? target.candidates.find((item) => item.id === candidateSourceId)
       : null;
     if (candidateSourceId && !sourceCandidate) {
-      setError("所选缓存已不存在，请重新选择内容来源。");
+      setError("所选缓存方案已不存在，请重新选择内容来源。");
       return;
     }
     const sourceContent = sourceCandidate?.content ?? content;
@@ -928,8 +928,8 @@ function App() {
     const next = await act(
       () => api.createCandidate(target.path, candidateName, sourceContent),
       preserveCurrentDraft
-        ? "新缓存已创建；当前未保存草稿仍保留在编辑器"
-        : "缓存已创建并记录到本地 Git",
+        ? "新缓存方案已创建；当前未保存草稿仍保留在编辑器"
+        : "缓存方案已创建；历史版本已记录到本地 Git",
     );
     const created = next?.targets
       .find((item) => item.path === target.path)
@@ -951,20 +951,20 @@ function App() {
     event.target.value = "";
     if (!file || !target) return;
     if (!/\.(md|markdown)$/i.test(file.name)) {
-      setError("只能导入 .md 或 .markdown 文件。");
+      setError("只能从 .md 或 .markdown 文件 Fork 缓存方案。");
       return;
     }
     if (
       dirty &&
       !window.confirm(
-        "当前缓存有未保存修改，导入后将切换到新缓存。确定继续吗？",
+        "当前方案有未保存修改，Fork 后将切换到新缓存方案。确定继续吗？",
       )
     )
       return;
 
     const targetPath = target.path;
     const importedName =
-      file.name.replace(/\.(md|markdown)$/i, "").trim() || "Fork 缓存";
+      file.name.replace(/\.(md|markdown)$/i, "").trim() || "Fork 缓存方案";
     const knownIds = new Set(target.candidates.map((item) => item.id));
     let importedContent: string;
     try {
@@ -976,7 +976,7 @@ function App() {
 
     const next = await act(
       () => api.createCandidate(targetPath, importedName, importedContent),
-      "已从文件 Fork 为新缓存，磁盘文件未更改",
+      "已从文件 Fork 新缓存方案；磁盘文件未更改",
     );
     const created = next?.targets
       .find((item) => samePath(item.path, targetPath))
@@ -993,7 +993,7 @@ function App() {
     const targetPath = target.path;
     const next = await act(
       () => api.resolveConflict(targetPath, resolutionName, resolution),
-      "冲突已解决，磁盘文件和新缓存已恢复一致",
+      "冲突已解决，磁盘文件已与新缓存方案同步",
     );
     const resolved = next?.targets.find((item) =>
       samePath(item.path, targetPath),
@@ -1069,7 +1069,7 @@ function App() {
     if (
       dirty &&
       !window.confirm(
-        "当前编辑器有未保存修改。创建历史缓存后将切换编辑器，确定继续吗？",
+        "当前编辑器有未保存修改。从历史版本 Fork 缓存方案后将切换编辑器，确定继续吗？",
       )
     )
       return;
@@ -1086,7 +1086,7 @@ function App() {
           `${historyRevisionName ?? historyCandidate.name}（历史恢复）`,
           historyContent,
         ),
-      "已从历史版本创建新缓存；磁盘文件未更改",
+      "已从历史版本 Fork 新缓存方案；磁盘文件未更改",
     );
     const created = next?.targets
       .find((item) => samePath(item.path, targetPath))
@@ -1125,8 +1125,8 @@ function App() {
       setState(next);
       setNotice(
         candidate.locked
-          ? "缓存与磁盘文件已同步并记入历史"
-          : "缓存已保存并记入历史",
+          ? "当前方案与磁盘文件已同步；历史版本已保存"
+          : "历史版本已保存",
       );
       window.setTimeout(() => setNotice(""), 3500);
     } catch (reason) {
@@ -1218,7 +1218,7 @@ function App() {
         latestCandidate.content !== savedCandidateContent
       ) {
         setError(
-          "当前缓存已在其他窗口变化，未打开预览；当前草稿已保留，请先重新扫描并核对。",
+          "当前方案已在其他窗口变化，未打开预览；当前草稿已保留，请先重新扫描并核对。",
         );
         return;
       }
@@ -1454,7 +1454,7 @@ function App() {
                   <button
                     className="workspace-remove"
                     aria-label={`从列表移除工作空间 ${workspaceLabel(workspace)}`}
-                    title={`从列表移除${workspaceLabel(workspace)}（保留文件、缓存和历史）`}
+                    title={`从列表移除${workspaceLabel(workspace)}（保留磁盘文件、缓存方案和历史版本）`}
                     disabled={busy}
                     onClick={() => void removeWorkspace(workspace)}
                   >
@@ -1535,13 +1535,13 @@ function App() {
           {selectedWorkspace && workspaceTargets.length === 0 ? (
             <div className="empty-rules">
               <strong>没有发现磁盘文件 AGENTS.md</strong>
-              <span>工作空间已登记，可以在根目录创建磁盘文件和首个缓存版本。</span>
+              <span>工作空间已登记，可以在根目录创建磁盘文件和首个缓存方案。</span>
               <button
                 disabled={busy}
                 onClick={() =>
                   void act(
                     () => api.initializePath(selectedWorkspace),
-                    "磁盘文件和首个缓存已建立并同步",
+                    "磁盘文件和首个缓存方案已建立并同步",
                   )
                 }
               >
@@ -1587,7 +1587,7 @@ function App() {
               className="secondary-button rule-search-trigger"
               aria-label="搜索全部文件"
               aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
-              title="搜索所有已扫描路径中的磁盘文件和缓存正文（Ctrl+Shift+F）"
+              title="搜索所有已扫描路径中的磁盘文件和方案正文（Ctrl+Shift+F）"
               disabled={starting || busy}
               onClick={() => setRuleSearchOpen(true)}
             >
@@ -1612,12 +1612,12 @@ function App() {
             </div>
             <p className="eyebrow">LOCAL FILE MANAGER</p>
             <h1>
-              把文件和缓存版本，<span>一目了然。</span>
+              把文件和缓存方案，<span>一目了然。</span>
             </h1>
             <p>
-              添加一个本机目录，扫描 AGENTS.md，管理可切换的缓存版本；当前缓存与磁盘文件保持一致。
+              添加一个本机目录，扫描 AGENTS.md，管理可切换的缓存方案；当前方案与磁盘文件保持一致。
               <br />
-              磁盘文件和缓存都只保存在你的设备上。
+              磁盘文件和缓存方案都只保存在你的设备上。
             </p>
             <button
               className="primary-button"
@@ -1646,8 +1646,8 @@ function App() {
             <div className="page-title">
               <div>
                 <p className="eyebrow">{relativePath}</p>
-                <h1>磁盘文件与缓存不一致</h1>
-                <p>磁盘文件与当前缓存不一致。合并后保存，会用新的缓存版本更新磁盘文件并恢复同步。</p>
+                <h1>磁盘文件与当前方案不一致</h1>
+                <p>合并后保存，会用新的缓存方案更新磁盘文件并恢复同步。</p>
               </div>
               <span className="status danger">
                 <AlertTriangle size={14} />
@@ -1656,7 +1656,7 @@ function App() {
             </div>
             <div className="conflict-view-toolbar">
               <span>
-                当前缓存 → 磁盘文件 · 新增 {conflictLineCounts.added} 行 · 删除{" "}
+                当前方案 → 磁盘文件 · 新增 {conflictLineCounts.added} 行 · 删除{" "}
                 {conflictLineCounts.removed} 行
               </span>
               <div
@@ -1685,8 +1685,8 @@ function App() {
             {showConflictDiff ? (
               <LineDiffView
                 changes={conflictChanges}
-                ariaLabel="磁盘文件与当前缓存的行差异"
-                emptyMessage="没有可显示的文本差异；请检查磁盘文件或当前缓存是否缺失。"
+                ariaLabel="磁盘文件与当前方案的行差异"
+                emptyMessage="没有可显示的文本差异；请检查磁盘文件或当前方案是否缺失。"
               />
             ) : (
               <div className="conflict-grid">
@@ -1695,8 +1695,8 @@ function App() {
                   <pre>{target.formalContent ?? "磁盘文件已被删除"}</pre>
                 </div>
                 <div className="compare-panel">
-                  <label>当前缓存</label>
-                  <pre>{lockedCandidate?.content ?? "当前缓存不存在"}</pre>
+                  <label>当前方案</label>
+                  <pre>{lockedCandidate?.content ?? "当前方案不存在"}</pre>
                 </div>
               </div>
             )}
@@ -1712,7 +1712,7 @@ function App() {
                   )
                 }
               >
-                把当前缓存放入解决稿
+                把当前方案放入解决稿
               </button>
               {dirty ? (
                 <button onClick={() => setResolution(content)}>
@@ -1720,7 +1720,7 @@ function App() {
                 </button>
               ) : null}
               <input
-                aria-label="冲突缓存名称"
+                aria-label="冲突方案名称"
                 value={resolutionName}
                 onChange={(event) => setResolutionName(event.target.value)}
               />
@@ -1733,7 +1733,7 @@ function App() {
             />
             <div className="editor-footer">
               <span className="resolution-save-info">
-                <span>确认后会生成新缓存版本，将它设为当前缓存并写入磁盘文件。</span>
+                <span>确认后会生成新缓存方案，将它设为当前方案并写入磁盘文件。</span>
                 <small
                   data-testid="resolution-content-stats"
                   title="行数按换行拆分；空文档计 1 行，结尾换行会保留空行。字符数按 Unicode 码点计数；字节数按 UTF-8 编码计算。"
@@ -1770,7 +1770,7 @@ function App() {
               <div>
                 <p className="eyebrow">{relativePath}</p>
                 <h1>文件管理</h1>
-              <p>选择缓存会将它加载到编辑器；切换当前缓存时会把所选版本写入磁盘文件。</p>
+              <p>选择缓存方案会将它加载到编辑器；切换当前方案会把所选方案写入磁盘文件。</p>
               </div>
               <span className="status">
                 <span className="live-dot" />
@@ -1781,26 +1781,44 @@ function App() {
             <div className="editor-layout">
               <aside className="candidate-panel">
                 <div className="candidate-heading">
-                  <span>缓存版本</span>
+                  <span>缓存方案</span>
                   <div className="candidate-heading-actions">
                     {candidate &&
                     ((!candidate.locked && lockedCandidate) ||
-                      (candidate.locked && candidateContentDirty)) ? (
+                      (candidate.locked &&
+                        (candidateContentDirty ||
+                          target.candidates.some(
+                            (item) => item.id !== candidate.id,
+                          )))) ? (
                       <button
                         aria-label={
-                          candidate.locked ? "预览待同步差异" : "与其他版本对比"
+                          candidate.locked && candidateContentDirty
+                            ? "预览待同步差异"
+                            : "与其他缓存方案对比"
                         }
                         title={
-                          candidate.locked
-                            ? "只读预览当前草稿与磁盘同步版本的差异；保存前不会修改文件"
-                            : "将当前编辑器内容与任意其他缓存并排查看"
+                          candidate.locked && candidateContentDirty
+                            ? "只读预览当前草稿与当前方案（与磁盘同步）的差异；保存前不会修改文件"
+                            : "将当前编辑器内容与其他缓存方案并排查看"
                         }
                         disabled={busy}
                         onClick={() => {
-                          if (candidate.locked) {
+                          if (candidate.locked && candidateContentDirty) {
                             void previewLockedCandidateChanges();
                           } else {
-                            setCompareBaseId(lockedCandidate?.id ?? "");
+                            const otherCandidate =
+                              target.candidates.find(
+                                (item) =>
+                                  item.id !== candidate.id && !item.archived,
+                              ) ??
+                              target.candidates.find(
+                                (item) => item.id !== candidate.id,
+                              );
+                            setCompareBaseId(
+                              candidate.locked
+                                ? otherCandidate?.id ?? ""
+                                : lockedCandidate?.id ?? "",
+                            );
                             setCompareOpen(true);
                           }
                         }}
@@ -1809,16 +1827,16 @@ function App() {
                       </button>
                     ) : null}
                     <button
-                      aria-label="查看缓存历史"
-                      title="查看此缓存的已保存版本"
+                      aria-label="查看历史版本"
+                      title="查看此方案的历史版本"
                       disabled={busy || historyLoading}
                       onClick={() => void openCandidateHistory()}
                     >
                       <Clock3 size={14} />
                     </button>
                     <button
-                      aria-label="新建缓存"
-                      title="新建缓存"
+                      aria-label="新建缓存方案"
+                      title="新建缓存方案"
                       disabled={busy}
                       onClick={() => {
                         setCandidateSourceId("");
@@ -1828,8 +1846,8 @@ function App() {
                       <Plus size={15} />
                     </button>
                     <button
-                      aria-label="从 Markdown Fork 缓存"
-                      title="从 Markdown 文件 Fork 一个缓存版本；来源文件和磁盘文件都不会被修改"
+                      aria-label="从 Markdown Fork 缓存方案"
+                      title="从 Markdown 文件 Fork 一个缓存方案；来源文件和磁盘文件都不会被修改"
                       disabled={busy || target.conflict}
                       onClick={() => candidateFileInput.current?.click()}
                     >
@@ -1837,7 +1855,7 @@ function App() {
                     </button>
                     <input
                       ref={candidateFileInput}
-                      aria-label="选择缓存 Markdown 文件"
+                      aria-label="选择 Markdown 文件以 Fork 缓存方案"
                       type="file"
                       accept=".md,.markdown,text/markdown,text/plain"
                       hidden
@@ -1846,10 +1864,10 @@ function App() {
                   </div>
                 </div>
                 {candidate ? (
-                  <div className="cache-version-actions">
+                  <div className="cache-plan-actions">
                     <button
                       type="button"
-                      aria-label="重命名当前缓存版本"
+                      aria-label="重命名选中的缓存方案"
                       disabled={busy || dirty || target.conflict}
                       onClick={() => {
                         setRenameCandidateName(candidate.name);
@@ -1862,14 +1880,14 @@ function App() {
                     <button
                       type="button"
                       className="delete-cache-button"
-                      aria-label="删除当前缓存版本"
+                      aria-label="删除选中的缓存方案"
                       disabled={
                         busy || dirty || target.conflict || candidate.locked
                       }
                       title={
                         candidate.locked
-                          ? "当前缓存不能删除"
-                          : "删除此缓存版本"
+                          ? "当前方案不能删除"
+                          : "删除此缓存方案"
                       }
                       onClick={() => void deleteCurrentCandidate()}
                     >
@@ -1881,8 +1899,8 @@ function App() {
                 <label className="candidate-filter">
                   <Search size={12} />
                   <input
-                    aria-label="筛选缓存"
-                    placeholder="搜索缓存名称或内容"
+                    aria-label="筛选缓存方案"
+                    placeholder="搜索方案名称或内容"
                     value={candidateFilter}
                     onChange={(event) => setCandidateFilter(event.target.value)}
                   />
@@ -1890,7 +1908,7 @@ function App() {
                 <button
                   className="archive-filter-button"
                   aria-label={
-                    showArchivedCandidates ? "返回当前缓存" : "查看已归档缓存"
+                    showArchivedCandidates ? "返回当前方案" : "查看已归档方案"
                   }
                   disabled={
                     busy ||
@@ -1908,7 +1926,7 @@ function App() {
                     <Archive size={13} />
                   )}
                   {showArchivedCandidates
-                    ? "返回当前缓存"
+                    ? "返回当前方案"
                     : `已归档 (${target?.candidates.filter((item) => item.archived).length ?? 0})`}
                 </button>
                 <div className="candidate-list">
@@ -1923,10 +1941,10 @@ function App() {
                         <strong>{item.name}</strong>
                         <small>
                           {item.locked
-                            ? "正在生效"
+                            ? "当前方案"
                             : item.archived
                               ? "已归档"
-                              : "缓存"}
+                              : "缓存方案"}
                           {(candidateNameCounts.get(
                             item.name.trim().toLowerCase(),
                           ) ?? 0) > 1
@@ -1942,7 +1960,7 @@ function App() {
                     </button>
                   ))}
                   {visibleCandidates.length === 0 ? (
-                    <p className="candidate-list-empty">没有匹配的缓存。</p>
+                    <p className="candidate-list-empty">没有匹配的缓存方案。</p>
                   ) : null}
                 </div>
                 {candidate && candidate.archived ? (
@@ -1952,7 +1970,7 @@ function App() {
                     onClick={() => void restoreCurrentCandidate()}
                   >
                     <ArchiveRestore size={14} />
-                    恢复缓存
+                    恢复缓存方案
                   </button>
                 ) : candidate && !candidate.locked ? (
                   <div className="candidate-actions">
@@ -1962,12 +1980,12 @@ function App() {
                       onClick={() => void openCandidateSwitchPreview()}
                     >
                       <ArrowDownUp size={14} />
-                      切换当前缓存并同步磁盘文件
+                      切换当前方案并同步磁盘文件
                     </button>
                     <button
                       className="archive-candidate-button"
-                      aria-label="归档当前缓存"
-                      title="从当前缓存列表收起；正文和历史保留"
+                      aria-label="归档当前方案"
+                      title="从当前方案列表收起；正文和历史保留"
                       disabled={busy || dirty || target.conflict}
                       onClick={() => void archiveCurrentCandidate()}
                     >
@@ -1998,7 +2016,7 @@ function App() {
                   ) : candidate?.archived ? (
                     <span className="draft-tag">已归档 · 只读</span>
                   ) : (
-                    <span className="draft-tag">缓存草稿</span>
+                    <span className="draft-tag">方案草稿</span>
                   )}
                   <div
                     className="editor-mode-switch"
@@ -2010,7 +2028,7 @@ function App() {
                       aria-pressed={!previewMode}
                       className={!previewMode ? "active" : ""}
                       disabled={candidate?.archived ?? false}
-                      title={candidate?.archived ? "已归档缓存只读" : undefined}
+                      title={candidate?.archived ? "已归档方案只读" : undefined}
                       onClick={() => setPreviewMode(false)}
                     >
                       {candidate?.archived ? (
@@ -2050,12 +2068,12 @@ function App() {
                   <div
                     className="editor-find-replace"
                     role="group"
-                    aria-label="查找替换缓存内容"
+                    aria-label="查找替换方案内容"
                   >
                     <input
-                      aria-label="查找缓存内容"
+                      aria-label="查找方案内容"
                       placeholder="查找文本"
-                      title="只查找当前缓存，按原文区分大小写"
+                      title="只查找当前方案，按原文区分大小写"
                       value={findQuery}
                       onChange={(event) => {
                         setFindQuery(event.target.value);
@@ -2065,7 +2083,7 @@ function App() {
                     <input
                       aria-label="替换为"
                       placeholder="替换为"
-                      title="替换结果只修改当前草稿；保存缓存后才会写入文件"
+                      title="替换结果只修改当前草稿；保存方案后才会写入文件"
                       value={replacementText}
                       onChange={(event) =>
                         setReplacementText(event.target.value)
@@ -2112,7 +2130,7 @@ function App() {
                     <button
                       type="button"
                       className="secondary-button"
-                      title="替换当前缓存中的全部匹配；只修改草稿"
+                      title="替换当前方案中的全部匹配；只修改草稿"
                       disabled={
                         findMatchPositions.length === 0 ||
                         candidate?.archived ||
@@ -2135,7 +2153,7 @@ function App() {
                 <div
                   className="editor-view"
                   id="candidate-editor-view"
-                  aria-label={previewMode ? "Markdown 预览" : "缓存编辑器"}
+                  aria-label={previewMode ? "Markdown 预览" : "方案编辑器"}
                 >
                   {candidate ? (
                     previewMode ? (
@@ -2143,7 +2161,7 @@ function App() {
                     ) : (
                       <input
                         className="candidate-name"
-                        aria-label="缓存名称"
+                        aria-label="方案名称"
                         value={name}
                         readOnly={candidate.archived}
                         onChange={(event) => setName(event.target.value)}
@@ -2173,7 +2191,7 @@ function App() {
                     <textarea
                       ref={candidateEditor}
                       className="markdown-editor"
-                      aria-label="缓存内容"
+                      aria-label="方案内容"
                       spellCheck={false}
                       value={content}
                       readOnly={candidate?.archived ?? false}
@@ -2199,7 +2217,7 @@ function App() {
                       >
                         {formalSyncImpact.added === 0 &&
                         formalSyncImpact.removed === 0
-                          ? "正文与磁盘文件一致；本次只改缓存名称"
+                          ? "正文与磁盘文件一致；本次只改方案名称"
                           : `保存并同步将新增 ${formalSyncImpact.added} 行、删除 ${formalSyncImpact.removed} 行`}
                       </span>
                     ) : null}
@@ -2231,11 +2249,11 @@ function App() {
                       <button
                         className="secondary-button"
                         disabled={busy}
-                        title="恢复此缓存最近保存的名称和正文"
+                        title="还原此方案最近保存的名称和正文"
                         onClick={() => {
                           if (
                             !window.confirm(
-                              "放弃当前未保存修改，并恢复到此缓存最近保存的名称和正文吗？",
+                              "放弃当前未保存修改，并还原此方案最近保存的名称和正文吗？",
                             )
                           )
                             return;
@@ -2244,7 +2262,7 @@ function App() {
                         }}
                       >
                         <RotateCcw size={14} />
-                        还原已保存版本
+                        还原已保存内容
                       </button>
                     ) : null}
                     <button
@@ -2252,12 +2270,12 @@ function App() {
                       disabled={
                         busy || !candidate || candidate.archived || !dirty
                       }
-                      title={`保存缓存（${navigator.platform.toLowerCase().includes("mac") ? "⌘S" : "Ctrl+S"}）`}
+                      title={`保存方案（${navigator.platform.toLowerCase().includes("mac") ? "⌘S" : "Ctrl+S"}）`}
                       aria-keyshortcuts="Control+S Meta+S"
                       onClick={() => void saveCurrentCandidate()}
                     >
                       <Save size={15} />
-                      {candidate?.locked ? "保存并同步磁盘文件" : "保存缓存"}
+                      {candidate?.locked ? "保存当前方案并同步磁盘文件" : "保存方案"}
                     </button>
                   </div>
                 </div>
@@ -2286,12 +2304,12 @@ function App() {
               {target.conflict ? (
                 <span className="formal-match formal-conflict">
                   <AlertTriangle size={13} />
-                  磁盘与缓存不一致
+                  磁盘文件与当前方案不一致
                 </span>
               ) : (
                 <span className="formal-match">
                   <Check size={13} />
-                  磁盘与当前缓存一致
+                  磁盘与当前方案一致
                 </span>
               )}
             </div>
@@ -2364,7 +2382,7 @@ function App() {
               />
             </label>
             <p className="modal-description">
-              搜索所有已扫描路径中的磁盘文件和缓存正文，包含已归档缓存。相同的磁盘文件与当前缓存只显示一次；冲突两侧会分别显示。
+              搜索所有已扫描路径中的磁盘文件和方案正文，包含已归档方案。相同的磁盘文件与当前方案只显示一次；冲突两侧会分别显示。
             </p>
             <div className="rule-search-results" aria-live="polite">
               {!normalizedRuleSearchQuery ? (
@@ -2492,7 +2510,7 @@ function App() {
           >
             <div className="modal-title">
               <div>
-                <p className="eyebrow">缓存版本</p>
+                <p className="eyebrow">缓存方案</p>
                 <h2>重命名</h2>
               </div>
               <button
@@ -2509,13 +2527,13 @@ function App() {
               <input
                 autoFocus
                 required
-                aria-label="缓存版本新名称"
+                aria-label="缓存方案新名称"
                 value={renameCandidateName}
                 onChange={(event) => setRenameCandidateName(event.target.value)}
               />
             </label>
             <p className="modal-description">
-              重命名会记入本机历史，不会更改缓存正文或磁盘文件。
+              重命名会记入本机历史，不会更改方案正文或磁盘文件。
             </p>
             <div className="modal-actions">
               <button
@@ -2551,8 +2569,8 @@ function App() {
           <form className="modal-card" onSubmit={createCandidate}>
             <div className="modal-title">
               <div>
-                <p className="eyebrow">缓存版本</p>
-                <h2>创建缓存</h2>
+                <p className="eyebrow">缓存方案</p>
+                <h2>创建缓存方案</h2>
               </div>
               <button
                 type="button"
@@ -2564,20 +2582,20 @@ function App() {
               </button>
             </div>
             <label className="field-label">
-              缓存名称
+              方案名称
               <input
                 autoFocus
                 required
                 placeholder="例如：更严格的代码审查"
-                aria-label="新缓存名称"
+                aria-label="新方案名称"
                 value={candidateName}
                 onChange={(event) => setCandidateName(event.target.value)}
               />
             </label>
             <label className="field-label">
-              缓存内容来源
+              方案内容来源
               <select
-                aria-label="缓存内容来源"
+                aria-label="方案内容来源"
                 value={candidateSourceId}
                 onChange={(event) => setCandidateSourceId(event.target.value)}
               >
@@ -2593,10 +2611,10 @@ function App() {
             </label>
             <p className="modal-description">
               {candidateSourceId && dirty
-                ? "新缓存会从所选已保存版本创建；当前编辑器中的未保存草稿会保留。"
+                ? "将从所选缓存方案 Fork；当前编辑器中的未保存草稿会保留。"
                 : candidateSourceId
-                  ? "新缓存会从所选已保存版本创建，并在创建后打开。"
-                  : "将编辑器当前内容（包括未保存修改）复制为新版本；创建后可单独编辑和比较。"}
+                  ? "将从所选缓存方案 Fork，并在创建后打开。"
+                  : "将编辑器当前内容（包括未保存修改）复制为新方案；创建后可单独编辑和比较。"}
             </p>
             {selectedSourceCandidate ? (
               <details className="candidate-source-preview">
@@ -2617,7 +2635,7 @@ function App() {
                 disabled={busy || !candidateName.trim()}
               >
                 <Plus size={15} />
-                创建缓存
+                创建缓存方案
               </button>
             </div>
           </form>
@@ -2635,7 +2653,7 @@ function App() {
             <div className="modal-title">
               <div>
                 <p className="eyebrow">本机 Git 历史</p>
-                <h2>{historyCandidate?.name ?? "缓存"} 的已保存版本</h2>
+                <h2>{historyCandidate?.name ?? "缓存方案"} 的历史版本</h2>
               </div>
               <button
                 type="button"
@@ -2647,8 +2665,7 @@ function App() {
               </button>
             </div>
             <p className="modal-description">
-              差异方向：所选历史版本 →
-              当前编辑器（含未保存修改）。历史快照只读；创建历史缓存不会回滚记录或修改磁盘文件。
+              对比基准：所选历史版本；对比对象：当前编辑器（含未保存修改）。历史版本只读；从历史版本 Fork 缓存方案不会改写历史记录或磁盘文件。
             </p>
             {historyError ? (
               <p className="history-error">读取历史失败：{historyError}</p>
@@ -2676,13 +2693,13 @@ function App() {
                 {!historyLoading &&
                 !historyError &&
                 historyRevisions.length === 0 ? (
-                  <p className="history-empty">这个缓存还没有保存记录。</p>
+                  <p className="history-empty">这个缓存方案还没有历史版本。</p>
                 ) : null}
               </div>
               <div className="history-version-view">
                 <div className="history-preview-toolbar">
                   <span>
-                    历史版本 → 当前草稿 · 新增 {historyLineCounts.added} 行 ·
+                    当前草稿相较历史版本 · 新增 {historyLineCounts.added} 行 ·
                     删除 {historyLineCounts.removed} 行
                   </span>
                   <div
@@ -2708,12 +2725,12 @@ function App() {
                   </div>
                 </div>
                 <p className="history-revision-name">
-                  历史缓存名称：
+                  历史版本名称：
                   {historyRevisionName ?? "此历史版本未单独记录名称"}
                 </p>
                 {historyContent === null ? (
                   <pre className="history-preview">
-                    {historyLoading ? "正在读取版本内容…" : "选择一个历史版本"}
+                    {historyLoading ? "正在读取历史版本…" : "选择一个历史版本"}
                   </pre>
                 ) : showHistoryDiff ? (
                   <LineDiffView
@@ -2755,7 +2772,7 @@ function App() {
                 onClick={() => void createCandidateFromHistory()}
               >
                 <Clock3 size={14} />
-                从此版本创建缓存
+                Fork 此历史版本为缓存方案
               </button>
             </div>
           </section>
@@ -2773,7 +2790,7 @@ function App() {
             <div className="modal-title">
               <div>
                 <p className="eyebrow">磁盘文件写入预览</p>
-                <h2>确认切换当前缓存并同步磁盘文件</h2>
+                <h2>确认切换当前方案并同步磁盘文件</h2>
               </div>
               <button
                 type="button"
@@ -2785,9 +2802,9 @@ function App() {
               </button>
             </div>
             <p className="modal-description">
-              将用已保存缓存「{candidate.name}」覆盖磁盘文件
+              将用已保存方案「{candidate.name}」覆盖磁盘文件
               <code>{formalFilePath(target.path)}</code>
-              ，并把它设为当前缓存。此操作保留其他缓存和版本历史。
+              ，并把它设为当前方案。此操作保留其他缓存方案和历史版本。
             </p>
             <div className="switch-preview-summary">
               <span>{candidate.name} → 磁盘文件</span>
@@ -2799,7 +2816,7 @@ function App() {
             <LineDiffView
               changes={switchChanges}
               ariaLabel="磁盘文件切换差异"
-              emptyMessage="缓存正文与磁盘文件完全一致；切换只会更新当前缓存标记。"
+              emptyMessage="方案正文与磁盘文件完全一致；切换只会更新当前方案。"
               className="conflict-diff switch-preview-diff"
             />
             <div className="modal-actions">
@@ -2817,7 +2834,7 @@ function App() {
                 onClick={() => void confirmCandidateSwitch()}
               >
                 <ArrowDownUp size={14} />
-                确认切换缓存并同步磁盘文件
+                确认切换当前方案并同步磁盘文件
               </button>
             </div>
           </section>
@@ -2837,14 +2854,14 @@ function App() {
                 <p className="eyebrow">只读并排查看</p>
                 <h2>
                   {candidate.locked && candidateContentDirty
-                    ? "缓存修改同步预览"
-                    : "缓存版本对比"}
+                    ? "方案修改同步预览"
+                    : "缓存方案对比"}
                 </h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="关闭版本对比"
+                aria-label="关闭方案对比"
                 onClick={() => setCompareOpen(false)}
               >
                 <X size={16} />
@@ -2852,15 +2869,15 @@ function App() {
             </div>
             <p className="modal-description">
               {candidate.locked && candidateContentDirty
-                ? "左侧是待同步的正文草稿；右侧是当前与磁盘同步的已保存版本。此窗口只读，磁盘文件要到点击保存时才会更新。"
+                ? "左侧是待同步的正文草稿；右侧是当前方案已保存的内容。此窗口只读，磁盘文件要到点击保存时才会更新。"
                 : dirty
-                  ? "左侧显示当前编辑器内容（含未保存修改）；右侧显示已保存的基准缓存。此窗口只读。"
+                  ? "左侧显示当前编辑器内容（含未保存修改）；右侧显示已保存的基准方案。此窗口只读。"
                   : "此窗口不会修改任何文件。"}
             </p>
             <label className="compare-base">
               对比基准
               <select
-                aria-label="对比基准版本"
+                aria-label="对比基准"
                 value={compareBase.id}
                 onChange={(event) => setCompareBaseId(event.target.value)}
               >
@@ -2869,7 +2886,7 @@ function App() {
                     <option value="__disk__">AGENTS.md</option>
                   </optgroup>
                 ) : null}
-                <optgroup label="缓存">
+                <optgroup label="缓存方案">
                   {target?.candidates
                     .filter(
                       (item) =>
@@ -2881,7 +2898,7 @@ function App() {
                       <option key={item.id} value={item.id}>
                         {item.name}
                         {item.id === candidate.id
-                          ? "（当前已保存版）"
+                          ? "（当前方案的已保存内容）"
                           : item.locked
                             ? "（与磁盘同步）"
                             : ""}
@@ -2907,7 +2924,7 @@ function App() {
               <div
                 className="conflict-view-switch"
                 role="group"
-                aria-label="缓存对比查看方式"
+                aria-label="方案对比查看方式"
               >
                 <button
                   type="button"
@@ -2931,7 +2948,7 @@ function App() {
               <LineDiffView
                 changes={compareChanges}
                 ariaLabel="对比基准到当前编辑器的行差异"
-                emptyMessage="两个版本的正文完全一致。"
+                emptyMessage="两个方案的正文完全一致。"
                 className="conflict-diff candidate-compare-diff"
               />
             ) : (
@@ -2939,7 +2956,7 @@ function App() {
                 <section className="compare-column">
                   <header>
                     <strong>{candidate.name}</strong>
-                    <span>{dirty ? "当前草稿" : "缓存"}</span>
+                    <span>{dirty ? "当前草稿" : "缓存方案"}</span>
                   </header>
                   <pre>{content}</pre>
                 </section>
@@ -2950,10 +2967,10 @@ function App() {
                       {compareBase.id === "__disk__"
                         ? "磁盘文件"
                         : compareBase.archived
-                          ? "已归档缓存"
+                          ? "已归档方案"
                           : compareBase.locked
-                            ? "与磁盘同步的缓存"
-                            : "缓存"}
+                            ? "当前方案（与磁盘同步）"
+                            : "缓存方案"}
                     </span>
                   </header>
                   <pre>{compareBase.content}</pre>
@@ -2965,7 +2982,7 @@ function App() {
                 className="primary-button"
                 onClick={() => setCompareOpen(false)}
               >
-                返回缓存
+                返回缓存方案
               </button>
             </div>
           </section>
@@ -2985,7 +3002,7 @@ function App() {
               event.preventDefault();
               const next = await act(
                 () => api.initializePath(initializeInput),
-                "磁盘文件和首个缓存已建立并同步",
+                "磁盘文件和首个缓存方案已建立并同步",
               );
               if (!next) return;
               const initialized = next.targets.find((item) =>
@@ -3070,8 +3087,8 @@ function App() {
               本地诊断日志：<code>{state.diagnosticsPath || "尚未生成"}</code>
             </p>
             <p>
-              工作空间目录通过粘贴本机路径添加。磁盘文件保存在目标路径；缓存版本和 Git
-              历史保存在本机数据目录。当前缓存与磁盘文件保持一致。
+              工作空间目录通过粘贴本机路径添加。磁盘文件保存在目标路径；缓存方案和 Git
+              历史保存在本机数据目录。当前方案与磁盘文件保持一致。
             </p>
             <a
               className="log-link"

@@ -51,7 +51,7 @@ async function expectVisibleButtonsHaveNames(
   }
 }
 
-test("跨路径规则搜索能跳转候选并保护未保存草稿", async ({ page }) => {
+test("跨路径规则搜索能跳转缓存方案并保护未保存草稿", async ({ page }) => {
   const workspace = await makeWorkspace(
     "global-rule-search",
     "root-only search phrase\n",
@@ -66,18 +66,18 @@ test("跨路径规则搜索能跳转候选并保护未保存草稿", async ({ pa
   await page
     .getByRole("button", { name: path.join("nested", "rules") })
     .click();
-  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
   await page
-    .getByRole("textbox", { name: "新候选名称" })
+    .getByRole("textbox", { name: "新方案名称" })
     .fill("Archived search test");
-  await page.getByRole("button", { name: "创建候选" }).click();
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await page.getByRole("button", { name: "创建缓存方案" }).click();
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
   await page
-    .getByRole("textbox", { name: "候选内容", exact: true })
+    .getByRole("textbox", { name: "方案内容", exact: true })
     .fill("archived-only search phrase\n");
-  await page.getByRole("button", { name: "保存候选" }).click();
-  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
-  await page.getByRole("button", { name: "归档当前候选" }).click();
+  await page.getByRole("button", { name: "保存方案" }).click();
+  await expect(page.getByText(/历史版本已保存/)).toBeVisible();
+  await page.getByRole("button", { name: "归档当前方案" }).click();
   await expect(
     page.getByText("已归档「Archived search test」，正文和版本历史仍保留"),
   ).toBeVisible();
@@ -97,10 +97,10 @@ test("跨路径规则搜索能跳转候选并保护未保存草稿", async ({ pa
   }
   await archivedResult.first().click();
   await expect(
-    page.getByRole("textbox", { name: "候选内容", exact: true }),
+    page.getByRole("textbox", { name: "方案内容", exact: true }),
   ).toHaveValue("archived-only search phrase\n");
   await expect(
-    page.getByRole("textbox", { name: "候选内容", exact: true }),
+    page.getByRole("textbox", { name: "方案内容", exact: true }),
   ).toHaveAttribute("readonly", "");
   await page.getByRole("button", { name: "搜索全部规则正文" }).click();
   await page
@@ -111,10 +111,10 @@ test("跨路径规则搜索能跳转候选并保护未保存草稿", async ({ pa
   await expect(nestedResult).toHaveCount(1);
   await expect(nestedResult.first()).toContainText("nested-only search phrase");
   await nestedResult.first().click();
-  await expect(page.getByLabel("候选内容")).toHaveValue(nestedRules);
+  await expect(page.getByLabel("方案内容")).toHaveValue(nestedRules);
 
   const unsavedDraft = `${nestedRules}unsaved search navigation draft\n`;
-  await page.getByLabel("候选内容").fill(unsavedDraft);
+  await page.getByLabel("方案内容").fill(unsavedDraft);
   await page.getByRole("button", { name: "搜索全部规则正文" }).click();
   await page
     .getByRole("textbox", { name: "搜索规则正文" })
@@ -124,10 +124,10 @@ test("跨路径规则搜索能跳转候选并保护未保存草稿", async ({ pa
   const cancelledNavigation = page.waitForEvent("dialog");
   const cancelledResultClick = rootResult.click();
   const cancelDialog = await cancelledNavigation;
-  expect(cancelDialog.message()).toContain("候选内容有未保存修改");
+  expect(cancelDialog.message()).toContain("方案内容有未保存修改");
   await cancelDialog.dismiss();
   await cancelledResultClick;
-  await expect(page.getByLabel("候选内容")).toHaveValue(unsavedDraft);
+  await expect(page.getByLabel("方案内容")).toHaveValue(unsavedDraft);
   await expect(
     page.getByRole("dialog", { name: "搜索全部规则正文" }),
   ).toBeVisible();
@@ -137,7 +137,7 @@ test("跨路径规则搜索能跳转候选并保护未保存草稿", async ({ pa
   const confirmDialog = await confirmedNavigation;
   await confirmDialog.accept();
   await confirmedResultClick;
-  await expect(page.getByLabel("候选内容")).toHaveValue(
+  await expect(page.getByLabel("方案内容")).toHaveValue(
     "root-only search phrase\n",
   );
   await expect(
@@ -163,14 +163,14 @@ test("跨路径规则搜索能跳转候选并保护未保存草稿", async ({ pa
     .fill("external-only conflict phrase");
   await expect(page.locator(".rule-search-result")).toHaveCount(1);
   await expect(page.locator(".rule-search-result").first()).toContainText(
-    "正式文件 · 冲突版本",
+    "磁盘文件 · 不一致",
   );
   await page
     .getByRole("textbox", { name: "搜索规则正文" })
     .fill("nested-only search phrase");
   await expect(page.locator(".rule-search-result")).toHaveCount(1);
   await expect(page.locator(".rule-search-result").first()).toContainText(
-    "候选 · 导入的正式规则 · 当前生效",
+    "缓存方案 · 导入的正式规则 · 当前生效",
   );
   await page.getByRole("button", { name: "关闭规则搜索" }).click();
   const unsavedResolution = `${externalRules}unsaved conflict search draft\n`;
@@ -260,12 +260,12 @@ test("跨工作空间搜索结果会切换到规则所属工作空间", async ({
   await expect(page.locator(".breadcrumbs")).toContainText(
     path.basename(firstWorkspace),
   );
-  await expect(page.getByLabel("候选内容")).toHaveValue(
+  await expect(page.getByLabel("方案内容")).toHaveValue(
     "phrase owned by first workspace\n",
   );
 });
 
-test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地文件", async ({
+test("缓存方案编辑、预览、切换与冲突合并贯穿真实界面和本地文件", async ({
   page,
 }) => {
   const originalRules =
@@ -309,39 +309,39 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     0,
   );
   await addWorkspace(page, workspace);
-  await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
+  await expect(page.getByLabel("方案内容")).toHaveValue(originalRules);
 
-  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
-  await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
+  await expect(page.getByLabel("方案内容")).toHaveValue(originalRules);
   const candidatesAfterEscapeResponse = await page.request.get("/api/state");
   const candidatesAfterEscape = await candidatesAfterEscapeResponse.json();
   const targetAfterEscape = candidatesAfterEscape.targets.find(
     (item: { path: string }) => item.path === workspace,
   );
   expect(targetAfterEscape.candidates).toHaveLength(1);
-  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
   await page.getByRole("button", { name: "关闭", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
-  await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
-  await page.getByRole("button", { name: "新建候选" }).click();
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
+  await expect(page.getByLabel("方案内容")).toHaveValue(originalRules);
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
   await page.getByRole("button", { name: "取消" }).click();
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
-  await page.getByRole("button", { name: "新建候选" }).click();
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
   await page.getByPlaceholder("例如：更严格的代码审查").fill("Candidate B");
-  await expect(page.getByRole("button", { name: "创建候选" })).toBeEnabled();
-  await page.getByRole("button", { name: "创建候选" }).click();
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
-  await expect(page.getByLabel("候选名称")).toHaveValue("Candidate B");
-  await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
+  await expect(page.getByRole("button", { name: "创建缓存方案" })).toBeEnabled();
+  await page.getByRole("button", { name: "创建缓存方案" }).click();
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
+  await expect(page.getByLabel("方案名称")).toHaveValue("Candidate B");
+  await expect(page.getByLabel("方案内容")).toHaveValue(originalRules);
   await page.getByRole("button", { name: "关闭提示" }).click();
   await expect(page.getByRole("status")).toHaveCount(0);
-  await page.getByLabel("候选内容").fill("");
+  await page.getByLabel("方案内容").fill("");
   await expect(page.getByTestId("candidate-content-stats")).toHaveText(
     "有未保存更改 · 1 行 · 0 字符 · 0 UTF-8 字节",
   );
-  await page.getByLabel("候选内容").fill("first\n中文🌍\n");
+  await page.getByLabel("方案内容").fill("first\n中文🌍\n");
   await expect(page.getByTestId("candidate-content-stats")).toHaveText(
     "有未保存更改 · 3 行 · 10 字符 · 17 UTF-8 字节",
   );
@@ -376,16 +376,16 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     });
   }
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.getByLabel("候选内容").fill(originalRules);
+  await page.getByLabel("方案内容").fill(originalRules);
   await page
-    .getByRole("textbox", { name: "候选内容", exact: true })
+    .getByRole("textbox", { name: "方案内容", exact: true })
     .fill(candidateRules);
   const shortcutSavePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/candidates") &&
       response.request().method() === "PUT",
   );
-  await page.getByLabel("候选内容").press("Control+s");
+  await page.getByLabel("方案内容").press("Control+s");
   const shortcutSaveResponse = await shortcutSavePromise;
   expect(shortcutSaveResponse.ok()).toBe(true);
   await expect(page.getByText(/所有更改已保存/)).toBeVisible();
@@ -410,31 +410,31 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     path.join(workspace, "AGENTS.md"),
     "utf8",
   );
-  await page.getByLabel("候选名称").fill("Unsaved name");
+  await page.getByLabel("方案名称").fill("Unsaved name");
   const discardDraft = `${candidateRules}unsaved discard draft\n`;
-  await page.getByLabel("候选内容").fill(discardDraft);
+  await page.getByLabel("方案内容").fill(discardDraft);
   const cancelledDiscard = page.waitForEvent("dialog");
   const cancelledDiscardClick = page
-    .getByRole("button", { name: "还原已保存版本" })
+    .getByRole("button", { name: "还原已保存内容" })
     .click();
   const cancelledDiscardDialog = await cancelledDiscard;
   expect(cancelledDiscardDialog.message()).toContain("放弃当前未保存修改");
   await cancelledDiscardDialog.dismiss();
   await cancelledDiscardClick;
-  await expect(page.getByLabel("候选名称")).toHaveValue("Unsaved name");
-  await expect(page.getByLabel("候选内容")).toHaveValue(discardDraft);
+  await expect(page.getByLabel("方案名称")).toHaveValue("Unsaved name");
+  await expect(page.getByLabel("方案内容")).toHaveValue(discardDraft);
 
   const acceptedDiscard = page.waitForEvent("dialog");
   const acceptedDiscardClick = page
-    .getByRole("button", { name: "还原已保存版本" })
+    .getByRole("button", { name: "还原已保存内容" })
     .click();
   const acceptedDiscardDialog = await acceptedDiscard;
   await acceptedDiscardDialog.accept();
   await acceptedDiscardClick;
-  await expect(page.getByLabel("候选名称")).toHaveValue("Candidate B");
-  await expect(page.getByLabel("候选内容")).toHaveValue(candidateRules);
+  await expect(page.getByLabel("方案名称")).toHaveValue("Candidate B");
+  await expect(page.getByLabel("方案内容")).toHaveValue(candidateRules);
   await expect(
-    page.getByRole("button", { name: "还原已保存版本" }),
+    page.getByRole("button", { name: "还原已保存内容" }),
   ).toHaveCount(0);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     formalBeforeDiscard,
@@ -446,13 +446,13 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   );
 
   const branchDraft = `${candidateRules}keep this unsaved draft while branching\n`;
-  await page.getByLabel("候选内容").fill(branchDraft);
-  await page.getByRole("button", { name: "新建候选" }).click();
-  await expect(page.getByLabel("候选内容来源")).toHaveValue("");
-  await page.getByLabel("候选内容来源").selectOption({ index: 1 });
+  await page.getByLabel("方案内容").fill(branchDraft);
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
+  await expect(page.getByLabel("方案内容来源")).toHaveValue("");
+  await page.getByLabel("方案内容来源").selectOption({ index: 1 });
   await expect(
     page.getByText(
-      "新候选会从所选已保存版本创建；当前编辑器中的未保存草稿会保留。",
+      "将从所选缓存方案 Fork；当前编辑器中的未保存草稿会保留。",
     ),
   ).toBeVisible();
   await page.getByText("预览已保存来源正文（只读）").click();
@@ -467,11 +467,11 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
       path: process.env.PROMPTDOCK_BRANCH_MODAL_SCREENSHOT_PATH,
     });
   }
-  await page.getByLabel("新候选名称").fill("Branch from formal");
-  await page.getByRole("button", { name: "创建候选" }).click();
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
-  await expect(page.getByLabel("候选名称")).toHaveValue("Candidate B");
-  await expect(page.getByLabel("候选内容")).toHaveValue(branchDraft);
+  await page.getByLabel("新方案名称").fill("Branch from formal");
+  await page.getByRole("button", { name: "创建缓存方案" }).click();
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
+  await expect(page.getByLabel("方案名称")).toHaveValue("Candidate B");
+  await expect(page.getByLabel("方案内容")).toHaveValue(branchDraft);
   await expect(page.getByText(/当前未保存草稿仍保留在编辑器/)).toBeVisible();
   const branchStateResponse = await page.request.get("/api/state");
   const branchState = await branchStateResponse.json();
@@ -493,7 +493,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   );
   const discardBranchDraft = page.waitForEvent("dialog");
   const discardBranchClick = page
-    .getByRole("button", { name: "还原已保存版本" })
+    .getByRole("button", { name: "还原已保存内容" })
     .click();
   const discardBranchDialog = await discardBranchDraft;
   expect(discardBranchDialog.message()).toContain("放弃当前未保存修改");
@@ -513,7 +513,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   };
   page.on("request", observeWorkspaceScan);
   const scanDraft = `${candidateRules}draft survives a workspace scan\n`;
-  await page.getByLabel("候选内容").fill(scanDraft);
+  await page.getByLabel("方案内容").fill(scanDraft);
   const cancelledScanConfirmation = page.waitForEvent("dialog");
   const cancelledScanClick = page
     .getByRole("button", { name: "重新扫描当前工作空间" })
@@ -523,7 +523,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await cancelledScanDialog.dismiss();
   await cancelledScanClick;
   expect(scanRequests).toHaveLength(0);
-  await expect(page.getByLabel("候选内容")).toHaveValue(scanDraft);
+  await expect(page.getByLabel("方案内容")).toHaveValue(scanDraft);
 
   const scanResponsePromise = page.waitForResponse(
     (response) =>
@@ -542,8 +542,8 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await scanClick;
   expect(scanRequests).toHaveLength(1);
   page.off("request", observeWorkspaceScan);
-  await expect(page.getByLabel("候选内容")).toHaveValue(scanDraft);
-  await page.getByLabel("候选内容").fill(candidateRules);
+  await expect(page.getByLabel("方案内容")).toHaveValue(scanDraft);
+  await page.getByLabel("方案内容").fill(candidateRules);
 
   const unsupportedSource = path.join(testRoot, "unsupported prompt.txt");
   await writeFile(unsupportedSource, "This is not Markdown.\n", "utf8");
@@ -555,14 +555,14 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     candidatesBeforeUnsupportedImportState.targets
       .find((item: { path: string }) => item.path === workspace)
       .candidates.map((item: { id: string }) => item.id);
-  await page.getByRole("button", { name: "从 Markdown 导入候选" }).click();
+  await page.getByRole("button", { name: "从 Markdown Fork 缓存方案" }).click();
   await page
-    .getByLabel("选择候选 Markdown 文件")
+    .getByLabel("选择 Markdown 文件以 Fork 缓存方案")
     .setInputFiles(unsupportedSource);
   await expect(page.locator(".toast-error")).toContainText(
     "只能导入 .md 或 .markdown 文件",
   );
-  await expect(page.getByLabel("候选内容")).toHaveValue(candidateRules);
+  await expect(page.getByLabel("方案内容")).toHaveValue(candidateRules);
   const candidatesAfterUnsupportedImportResponse =
     await page.request.get("/api/state");
   const candidatesAfterUnsupportedImportState =
@@ -580,10 +580,10 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   const importedSource = path.join(testRoot, "legacy prompt.md");
   const importedRules = "# Imported legacy prompt\n\nDo not modify source.\n";
   await writeFile(importedSource, importedRules, "utf8");
-  await page.getByRole("button", { name: "从 Markdown 导入候选" }).click();
-  await page.getByLabel("选择候选 Markdown 文件").setInputFiles(importedSource);
-  await expect(page.getByLabel("候选名称")).toHaveValue("legacy prompt");
-  await expect(page.getByLabel("候选内容")).toHaveValue(importedRules);
+  await page.getByRole("button", { name: "从 Markdown Fork 缓存方案" }).click();
+  await page.getByLabel("选择 Markdown 文件以 Fork 缓存方案").setInputFiles(importedSource);
+  await expect(page.getByLabel("方案名称")).toHaveValue("legacy prompt");
+  await expect(page.getByLabel("方案内容")).toHaveValue(importedRules);
   expect(await readFile(importedSource, "utf8")).toBe(importedRules);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     originalRules,
@@ -598,25 +598,25 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
       (item: { name: string }) => item.name === "legacy prompt",
     ).locked,
   ).toBe(false);
-  await page.getByRole("button", { name: "Candidate B 候选" }).click();
+  await page.getByRole("button", { name: "Candidate B 缓存方案" }).click();
 
   const unsavedDraft = `${candidateRules}do not discard without confirmation\n`;
-  await page.getByLabel("候选内容").fill(unsavedDraft);
+  await page.getByLabel("方案内容").fill(unsavedDraft);
   page.once("dialog", (dialog) => dialog.dismiss());
-  await page.getByRole("button", { name: "legacy prompt 候选" }).click();
-  await expect(page.getByLabel("候选内容")).toHaveValue(unsavedDraft);
+  await page.getByRole("button", { name: "legacy prompt 缓存方案" }).click();
+  await expect(page.getByLabel("方案内容")).toHaveValue(unsavedDraft);
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "legacy prompt 候选" }).click();
-  await expect(page.getByLabel("候选内容")).toHaveValue(importedRules);
+  await page.getByRole("button", { name: "legacy prompt 缓存方案" }).click();
+  await expect(page.getByLabel("方案内容")).toHaveValue(importedRules);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     originalRules,
   );
-  await page.getByRole("button", { name: "Candidate B 候选" }).click();
-  await expect(page.getByLabel("候选内容")).toHaveValue(candidateRules);
+  await page.getByRole("button", { name: "Candidate B 缓存方案" }).click();
+  await expect(page.getByLabel("方案内容")).toHaveValue(candidateRules);
 
   const comparisonDraft = `${candidateRules}comparison draft only\n`;
-  await page.getByLabel("候选内容").fill(comparisonDraft);
-  await page.getByRole("button", { name: "与其他版本对比" }).click();
+  await page.getByLabel("方案内容").fill(comparisonDraft);
+  await page.getByRole("button", { name: "与其他缓存方案对比" }).click();
   await page
     .getByLabel("对比基准版本")
     .selectOption({ label: "legacy prompt" });
@@ -632,18 +632,18 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(
     page.getByText("左侧显示当前编辑器内容（含未保存修改）", { exact: false }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "关闭版本对比" }).click();
-  await expect(page.getByRole("heading", { name: "候选版本对比" })).toHaveCount(
+  await page.getByRole("button", { name: "关闭方案对比" }).click();
+  await expect(page.getByRole("heading", { name: "缓存方案对比" })).toHaveCount(
     0,
   );
-  await expect(page.getByLabel("候选内容")).toHaveValue(comparisonDraft);
-  await page.getByRole("button", { name: "与其他版本对比" }).click();
+  await expect(page.getByLabel("方案内容")).toHaveValue(comparisonDraft);
+  await page.getByRole("button", { name: "与其他缓存方案对比" }).click();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("heading", { name: "候选版本对比" })).toHaveCount(
+  await expect(page.getByRole("heading", { name: "缓存方案对比" })).toHaveCount(
     0,
   );
-  await expect(page.getByLabel("候选内容")).toHaveValue(comparisonDraft);
-  await page.getByRole("button", { name: "与其他版本对比" }).click();
+  await expect(page.getByLabel("方案内容")).toHaveValue(comparisonDraft);
+  await page.getByRole("button", { name: "与其他缓存方案对比" }).click();
   await page
     .getByLabel("对比基准版本")
     .selectOption({ label: "legacy prompt" });
@@ -677,12 +677,12 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   ).toBeVisible();
   await page.getByRole("button", { name: "并排原文" }).click();
   await expect(page.locator(".compare-column")).toHaveCount(2);
-  await page.getByRole("button", { name: "返回候选" }).click();
-  await page.getByLabel("候选内容").fill(candidateRules);
+  await page.getByRole("button", { name: "返回方案" }).click();
+  await page.getByLabel("方案内容").fill(candidateRules);
   await expect(page.getByText(/所有更改已保存/)).toBeVisible();
 
-  await page.getByLabel("候选内容").fill("");
-  await page.getByRole("button", { name: "与其他版本对比" }).click();
+  await page.getByLabel("方案内容").fill("");
+  await page.getByRole("button", { name: "与其他缓存方案对比" }).click();
   await page
     .getByLabel("对比基准版本")
     .selectOption({ label: "legacy prompt" });
@@ -696,13 +696,13 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.locator(".candidate-compare-diff .added code")).toHaveCount(
     0,
   );
-  await page.getByRole("button", { name: "返回候选" }).click();
-  await page.getByLabel("候选内容").fill(candidateRules);
+  await page.getByRole("button", { name: "返回方案" }).click();
+  await page.getByLabel("方案内容").fill(candidateRules);
   await expect(page.getByText(/所有更改已保存/)).toBeVisible();
 
   const exportedDraft = `${candidateRules}export-only draft\n`;
-  await page.getByLabel("候选名称").fill("Candidate/B*");
-  await page.getByLabel("候选内容").fill(exportedDraft);
+  await page.getByLabel("方案名称").fill("Candidate/B*");
+  await page.getByLabel("方案内容").fill(exportedDraft);
   const candidateBeforeCopyResponse = await page.request.get("/api/state");
   const candidateBeforeCopyState = await candidateBeforeCopyResponse.json();
   const candidateBeforeCopyTarget = candidateBeforeCopyState.targets.find(
@@ -886,8 +886,8 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   for (const label of [
     "复制内容",
     "导出 Markdown",
-    "还原已保存版本",
-    "保存候选",
+    "还原已保存内容",
+    "保存方案",
   ]) {
     await expect(page.getByRole("button", { name: label })).toBeInViewport();
   }
@@ -940,8 +940,8 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     originalRules,
   );
-  await page.getByLabel("候选名称").fill("Candidate B");
-  await page.getByLabel("候选内容").fill(candidateRules);
+  await page.getByLabel("方案名称").fill("Candidate B");
+  await page.getByLabel("方案内容").fill(candidateRules);
   await expect(page.getByText(/所有更改已保存/)).toBeVisible();
 
   await page.getByRole("button", { name: "预览" }).click();
@@ -957,7 +957,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   expect(unexpectedImageRequests).toEqual([]);
   await page.getByRole("button", { name: "编辑" }).click();
 
-  await page.getByRole("button", { name: "与其他版本对比" }).click();
+  await page.getByRole("button", { name: "与其他缓存方案对比" }).click();
   await page.getByRole("button", { name: "并排原文" }).click();
   await expect(page.locator(".compare-column header strong").nth(1)).toHaveText(
     "导入的正式规则",
@@ -968,13 +968,13 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.locator(".compare-column pre").nth(1)).toHaveText(
     originalRules,
   );
-  await page.getByRole("button", { name: "返回候选" }).click();
+  await page.getByRole("button", { name: "返回方案" }).click();
 
   await page.getByRole("button", { name: "切换为正式规则" }).click();
   await expect(
     page.getByRole("heading", { name: "确认切换为正式规则" }),
   ).toBeVisible();
-  await expect(page.getByLabel("正式文件切换差异")).toContainText(
+  await expect(page.getByLabel("磁盘文件切换差异")).toContainText(
     "candidate only",
   );
   if (process.env.PROMPTDOCK_SWITCH_PREVIEW_SCREENSHOT_PATH) {
@@ -1044,19 +1044,19 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     path.join(workspace, "AGENTS.md"),
     "utf8",
   );
-  await page.getByLabel("候选名称").fill("Unsaved locked name");
+  await page.getByLabel("方案名称").fill("Unsaved locked name");
   await page
-    .getByLabel("候选内容")
+    .getByLabel("方案内容")
     .fill(`${candidateRules}unsaved locked draft\n`);
   const lockedRestoreConfirmation = page.waitForEvent("dialog");
   const lockedRestoreClick = page
-    .getByRole("button", { name: "还原已保存版本" })
+    .getByRole("button", { name: "还原已保存内容" })
     .click();
   const lockedRestoreDialog = await lockedRestoreConfirmation;
   await lockedRestoreDialog.accept();
   await lockedRestoreClick;
-  await expect(page.getByLabel("候选名称")).toHaveValue("Candidate B");
-  await expect(page.getByLabel("候选内容")).toHaveValue(candidateRules);
+  await expect(page.getByLabel("方案名称")).toHaveValue("Candidate B");
+  await expect(page.getByLabel("方案内容")).toHaveValue(candidateRules);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     formalBeforeRestore,
   );
@@ -1066,23 +1066,23 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     lockedHistoryBeforeRestore,
   );
   const lockedRules = `${candidateRules}locked candidate edit\n`;
-  await page.getByLabel("候选内容").fill(lockedRules);
+  await page.getByLabel("方案内容").fill(lockedRules);
   await expect(
-    page.getByRole("button", { name: "保存并同步正式文件" }),
+    page.getByRole("button", { name: "保存当前方案并同步磁盘文件" }),
   ).toBeEnabled();
   const lockedSavePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/candidates") &&
       response.request().method() === "PUT",
   );
-  await page.getByRole("button", { name: "保存并同步正式文件" }).click();
+  await page.getByRole("button", { name: "保存当前方案并同步磁盘文件" }).click();
   const lockedSaveResponse = await lockedSavePromise;
   expect(lockedSaveResponse.ok()).toBe(true);
   await expect(page.getByText(/所有更改已保存/)).toBeVisible();
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     lockedRules,
   );
-  await page.getByLabel("候选内容").fill(conflictDraft);
+  await page.getByLabel("方案内容").fill(conflictDraft);
   await writeFile(path.join(workspace, "AGENTS.md"), externalRules, "utf8");
   const conflictScanConfirmation = page.waitForEvent("dialog");
   const conflictScanClick = page
@@ -1096,7 +1096,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     page.getByRole("heading", { name: "规则文件冲突" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "还原已保存版本" }),
+    page.getByRole("button", { name: "还原已保存内容" }),
   ).toHaveCount(0);
   if (process.env.PROMPTDOCK_CONFLICT_SCREENSHOT_PATH) {
     await page.screenshot({
@@ -1108,9 +1108,9 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await page.getByRole("button", { name: "并排原文" }).click();
   await expect(page.locator(".compare-panel")).toHaveCount(2);
   await page.getByRole("button", { name: "标记差异" }).click();
-  await page.getByRole("button", { name: "把正式文件放入解决稿" }).click();
+  await page.getByRole("button", { name: "把磁盘文件放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(externalRules);
-  await page.getByRole("button", { name: "把锁定候选放入解决稿" }).click();
+  await page.getByRole("button", { name: "把当前方案放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(lockedRules);
   await page.getByRole("button", { name: "把未保存草稿放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(conflictDraft);
@@ -1161,16 +1161,16 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   expect(conflictRescanRequests).toHaveLength(1);
   page.off("request", observeConflictRescan);
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(conflictDraft);
-  await page.getByRole("button", { name: "把正式文件放入解决稿" }).click();
+  await page.getByRole("button", { name: "把磁盘文件放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     refreshedExternalRules,
   );
   await page.getByRole("button", { name: "把未保存草稿放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(conflictDraft);
-  await page.getByLabel("冲突候选名称").fill("Merged rules");
+  await page.getByLabel("冲突方案名称").fill("Merged rules");
   await page.getByLabel("冲突解决内容").fill(mergedRules);
   await page.getByRole("button", { name: "保存解决结果" }).click();
-  await expect(page.getByText("与锁定候选一致", { exact: true })).toBeVisible();
+  await expect(page.getByText("磁盘与当前方案一致", { exact: true })).toBeVisible();
 
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     mergedRules,
@@ -1185,31 +1185,31 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
     target.candidates.find((item: { locked: boolean }) => item.locked).content,
   ).toBe(mergedRules);
 
-  await page.getByRole("button", { name: "Candidate B 候选" }).click();
+  await page.getByRole("button", { name: "Candidate B 缓存方案" }).click();
   const historyComparisonDraft = `${lockedRules}unsaved history draft\n`;
-  await page.getByLabel("候选内容").fill(historyComparisonDraft);
-  await page.getByRole("button", { name: "查看候选历史" }).click();
+  await page.getByLabel("方案内容").fill(historyComparisonDraft);
+  await page.getByRole("button", { name: "查看历史版本" }).click();
   await expect(page.locator(".history-revision")).toHaveCount(3);
   await page.getByRole("button", { name: "关闭历史版本" }).click();
   await expect(
-    page.getByRole("heading", { name: "Candidate B 的已保存版本" }),
+    page.getByRole("heading", { name: "Candidate B 的历史版本" }),
   ).toHaveCount(0);
-  await expect(page.getByLabel("候选内容")).toHaveValue(historyComparisonDraft);
-  await page.getByRole("button", { name: "查看候选历史" }).click();
+  await expect(page.getByLabel("方案内容")).toHaveValue(historyComparisonDraft);
+  await page.getByRole("button", { name: "查看历史版本" }).click();
   await expect(page.locator(".history-revision")).toHaveCount(3);
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("heading", { name: "Candidate B 的已保存版本" }),
+    page.getByRole("heading", { name: "Candidate B 的历史版本" }),
   ).toHaveCount(0);
-  await expect(page.getByLabel("候选内容")).toHaveValue(historyComparisonDraft);
-  await page.getByRole("button", { name: "查看候选历史" }).click();
+  await expect(page.getByLabel("方案内容")).toHaveValue(historyComparisonDraft);
+  await page.getByRole("button", { name: "查看历史版本" }).click();
   await expect(page.locator(".history-revision")).toHaveCount(3);
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Candidate B 的已保存版本" }),
+    page.getByRole("heading", { name: "Candidate B 的历史版本" }),
   ).toHaveCount(0);
-  await expect(page.getByLabel("候选内容")).toHaveValue(historyComparisonDraft);
-  await page.getByRole("button", { name: "查看候选历史" }).click();
+  await expect(page.getByLabel("方案内容")).toHaveValue(historyComparisonDraft);
+  await page.getByRole("button", { name: "查看历史版本" }).click();
   await expect(page.locator(".history-revision")).toHaveCount(3);
   await page.locator(".history-revision").last().click();
   await expect(
@@ -1251,16 +1251,16 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   }
   const cancelledRestoreConfirmation = page.waitForEvent("dialog");
   const cancelledRestoreClick = page
-    .getByRole("button", { name: "从此版本创建候选" })
+    .getByRole("button", { name: "Fork 此历史版本为缓存方案" })
     .click();
   const cancelledRestoreDialog = await cancelledRestoreConfirmation;
   expect(cancelledRestoreDialog.message()).toContain("有未保存修改");
   await cancelledRestoreDialog.dismiss();
   await cancelledRestoreClick;
   await expect(
-    page.getByRole("heading", { name: "Candidate B 的已保存版本" }),
+    page.getByRole("heading", { name: "Candidate B 的历史版本" }),
   ).toBeVisible();
-  await expect(page.getByLabel("候选内容")).toHaveValue(historyComparisonDraft);
+  await expect(page.getByLabel("方案内容")).toHaveValue(historyComparisonDraft);
   const cancelledRestoreStateResponse = await page.request.get("/api/state");
   const cancelledRestoreState = await cancelledRestoreStateResponse.json();
   const cancelledRestoreTarget = cancelledRestoreState.targets.find(
@@ -1279,16 +1279,16 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
 
   const restoreConfirmation = page.waitForEvent("dialog");
   const restoreClick = page
-    .getByRole("button", { name: "从此版本创建候选" })
+    .getByRole("button", { name: "Fork 此历史版本为缓存方案" })
     .click();
   const restoreDialog = await restoreConfirmation;
   expect(restoreDialog.message()).toContain("有未保存修改");
   await restoreDialog.accept();
   await restoreClick;
-  await expect(page.getByLabel("候选名称")).toHaveValue(
+  await expect(page.getByLabel("方案名称")).toHaveValue(
     "Candidate B（历史恢复）",
   );
-  await expect(page.getByLabel("候选内容")).toHaveValue(originalRules);
+  await expect(page.getByLabel("方案内容")).toHaveValue(originalRules);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     mergedRules,
   );
@@ -1311,7 +1311,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
       (item: { name: string }) => item.name === "Candidate B",
     ).content,
   ).toBe(lockedRules);
-  const candidateSearch = page.getByLabel("筛选候选");
+  const candidateSearch = page.getByLabel("筛选缓存方案");
   await candidateSearch.fill("Merged");
   await expect(page.locator(".candidate-row")).toHaveCount(1);
   await candidateSearch.fill("review locally");
@@ -1361,7 +1361,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     navigationConflictRules,
   );
-  await page.getByLabel("冲突候选名称").fill("Unsaved name only");
+  await page.getByLabel("冲突方案名称").fill("Unsaved name only");
   const nameOnlySwitchConfirmation = page.waitForEvent("dialog");
   const nameOnlySwitchClick = page
     .getByRole("button", { name: /用户级规则/ })
@@ -1370,7 +1370,7 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   expect(nameOnlySwitchDialog.message()).toContain("冲突解决稿");
   await nameOnlySwitchDialog.dismiss();
   await nameOnlySwitchClick;
-  await expect(page.getByLabel("冲突候选名称")).toHaveValue(
+  await expect(page.getByLabel("冲突方案名称")).toHaveValue(
     "Unsaved name only",
   );
   const acceptedNameOnlySwitch = page.waitForEvent("dialog");
@@ -1386,20 +1386,20 @@ test("候选编辑、预览、切换与冲突合并贯穿真实界面和本地�
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     navigationConflictRules,
   );
-  await expect(page.getByLabel("冲突候选名称")).toHaveValue("冲突解决结果");
-  await page.getByRole("button", { name: "把正式文件放入解决稿" }).click();
+  await expect(page.getByLabel("冲突方案名称")).toHaveValue("冲突解决结果");
+  await page.getByRole("button", { name: "把磁盘文件放入解决稿" }).click();
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(
     navigationConflictRules,
   );
-  await page.getByLabel("冲突候选名称").fill("Navigation conflict fix");
+  await page.getByLabel("冲突方案名称").fill("Navigation conflict fix");
   await page.getByRole("button", { name: "保存解决结果" }).click();
-  await expect(page.getByText("与锁定候选一致", { exact: true })).toBeVisible();
+  await expect(page.getByText("磁盘与当前方案一致", { exact: true })).toBeVisible();
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     navigationConflictRules,
   );
 });
 
-test("候选来源默认保留未保存草稿，干净时分支会打开且有 Git 历史", async ({
+test("缓存方案来源默认保留未保存草稿，干净时分支会打开且有 Git 历史", async ({
   page,
 }) => {
   const formalRules = "# Formal rules\nKeep the approved behavior.\n";
@@ -1408,15 +1408,15 @@ test("候选来源默认保留未保存草稿，干净时分支会打开且有 G
 
   await page.goto("/");
   await addWorkspace(page, workspace);
-  await page.getByLabel("候选内容").fill(unsavedDraft);
-  await page.getByRole("button", { name: "新建候选" }).click();
-  await expect(page.getByLabel("候选内容来源")).toHaveValue("");
-  await page.getByLabel("新候选名称").fill("From unsaved draft");
-  await page.getByRole("button", { name: "创建候选" }).click();
+  await page.getByLabel("方案内容").fill(unsavedDraft);
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
+  await expect(page.getByLabel("方案内容来源")).toHaveValue("");
+  await page.getByLabel("新方案名称").fill("From unsaved draft");
+  await page.getByRole("button", { name: "创建缓存方案" }).click();
   await expect(
-    page.getByRole("textbox", { name: "候选名称", exact: true }),
+    page.getByRole("textbox", { name: "方案名称", exact: true }),
   ).toHaveValue("From unsaved draft");
-  await expect(page.getByLabel("候选内容")).toHaveValue(unsavedDraft);
+  await expect(page.getByLabel("方案内容")).toHaveValue(unsavedDraft);
   const afterDraftCreateResponse = await page.request.get("/api/state");
   const afterDraftCreate = await afterDraftCreateResponse.json();
   const targetAfterDraftCreate = afterDraftCreate.targets.find(
@@ -1434,15 +1434,15 @@ test("候选来源默认保留未保存草稿，干净时分支会打开且有 G
     formalRules,
   );
 
-  await page.getByRole("button", { name: "新建候选" }).click();
-  await page.getByLabel("候选内容来源").selectOption(lockedCandidate.id);
-  await page.getByLabel("新候选名称").fill("Clean branch from formal");
-  await page.getByRole("button", { name: "创建候选" }).click();
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
+  await page.getByLabel("方案内容来源").selectOption(lockedCandidate.id);
+  await page.getByLabel("新方案名称").fill("Clean branch from formal");
+  await page.getByRole("button", { name: "创建缓存方案" }).click();
   await expect(
-    page.getByRole("textbox", { name: "候选名称", exact: true }),
+    page.getByRole("textbox", { name: "方案名称", exact: true }),
   ).toHaveValue("Clean branch from formal");
   await expect(
-    page.getByRole("textbox", { name: "候选内容", exact: true }),
+    page.getByRole("textbox", { name: "方案内容", exact: true }),
   ).toHaveValue(formalRules);
   const afterCleanBranchResponse = await page.request.get("/api/state");
   const afterCleanBranch = await afterCleanBranchResponse.json();
@@ -1490,7 +1490,7 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   );
   await expect(page.getByText("没有发现 AGENTS.md")).toBeVisible();
   await page.getByRole("button", { name: "初始化 AGENTS.md" }).click();
-  await expect(page.getByLabel("候选内容")).toHaveValue("# AGENTS.md\n");
+  await expect(page.getByLabel("方案内容")).toHaveValue("# AGENTS.md\n");
   const formalFile = path.join(workspace, "AGENTS.md");
   expect(await readFile(formalFile, "utf8")).toBe("# AGENTS.md\n");
 
@@ -1521,7 +1521,7 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   await expect(readFile(nestedFormalFile, "utf8")).rejects.toThrow();
   await page.getByRole("button", { name: "初始化目录" }).click();
   await page.getByLabel("目录路径").fill(nestedDirectory);
-  await page.getByRole("button", { name: "初始化并锁定" }).click();
+  await page.getByRole("button", { name: "初始化并同步" }).click();
   await expect(page.getByRole("heading", { name: "初始化目录" })).toHaveCount(
     0,
   );
@@ -1548,7 +1548,7 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
   expect(await readFile(nestedFormalFile, "utf8")).toBe("# AGENTS.md\n");
 
   await addWorkspace(page, workspace);
-  await expect(page.getByLabel("候选内容")).toHaveValue("# AGENTS.md\n");
+  await expect(page.getByLabel("方案内容")).toHaveValue("# AGENTS.md\n");
   const afterResponse = await page.request.get("/api/state");
   const afterState = await afterResponse.json();
   const afterTarget = afterState.targets.find(
@@ -1582,7 +1582,7 @@ test("空目录初始化后，移除工作空间保留文件并可重新添加",
     .click();
   await expect(page.locator(".rule-row")).toHaveCount(3);
   await page.getByRole("button", { name: /discovered-later/ }).click();
-  await expect(page.getByLabel("候选内容")).toHaveValue(discoveredRules);
+  await expect(page.getByLabel("方案内容")).toHaveValue(discoveredRules);
   expect(
     await readFile(path.join(discoveredDirectory, "AGENTS.md"), "utf8"),
   ).toBe(discoveredRules);
@@ -1621,7 +1621,7 @@ test("同名工作空间按父路径区分且移除确认指向正确路径", as
   }
   await firstWorkspaceButton.click();
   await expect(firstWorkspaceButton).toHaveClass(/active/);
-  await expect(page.getByLabel("候选内容")).toHaveValue(
+  await expect(page.getByLabel("方案内容")).toHaveValue(
     "first workspace rules\n",
   );
 
@@ -1642,7 +1642,7 @@ test("同名工作空间按父路径区分且移除确认指向正确路径", as
   expect(state.workspaces).not.toContain(secondWorkspace);
   await expect(firstWorkspaceButton).toBeVisible();
   await expect(secondWorkspaceButton).toHaveCount(0);
-  await expect(page.getByLabel("候选内容")).toHaveValue(
+  await expect(page.getByLabel("方案内容")).toHaveValue(
     "first workspace rules\n",
   );
   expect(await readFile(path.join(secondWorkspace, "AGENTS.md"), "utf8")).toBe(
@@ -1877,7 +1877,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   const acceptedPathDialog = await acceptedPathSwitch;
   await acceptedPathDialog.accept();
   await acceptedPathClick;
-  await expect(page.getByLabel("候选内容")).toHaveValue("nested rules\n");
+  await expect(page.getByLabel("方案内容")).toHaveValue("nested rules\n");
   await rootRule.click();
   await expect(
     page.getByRole("heading", { name: "规则文件冲突" }),
@@ -1923,7 +1923,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(externalFormal);
 
   const removalDraftName = "Unsaved removal draft";
-  await page.getByLabel("冲突候选名称").fill(removalDraftName);
+  await page.getByLabel("冲突方案名称").fill(removalDraftName);
   const cancelledRemoval = page.waitForEvent("dialog");
   const cancelledRemovalClick = page
     .getByRole("button", { name: "从列表移除工作空间 navigation-rules" })
@@ -1932,7 +1932,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   expect(cancelledRemovalDialog.message()).toContain("冲突解决稿");
   await cancelledRemovalDialog.dismiss();
   await cancelledRemovalClick;
-  await expect(page.getByLabel("冲突候选名称")).toHaveValue(removalDraftName);
+  await expect(page.getByLabel("冲突方案名称")).toHaveValue(removalDraftName);
   await expect(
     page.getByRole("button", { name: "navigation-rules", exact: true }),
   ).toBeVisible();
@@ -1946,7 +1946,7 @@ test("未保存冲突解决稿保护规则路径切换、添加和移除操作",
   const removalConfirmation = page.waitForEvent("dialog");
   await acceptedRemovalDialog.accept();
   const removalDialog = await removalConfirmation;
-  expect(removalDialog.message()).toContain("正式文件、候选和历史都会保留");
+  expect(removalDialog.message()).toContain("磁盘文件、缓存方案和历史版本都会保留");
   await removalDialog.accept();
   await acceptedRemovalClick;
   await expect(
@@ -2006,21 +2006,21 @@ test("帮助诊断链接可打开本机日志，错误添加可重试", async ({
   expect(retryState.workspaces).toContain(retryWorkspace);
 });
 
-test("刷新页面时保护未保存候选草稿", async ({ page }) => {
+test("刷新页面时保护未保存方案草稿", async ({ page }) => {
   const originalRules = "saved candidate\n";
   const unsavedRules = `${originalRules}new draft line\n`;
   const workspace = await makeWorkspace("reload-draft", originalRules);
 
   await page.goto("/");
   await addWorkspace(page, workspace);
-  const candidateName = page.getByLabel("候选名称");
+  const candidateName = page.getByLabel("方案名称");
   const originalCandidateName = await candidateName.inputValue();
   await candidateName.fill(`${originalCandidateName} draft`);
   await expect(page.getByTestId("formal-sync-impact")).toHaveText(
-    "正文与正式文件一致；本次只改候选名称",
+    "正文与磁盘文件一致；本次只改方案名称",
   );
   await candidateName.fill(originalCandidateName);
-  await page.getByLabel("候选内容").fill(unsavedRules);
+  await page.getByLabel("方案内容").fill(unsavedRules);
   await expect(page.getByTestId("formal-sync-impact")).toHaveText(
     "保存并同步将新增 1 行、删除 0 行",
   );
@@ -2037,12 +2037,12 @@ test("刷新页面时保护未保存候选草稿", async ({ page }) => {
   const dialog = await beforeUnload;
   expect(dialog.type()).toBe("beforeunload");
   await dialog.dismiss();
-  await expect(page.getByLabel("候选内容")).toHaveValue(unsavedRules);
+  await expect(page.getByLabel("方案内容")).toHaveValue(unsavedRules);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     originalRules,
   );
 
-  await page.getByRole("button", { name: "保存并同步正式文件" }).click();
+  await page.getByRole("button", { name: "保存当前方案并同步磁盘文件" }).click();
   await expect(page.getByText(/所有更改已保存/)).toBeVisible();
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     unsavedRules,
@@ -2050,33 +2050,33 @@ test("刷新页面时保护未保存候选草稿", async ({ page }) => {
   const reloadResponse = await page.reload();
   expect(reloadResponse).not.toBeNull();
   await page.getByRole("button", { name: "reload-draft", exact: true }).click();
-  await expect(page.getByLabel("候选内容")).toHaveValue(unsavedRules);
+  await expect(page.getByLabel("方案内容")).toHaveValue(unsavedRules);
 });
 
-test("候选归档与恢复保留正文、正式文件和候选历史", async ({ page }) => {
+test("缓存方案归档与恢复保留正文、磁盘文件和历史版本", async ({ page }) => {
   const formalRules = "formal stays active\n";
   const candidateRules = "archived candidate revision\n";
   const workspace = await makeWorkspace("candidate-archive", formalRules);
 
   await page.goto("/");
   await addWorkspace(page, workspace);
-  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
   await page.getByPlaceholder("例如：更严格的代码审查").fill("Archive me");
-  await page.getByRole("button", { name: "创建候选" }).click();
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
-  await expect(page.getByLabel("候选名称")).toHaveValue("Archive me");
+  await page.getByRole("button", { name: "创建缓存方案" }).click();
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
+  await expect(page.getByLabel("方案名称")).toHaveValue("Archive me");
   await expect(
-    page.getByRole("textbox", { name: "候选内容", exact: true }),
+    page.getByRole("textbox", { name: "方案内容", exact: true }),
   ).toHaveValue(formalRules);
   await page
-    .getByRole("textbox", { name: "候选内容", exact: true })
+    .getByRole("textbox", { name: "方案内容", exact: true })
     .fill(candidateRules);
   await expect(
-    page.getByRole("textbox", { name: "候选内容", exact: true }),
+    page.getByRole("textbox", { name: "方案内容", exact: true }),
   ).toHaveValue(candidateRules);
-  await expect(page.getByRole("button", { name: "保存候选" })).toBeEnabled();
-  await page.getByRole("button", { name: "保存候选" }).click();
-  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "保存方案" })).toBeEnabled();
+  await page.getByRole("button", { name: "保存方案" }).click();
+  await expect(page.getByText(/历史版本已保存/)).toBeVisible();
 
   const beforeArchiveResponse = await page.request.get("/api/state");
   const beforeArchive = await beforeArchiveResponse.json();
@@ -2088,10 +2088,10 @@ test("候选归档与恢复保留正文、正式文件和候选历史", async ({
   );
   expect(savedCandidate).toMatchObject({ archived: false, locked: false });
 
-  await page.getByRole("button", { name: "归档当前候选" }).click();
-  await expect(page.getByLabel("候选内容")).toHaveValue(formalRules);
+  await page.getByRole("button", { name: "归档当前方案" }).click();
+  await expect(page.getByLabel("方案内容")).toHaveValue(formalRules);
   await expect(
-    page.getByRole("button", { name: "查看已归档候选" }),
+    page.getByRole("button", { name: "查看已归档方案" }),
   ).toBeEnabled();
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     formalRules,
@@ -2103,7 +2103,7 @@ test("候选归档与恢复保留正文、正式文件和候选历史", async ({
   expect(historyResponse.ok()).toBe(true);
   expect(await historyResponse.json()).toHaveLength(2);
 
-  await page.getByRole("button", { name: "查看已归档候选" }).click();
+  await page.getByRole("button", { name: "查看已归档方案" }).click();
   const archivedRow = page.getByRole("button", { name: /Archive me/ });
   await expect(archivedRow).toContainText("已归档");
   await archivedRow.click();
@@ -2112,15 +2112,15 @@ test("候选归档与恢复保留正文、正式文件和候选历史", async ({
       path: process.env.PROMPTDOCK_ARCHIVE_SCREENSHOT_PATH,
     });
   }
-  await expect(page.getByLabel("候选名称")).toHaveAttribute("readonly", "");
-  await expect(page.getByLabel("候选内容")).toHaveAttribute("readonly", "");
+  await expect(page.getByLabel("方案名称")).toHaveAttribute("readonly", "");
+  await expect(page.getByLabel("方案内容")).toHaveAttribute("readonly", "");
   await expect(page.getByRole("button", { name: "只读" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "保存候选" })).toBeDisabled();
-  await page.getByRole("button", { name: "恢复候选" }).click();
+  await expect(page.getByRole("button", { name: "保存方案" })).toBeDisabled();
+  await page.getByRole("button", { name: "恢复缓存方案" }).click();
   await expect(
-    page.getByRole("button", { name: "返回当前候选" }),
+    page.getByRole("button", { name: "返回当前方案" }),
   ).toBeVisible();
-  await expect(page.getByLabel("候选内容")).toHaveValue(candidateRules);
+  await expect(page.getByLabel("方案内容")).toHaveValue(candidateRules);
 
   const afterRestoreResponse = await page.request.get("/api/state");
   const afterRestore = await afterRestoreResponse.json();
@@ -2133,7 +2133,7 @@ test("候选归档与恢复保留正文、正式文件和候选历史", async ({
   );
 });
 
-test("同名候选显示短 ID 并可在列表中准确切换", async ({ page }) => {
+test("同名缓存方案显示短 ID 并可在列表中准确切换", async ({ page }) => {
   const formalRules = "formal variant\n";
   const firstRules = "first variant\n";
   const secondRules = "second variant\n";
@@ -2144,25 +2144,25 @@ test("同名候选显示短 ID 并可在列表中准确切换", async ({ page })
 
   await page.goto("/");
   await addWorkspace(page, workspace);
-  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
   await page.getByPlaceholder("例如：更严格的代码审查").fill("Same label");
-  await page.getByRole("button", { name: "创建候选" }).click();
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await page.getByRole("button", { name: "创建缓存方案" }).click();
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
   await page
-    .getByRole("textbox", { name: "候选内容", exact: true })
+    .getByRole("textbox", { name: "方案内容", exact: true })
     .fill(firstRules);
-  await page.getByRole("button", { name: "保存候选" }).click();
-  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+  await page.getByRole("button", { name: "保存方案" }).click();
+  await expect(page.getByText(/历史版本已保存/)).toBeVisible();
 
-  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
   await page.getByPlaceholder("例如：更严格的代码审查").fill("Same label");
-  await page.getByRole("button", { name: "创建候选" }).click();
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await page.getByRole("button", { name: "创建缓存方案" }).click();
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
   await page
-    .getByRole("textbox", { name: "候选内容", exact: true })
+    .getByRole("textbox", { name: "方案内容", exact: true })
     .fill(secondRules);
-  await page.getByRole("button", { name: "保存候选" }).click();
-  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+  await page.getByRole("button", { name: "保存方案" }).click();
+  await expect(page.getByText(/历史版本已保存/)).toBeVisible();
 
   const stateResponse = await page.request.get("/api/state");
   const state = await stateResponse.json();
@@ -2177,16 +2177,16 @@ test("同名候选显示短 ID 并可在列表中准确切换", async ({ page })
   ]) {
     const row = page.getByRole("button", {
       name: new RegExp(
-        `Same label 候选 · ${expected.candidate.id.slice(0, 7)}`,
+        `Same label 缓存方案 · ${expected.candidate.id.slice(0, 7)}`,
       ),
     });
     await expect(row).toBeVisible();
     await row.click();
     await expect(
-      page.getByRole("textbox", { name: "候选名称", exact: true }),
+      page.getByRole("textbox", { name: "方案名称", exact: true }),
     ).toHaveValue("Same label");
     await expect(
-      page.getByRole("textbox", { name: "候选内容", exact: true }),
+      page.getByRole("textbox", { name: "方案内容", exact: true }),
     ).toHaveValue(expected.content);
   }
   if (process.env.PROMPTDOCK_DUPLICATE_CANDIDATE_SCREENSHOT_PATH) {
@@ -2199,7 +2199,7 @@ test("同名候选显示短 ID 并可在列表中准确切换", async ({ page })
   );
 });
 
-test("打开切换预览前发现外部正式文件修改并阻止过期预览", async ({ page }) => {
+test("打开切换预览前发现外部磁盘文件修改并阻止过期预览", async ({ page }) => {
   const originalRules = "original formal rules\n";
   const candidateRules = "saved candidate rules\n";
   const externalRules = "external formal edit\n";
@@ -2213,17 +2213,17 @@ test("打开切换预览前发现外部正式文件修改并阻止过期预览",
 
   await page.goto("/");
   await addWorkspace(page, workspace);
-  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
   await page
     .getByPlaceholder("例如：更严格的代码审查")
     .fill("Saved alternative");
-  await page.getByRole("button", { name: "创建候选" }).click();
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await page.getByRole("button", { name: "创建缓存方案" }).click();
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
   await page
-    .getByRole("textbox", { name: "候选内容", exact: true })
+    .getByRole("textbox", { name: "方案内容", exact: true })
     .fill(candidateRules);
-  await page.getByRole("button", { name: "保存候选" }).click();
-  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+  await page.getByRole("button", { name: "保存方案" }).click();
+  await expect(page.getByText(/历史版本已保存/)).toBeVisible();
 
   await writeFile(path.join(workspace, "AGENTS.md"), externalRules, "utf8");
   const freshStateResponse = page.waitForResponse((response) =>
@@ -2236,9 +2236,9 @@ test("打开切换预览前发现外部正式文件修改并阻止过期预览",
     page.getByRole("heading", { name: "规则文件冲突" }),
   ).toBeVisible();
   await expect(
-    page.getByText("正式文件已发生变化，已刷新冲突状态。请先处理冲突再切换。"),
+    page.getByText("磁盘文件已发生变化，已刷新冲突状态。请先处理冲突再切换。"),
   ).toBeVisible();
-  await expect(page.getByLabel("正式文件与锁定候选的行差异")).toContainText(
+  await expect(page.getByLabel("磁盘文件与当前方案的行差异")).toContainText(
     externalRules,
   );
   expect(lockRequests).toHaveLength(0);
@@ -2247,22 +2247,22 @@ test("打开切换预览前发现外部正式文件修改并阻止过期预览",
   );
 });
 
-test("只改候选名称也形成历史版本，并可按历史名称另建候选", async ({ page }) => {
+test("只改方案名称也形成历史版本，并可按历史名称另建缓存方案", async ({ page }) => {
   const formalRules = "same candidate body\n";
   const workspace = await makeWorkspace("candidate-name-history", formalRules);
 
   await page.goto("/");
   await addWorkspace(page, workspace);
-  await page.getByRole("button", { name: "新建候选" }).click();
+  await page.getByRole("button", { name: "新建缓存方案" }).click();
   await page.getByPlaceholder("例如：更严格的代码审查").fill("Original name");
-  await page.getByRole("button", { name: "创建候选" }).click();
-  await expect(page.getByRole("heading", { name: "创建候选" })).toHaveCount(0);
+  await page.getByRole("button", { name: "创建缓存方案" }).click();
+  await expect(page.getByRole("heading", { name: "创建缓存方案" })).toHaveCount(0);
 
   await page
-    .getByRole("textbox", { name: "候选名称", exact: true })
+    .getByRole("textbox", { name: "方案名称", exact: true })
     .fill("Renamed only");
-  await page.getByRole("button", { name: "保存候选" }).click();
-  await expect(page.getByText(/候选已保存并记入历史/)).toBeVisible();
+  await page.getByRole("button", { name: "保存方案" }).click();
+  await expect(page.getByText(/历史版本已保存/)).toBeVisible();
   const stateBeforeHistory = await page.request.get("/api/state");
   const targetBeforeHistory = (await stateBeforeHistory.json()).targets.find(
     (item: { path: string }) => item.path === workspace,
@@ -2270,13 +2270,13 @@ test("只改候选名称也形成历史版本，并可按历史名称另建候�
   const candidate = targetBeforeHistory.candidates.find(
     (item: { name: string }) => item.name === "Renamed only",
   );
-  await page.getByRole("button", { name: "查看候选历史" }).click();
+  await page.getByRole("button", { name: "查看历史版本" }).click();
 
   const revisions = page.locator(".history-revision");
   await expect(revisions).toHaveCount(2);
-  await expect(page.getByText("历史候选名称：Renamed only")).toBeVisible();
+  await expect(page.getByText("历史版本名称：Renamed only")).toBeVisible();
   await revisions.last().click();
-  await expect(page.getByText("历史候选名称：Original name")).toBeVisible();
+  await expect(page.getByText("历史版本名称：Original name")).toBeVisible();
   await page.getByRole("button", { name: "历史全文" }).click();
   await expect(page.locator(".history-preview")).toHaveText(formalRules);
   const historyDownloadPromise = page.waitForEvent("download");
@@ -2308,17 +2308,17 @@ test("只改候选名称也形成历史版本，并可按历史名称另建候�
     });
   }
 
-  await page.getByRole("button", { name: "从此版本创建候选" }).click();
-  await expect(page.getByLabel("候选名称")).toHaveValue(
+  await page.getByRole("button", { name: "Fork 此历史版本为缓存方案" }).click();
+  await expect(page.getByLabel("方案名称")).toHaveValue(
     "Original name（历史恢复）",
   );
-  await expect(page.getByLabel("候选内容")).toHaveValue(formalRules);
+  await expect(page.getByLabel("方案内容")).toHaveValue(formalRules);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     formalRules,
   );
 });
 
-test("升级前没有名称快照的候选历史仍能在界面查看正文", async ({ page }) => {
+test("升级前没有名称快照的缓存方案历史版本仍能在界面查看正文", async ({ page }) => {
   const workspace = await makeWorkspace(
     "legacy-candidate-history",
     "# Legacy rules\n",
@@ -2350,18 +2350,18 @@ test("升级前没有名称快照的候选历史仍能在界面查看正文", as
     { cwd: historyDirectory },
   );
 
-  await page.getByRole("button", { name: "查看候选历史" }).click();
+  await page.getByRole("button", { name: "查看历史版本" }).click();
   const revisions = page.locator(".history-revision");
   await expect(revisions.first()).toBeVisible();
   await revisions.first().click();
   await expect(
-    page.getByText("历史候选名称：此历史版本未单独记录名称"),
+    page.getByText("历史版本名称：此历史版本未单独记录名称"),
   ).toBeVisible();
   await page.getByRole("button", { name: "历史全文" }).click();
   await expect(page.locator(".history-preview")).toHaveText("# Legacy rules\n");
 });
 
-test("候选查找替换只改草稿，保存锁定候选后才同步正式文件", async ({ page }) => {
+test("缓存方案查找替换只改草稿，保存当前方案后才同步磁盘文件", async ({ page }) => {
   const originalRules = "foo foo foo\n";
   const workspace = await makeWorkspace(
     "candidate-find-replace",
@@ -2372,7 +2372,7 @@ test("候选查找替换只改草稿，保存锁定候选后才同步正式文�
   await addWorkspace(page, workspace);
   await page.getByRole("button", { name: "AGENTS.md", exact: true }).click();
   await page.getByRole("button", { name: "查找替换" }).click();
-  await page.getByRole("textbox", { name: "查找候选内容" }).fill("foo");
+  await page.getByRole("textbox", { name: "查找方案内容" }).fill("foo");
   await page.getByRole("textbox", { name: "替换为" }).fill("bar");
   await expect(page.getByText("找到 3 处")).toBeVisible();
   if (process.env.PROMPTDOCK_SCREENSHOT_PATH) {
@@ -2388,7 +2388,7 @@ test("候选查找替换只改草稿，保存锁定候选后才同步正式文�
   await expect(page.getByText("第 3 / 3 处")).toBeVisible();
   await page.getByRole("button", { name: "替换当前" }).click();
   await expect(
-    page.getByRole("textbox", { name: "候选内容", exact: true }),
+    page.getByRole("textbox", { name: "方案内容", exact: true }),
   ).toHaveValue("foo foo bar\n");
   await expect(page.getByText("找到 2 处")).toBeVisible();
 
@@ -2396,24 +2396,24 @@ test("候选查找替换只改草稿，保存锁定候选后才同步正式文�
   await page.getByRole("button", { name: "全部替换" }).click();
   const replacedDraft = "baz baz bar\n";
   await expect(
-    page.getByRole("textbox", { name: "候选内容", exact: true }),
+    page.getByRole("textbox", { name: "方案内容", exact: true }),
   ).toHaveValue(replacedDraft);
   await page.getByRole("button", { name: "关闭查找替换" }).click();
   await expect(
-    page.getByRole("group", { name: "查找替换候选内容" }),
+    page.getByRole("group", { name: "查找替换方案内容" }),
   ).toHaveCount(0);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     originalRules,
   );
 
-  await page.getByRole("button", { name: "保存并同步正式文件" }).click();
-  await expect(page.getByText("候选与正式文件已同步并记入历史")).toBeVisible();
+  await page.getByRole("button", { name: "保存当前方案并同步磁盘文件" }).click();
+  await expect(page.getByText("当前方案与磁盘文件已同步；历史版本已保存")).toBeVisible();
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     replacedDraft,
   );
 });
 
-test("锁定候选保存前可预览待同步差异且不提前改文件", async ({ page }) => {
+test("当前方案保存前可预览待同步差异且不提前改文件", async ({ page }) => {
   const formalRules = "Keep this formal line\n";
   const workspace = await makeWorkspace(
     "locked-candidate-preview",
@@ -2425,19 +2425,19 @@ test("锁定候选保存前可预览待同步差异且不提前改文件", async
   await addWorkspace(page, workspace);
   await page.getByRole("button", { name: "AGENTS.md", exact: true }).click();
   await page
-    .getByRole("textbox", { name: "候选内容", exact: true })
+    .getByRole("textbox", { name: "方案内容", exact: true })
     .fill(draft);
   await page.getByRole("button", { name: "预览待同步差异" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "锁定候选修改预览" }),
+    page.getByRole("heading", { name: "方案修改同步预览" }),
   ).toBeVisible();
   await page
     .getByLabel("对比基准版本")
-    .selectOption({ label: "导入的正式规则（当前已保存版）" });
+    .selectOption({ label: "导入的正式规则（当前方案的已保存内容）" });
   await expect(
     page.getByLabel("对比基准版本").locator("option:checked"),
-  ).toHaveText("导入的正式规则（当前已保存版）");
+  ).toHaveText("导入的正式规则（当前方案的已保存内容）");
   await expect(page.getByText(/新增 1 行 · 删除 0 行/)).toBeVisible();
   await page.getByRole("button", { name: "标记差异" }).click();
   await expect(page.locator(".candidate-compare-diff")).toContainText(
@@ -2460,14 +2460,14 @@ test("锁定候选保存前可预览待同步差异且不提前改文件", async
   );
   expect(persistedTarget.candidates[0].content).toBe(formalRules);
 
-  await page.getByRole("button", { name: "关闭版本对比" }).click();
-  await expect(page.getByLabel("候选内容", { exact: true })).toHaveValue(draft);
-  await page.getByRole("button", { name: "保存并同步正式文件" }).click();
-  await expect(page.getByText("候选与正式文件已同步并记入历史")).toBeVisible();
+  await page.getByRole("button", { name: "关闭方案对比" }).click();
+  await expect(page.getByLabel("方案内容", { exact: true })).toHaveValue(draft);
+  await page.getByRole("button", { name: "保存当前方案并同步磁盘文件" }).click();
+  await expect(page.getByText("当前方案与磁盘文件已同步；历史版本已保存")).toBeVisible();
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(draft);
 });
 
-test("锁定草稿预览发现外部正式文件变更时阻止过期预览并保留草稿", async ({
+test("当前方案草稿预览发现外部磁盘文件变更时阻止过期预览并保留草稿", async ({
   page,
 }) => {
   const formalRules = "Original formal rules\n";
@@ -2482,19 +2482,19 @@ test("锁定草稿预览发现外部正式文件变更时阻止过期预览并�
   await addWorkspace(page, workspace);
   await page.getByRole("button", { name: "AGENTS.md", exact: true }).click();
   await page
-    .getByRole("textbox", { name: "候选内容", exact: true })
+    .getByRole("textbox", { name: "方案内容", exact: true })
     .fill(draft);
   await writeFile(path.join(workspace, "AGENTS.md"), externalRules, "utf8");
 
   await page.getByRole("button", { name: "预览待同步差异" }).click();
   await expect(page.locator(".toast-error")).toContainText(
-    "正式文件已发生变化，未打开预览",
+    "磁盘文件已发生变化，未打开预览",
   );
   await expect(
-    page.getByRole("heading", { name: "锁定候选修改预览" }),
+    page.getByRole("heading", { name: "方案修改同步预览" }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("textbox", { name: "候选内容", exact: true }),
+    page.getByRole("textbox", { name: "方案内容", exact: true }),
   ).toHaveValue(draft);
   expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(
     externalRules,
@@ -2505,7 +2505,7 @@ test("锁定草稿预览发现外部正式文件变更时阻止过期预览并�
     .getByRole("button", { name: "重新扫描当前工作空间" })
     .click();
   const confirmation = await scanConfirmation;
-  expect(confirmation.message()).toContain("当前候选有未保存修改");
+  expect(confirmation.message()).toContain("当前方案有未保存修改");
   await confirmation.accept();
   await scanClick;
   await expect(
@@ -2515,7 +2515,7 @@ test("锁定草稿预览发现外部正式文件变更时阻止过期预览并�
   await expect(page.getByLabel("冲突解决内容")).toHaveValue(draft);
 });
 
-test("并发窗口的过期候选保存被拒绝且草稿可另存为新候选", async ({
+test("并发窗口的过期缓存方案保存被拒绝且草稿可另存为新缓存方案", async ({
   page,
   context,
 }) => {
@@ -2543,11 +2543,11 @@ test("并发窗口的过期候选保存被拒绝且草稿可另存为新候选",
 
   const firstWindowRules = `${originalRules}\nSaved in the first window.\n`;
   const staleDraft = `${originalRules}\nUncommitted draft from the second window.\n`;
-  await page.getByLabel("候选内容", { exact: true }).fill(firstWindowRules);
-  await secondPage.getByLabel("候选内容", { exact: true }).fill(staleDraft);
+  await page.getByLabel("方案内容", { exact: true }).fill(firstWindowRules);
+  await secondPage.getByLabel("方案内容", { exact: true }).fill(staleDraft);
 
-  await page.getByRole("button", { name: "保存并同步正式文件" }).click();
-  await expect(page.getByText("候选与正式文件已同步并记入历史")).toBeVisible();
+  await page.getByRole("button", { name: "保存当前方案并同步磁盘文件" }).click();
+  await expect(page.getByText("当前方案与磁盘文件已同步；历史版本已保存")).toBeVisible();
   const historyAfterFirstSave = await page.request.get(historyUrl);
   const savedHistory = await historyAfterFirstSave.json();
   expect(savedHistory).toHaveLength(2);
@@ -2555,11 +2555,11 @@ test("并发窗口的过期候选保存被拒绝且草稿可另存为新候选",
     firstWindowRules,
   );
 
-  await secondPage.getByRole("button", { name: "保存并同步正式文件" }).click();
+  await secondPage.getByRole("button", { name: "保存当前方案并同步磁盘文件" }).click();
   await expect(secondPage.locator(".toast-error")).toContainText(
-    "此候选已在其他窗口保存新版本",
+    "此缓存方案已在其他窗口保存新内容",
   );
-  await expect(secondPage.getByLabel("候选内容", { exact: true })).toHaveValue(
+  await expect(secondPage.getByLabel("方案内容", { exact: true })).toHaveValue(
     staleDraft,
   );
   const historyAfterRejectedSave = await page.request.get(historyUrl);
@@ -2579,16 +2579,16 @@ test("并发窗口的过期候选保存被拒绝且草稿可另存为新候选",
     firstWindowRules,
   );
 
-  await secondPage.getByRole("button", { name: "新建候选" }).click();
-  await secondPage.getByLabel("新候选名称").fill("Second window draft");
-  await secondPage.getByRole("button", { name: "创建候选" }).click();
+  await secondPage.getByRole("button", { name: "新建缓存方案" }).click();
+  await secondPage.getByLabel("新方案名称").fill("Second window draft");
+  await secondPage.getByRole("button", { name: "创建缓存方案" }).click();
   await expect(
-    secondPage.getByText("候选已创建并记录到本地 Git"),
+    secondPage.getByText("缓存方案已创建并记录到本地 Git"),
   ).toBeVisible();
-  await expect(secondPage.getByLabel("候选名称", { exact: true })).toHaveValue(
+  await expect(secondPage.getByLabel("方案名称", { exact: true })).toHaveValue(
     "Second window draft",
   );
-  await expect(secondPage.getByLabel("候选内容", { exact: true })).toHaveValue(
+  await expect(secondPage.getByLabel("方案内容", { exact: true })).toHaveValue(
     staleDraft,
   );
   const response = await secondPage.request.get("/api/state");

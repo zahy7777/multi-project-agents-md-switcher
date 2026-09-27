@@ -608,13 +608,13 @@ textarea {
   color: #548c80;
   background: #f9fbfa;
 }
-.cache-version-actions {
+.cache-plan-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 7px;
   margin: 0 1px 9px;
 }
-.cache-version-actions button {
+.cache-plan-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -628,16 +628,16 @@ textarea {
   font-size: 12px;
   font-weight: 600;
 }
-.cache-version-actions button:hover:not(:disabled) {
+.cache-plan-actions button:hover:not(:disabled) {
   border-color: #9fc7b9;
   background: #f0f7f3;
 }
-.cache-version-actions .delete-cache-button {
+.cache-plan-actions .delete-cache-button {
   border-color: #efdfdc;
   color: #a44f47;
   background: #fffafa;
 }
-.cache-version-actions .delete-cache-button:hover:not(:disabled) {
+.cache-plan-actions .delete-cache-button:hover:not(:disabled) {
   border-color: #dca39d;
   background: #fff1ef;
 }

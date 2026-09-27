@@ -38,7 +38,7 @@ export class CandidateChangedError extends Error {
 
   constructor() {
     super(
-      "此候选已在其他窗口保存新版本。当前草稿未覆盖任何内容；请新建候选保留这份草稿，或重新载入最新版本。",
+      "此缓存方案已在其他窗口保存新内容。当前草稿未覆盖任何内容；请新建缓存方案保留这份草稿，或重新载入最新内容。",
     );
     this.name = "CandidateChangedError";
   }
@@ -192,12 +192,12 @@ export class PromptLibrary {
       try {
         const candidate = await this.createSavedCandidate(
           target,
-          "初始候选",
+          "初始缓存方案",
           content,
         );
         target.lockedCandidateId = candidate.id;
         if ((await this.formalContent(targetPath)) !== null) {
-          throw new Error("正式文件在初始化期间已被其他程序创建。请重新扫描。");
+          throw new Error("磁盘文件在初始化期间已被其他程序创建。请重新扫描。");
         }
         await this.writeFormal(targetPath, content);
         formalWritten = true;
@@ -234,7 +234,7 @@ export class PromptLibrary {
       const candidate = await this.createSavedCandidate(target, name, content);
       try {
         await this.persist();
-        await this.record("创建候选规则");
+        await this.record("创建缓存方案规则");
       } catch (error) {
         target.candidates = target.candidates.filter(
           (item) => item.id !== candidate.id,
@@ -326,7 +326,7 @@ export class PromptLibrary {
       this.assertNoConflict(targetPath, target);
       const candidate = this.requireCandidate(target, candidateId);
       const wasLocked = target.lockedCandidateId === candidate.id;
-      if (candidate.archived) throw new Error("已归档候选必须先恢复才能编辑。");
+      if (candidate.archived) throw new Error("已归档缓存方案必须先恢复才能编辑。");
       const previousContent = await this.readCandidate(candidate);
       const previousName = candidate.name;
       if (
@@ -343,7 +343,7 @@ export class PromptLibrary {
       const formalBefore = await this.formalContent(targetPath);
       if (wasLocked && formalBefore !== previousContent) {
         throw new Error(
-          "正式文件在保存期间发生变化。已取消保存，请重新扫描并处理冲突。",
+          "磁盘文件在保存期间发生变化。已取消保存，请重新扫描并处理不一致。",
         );
       }
 
@@ -354,13 +354,13 @@ export class PromptLibrary {
         if (wasLocked) {
           if ((await this.formalContent(targetPath)) !== formalBefore) {
             throw new Error(
-              "正式文件在保存期间发生变化。已取消保存，请重新扫描并处理冲突。",
+              "磁盘文件在保存期间发生变化。已取消保存，请重新扫描并处理不一致。",
             );
           }
           await this.writeFormal(targetPath, content);
         }
         await this.persist();
-        await this.record("保存候选规则");
+        await this.record("保存方案规则");
       } catch (error) {
         candidate.name = previousName;
         await this.writeCandidate(candidate, previousContent).catch(
@@ -412,7 +412,7 @@ export class PromptLibrary {
       const candidate = this.requireCandidate(target, candidateId);
       if (candidate.name !== expectedName) throw new CandidateChangedError();
       const nextName = name.trim();
-      if (!nextName) throw new Error("请输入缓存版本名称。");
+      if (!nextName) throw new Error("请输入方案名称。");
       if (nextName === candidate.name) return this.view();
 
       const previousName = candidate.name;
@@ -424,7 +424,7 @@ export class PromptLibrary {
         candidate.name = nextName;
         await this.writeCandidateRevisionSnapshot(candidate);
         await this.persist();
-        await this.record("重命名缓存版本");
+        await this.record("重命名缓存方案");
       } catch (error) {
         candidate.name = previousName;
         if (previousRevisionSnapshot === null) {
@@ -458,7 +458,7 @@ export class PromptLibrary {
       this.assertNoConflict(targetPath, target);
       const candidate = this.requireCandidate(target, candidateId);
       if (target.lockedCandidateId === candidate.id) {
-        throw new Error("当前缓存不能删除。");
+        throw new Error("当前方案不能删除。");
       }
 
       const content = await this.readCandidate(candidate);
@@ -471,7 +471,7 @@ export class PromptLibrary {
       try {
         await this.persist();
         await this.removeCandidateFiles(candidate);
-        await this.record("删除缓存版本");
+        await this.record("删除缓存方案");
       } catch (error) {
         target.candidates.splice(candidateIndex, 0, candidate);
         await this.writeCandidate(candidate, content).catch(() => undefined);
@@ -500,7 +500,7 @@ export class PromptLibrary {
       this.assertNoConflict(targetPath, target);
       const candidate = this.requireCandidate(target, candidateId);
       if (candidate.archived)
-        throw new Error("已归档候选必须先恢复才能切换为正式规则。");
+        throw new Error("已归档缓存方案必须先恢复才能切换为当前方案。");
       const formalBefore = await this.formalContent(targetPath);
       const locked = this.requireCandidate(
         target,
@@ -508,19 +508,19 @@ export class PromptLibrary {
       );
       if (formalBefore !== (await this.readCandidate(locked))) {
         throw new Error(
-          "正式文件在切换期间发生变化。已取消切换，请重新扫描并处理冲突。",
+          "磁盘文件在切换期间发生变化。已取消切换，请重新扫描并处理不一致。",
         );
       }
       const previousLockedId = target.lockedCandidateId;
       const nextContent = await this.readCandidate(candidate);
       try {
         if ((await this.formalContent(targetPath)) !== formalBefore) {
-          throw new Error("正式文件已变化，请重新扫描并处理冲突。");
+          throw new Error("磁盘文件已变化，请重新扫描并处理不一致。");
         }
         await this.writeFormal(targetPath, nextContent);
         target.lockedCandidateId = candidate.id;
         await this.persist();
-        await this.record("切换锁定候选");
+        await this.record("切换当前方案");
       } catch (error) {
         target.lockedCandidateId = previousLockedId;
         if ((await this.formalContent(targetPath)) === nextContent) {
@@ -551,16 +551,16 @@ export class PromptLibrary {
       this.assertNoConflict(targetPath, target);
       const candidate = this.requireCandidate(target, candidateId);
       if (target.lockedCandidateId === candidate.id) {
-        throw new Error("锁定候选不能归档或恢复。");
+        throw new Error("当前方案不能归档或恢复。");
       }
       const previous = candidate.archived ?? false;
       if (previous === archived) {
-        throw new Error(archived ? "该候选已经归档。" : "该候选当前未归档。");
+        throw new Error(archived ? "该缓存方案已经归档。" : "该缓存方案当前未归档。");
       }
       candidate.archived = archived;
       try {
         await this.persist();
-        await this.record(archived ? "归档候选规则" : "恢复候选规则");
+        await this.record(archived ? "归档缓存方案规则" : "恢复缓存方案规则");
       } catch (error) {
         candidate.archived = previous;
         await this.persist().catch(() => undefined);
@@ -594,16 +594,16 @@ export class PromptLibrary {
           (item) => item.id !== targetCandidate.id,
         );
         await this.removeCandidateFiles(targetCandidate);
-        throw new Error("正式文件在解决冲突期间发生变化。请重新载入冲突内容。");
+        throw new Error("磁盘文件在合并期间发生变化。请重新载入不一致内容。");
       }
       try {
         if ((await this.formalContent(targetPath)) !== formalBefore) {
-          throw new Error("正式文件在解决冲突期间再次变化，请重新扫描。");
+          throw new Error("磁盘文件在合并期间再次变化，请重新扫描。");
         }
         await this.writeFormal(targetPath, content);
         target.lockedCandidateId = targetCandidate.id;
         await this.persist();
-        await this.record("解决正式文件冲突");
+        await this.record("解决磁盘文件与缓存方案不一致");
       } catch (error) {
         target.candidates = target.candidates.filter(
           (item) => item.id !== targetCandidate.id,
@@ -724,7 +724,7 @@ export class PromptLibrary {
           };
           const candidate = await this.createSavedCandidate(
             target,
-            "导入的正式规则",
+            "初始缓存方案",
             content,
           );
           importedCandidates.push(candidate);
@@ -839,7 +839,7 @@ export class PromptLibrary {
     const id = randomUUID();
     const candidate = {
       id,
-      name: name.trim() || "未命名候选",
+      name: name.trim() || "未命名缓存方案",
       file: `${id}.md`,
       archived: false,
     };
@@ -959,13 +959,13 @@ export class PromptLibrary {
 
   private requireCandidate(target: SavedTarget, id: string) {
     const candidate = target.candidates.find((item) => item.id === id);
-    if (!candidate) throw new Error("指定候选不存在。");
+    if (!candidate) throw new Error("指定缓存方案不存在。");
     return candidate;
   }
 
   private assertNoConflict(targetPath: string, target: SavedTarget) {
     if (this.isConflict(targetPath, target))
-      throw new Error("正式文件与锁定候选存在冲突，请先解决冲突。");
+      throw new Error("磁盘文件与当前方案不一致，请先解决后再操作。");
   }
 
   private async authorizedDirectory(selectedPath: string) {
